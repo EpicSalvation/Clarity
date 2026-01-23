@@ -52,6 +52,7 @@ clarity --confidence # Confidence monitor mode
 clarity/
 ├── CMakeLists.txt
 ├── CLAUDE.md
+├── DEVLOG.md
 ├── README.md
 ├── src/
 │   ├── Main.cpp                      # Entry point, mode routing
@@ -217,6 +218,53 @@ target_link_libraries(Clarity ClarityCore Qt6::Widgets Qt6::Quick)
 4. **Control window**: Basic UI with slide list and buttons
 5. **Integration**: Wire up IPC so control drives output
 6. **Process management**: Launch output from control app
+
+## Development Log (DEVLOG.md)
+
+**IMPORTANT**: The development log must be updated for every significant task or work session on this project.
+
+### When to Update the Devlog
+
+Update DEVLOG.md after completing:
+- Any feature implementation or enhancement
+- Bug fixes (especially non-trivial ones)
+- Architectural changes or refactoring
+- Performance optimizations
+- Build system or dependency updates
+- Documentation updates (if substantial)
+- Each work session (at minimum, daily if working continuously)
+
+### What to Include in Each Entry
+
+Each devlog entry should contain:
+
+1. **Date and Title**: Clear identifier (e.g., "2026-01-23 - Phase 1 Scaffolding Complete")
+2. **Summary**: One paragraph overview of what was accomplished
+3. **Work Completed**: Detailed list of changes, implementations, and fixes
+4. **Technical Decisions**: Any significant architectural or implementation choices made
+5. **Testing**: Testing approach and results (if applicable)
+6. **Issues/Blockers**: Any problems encountered or unresolved issues
+7. **Next Steps**: What to work on next
+8. **Commit(s)**: Branch and commit hash/message
+
+### Devlog Format
+
+Follow the template provided at the bottom of DEVLOG.md. Entries should be:
+- **Chronological**: Newest entries at the top (after the header)
+- **Detailed**: Include enough context for someone to understand what was done and why
+- **Honest**: Document problems and limitations, not just successes
+- **Actionable**: Include clear next steps
+
+### Benefits
+
+The devlog serves multiple purposes:
+- **Project history**: Track decision-making and evolution
+- **Onboarding**: Help new developers (or future you) understand the codebase
+- **Debugging**: Reference what changed when tracking down issues
+- **Communication**: Share progress with stakeholders
+- **Learning**: Reflect on what worked and what didn't
+
+**Never skip the devlog** - it takes 2-5 minutes but saves hours later when trying to remember why something was done a certain way.
 
 ## Key Constraints
 

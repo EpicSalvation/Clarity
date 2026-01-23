@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/">
+        <file alias="qml/OutputDisplay.qml">../src/Output/qml/OutputDisplay.qml</file>
+        <file alias="qml/ConfidenceMonitor.qml">../src/Confidence/qml/ConfidenceMonitor.qml</file>
+    </qresource>
+</RCC>
