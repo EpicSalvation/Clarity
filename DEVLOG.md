@@ -4,6 +4,88 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-23 - Fix Output Display Screen Selection
+
+### Summary
+Fixed a critical bug where the Output Display was not appearing on the selected screen despite the setting being stored correctly. The issue was caused by the window trying to become fullscreen before the screen was set, resulting in the window always appearing on the default screen.
+
+### Work Completed
+
+#### Root Cause Analysis
+The problem was a timing issue in the window creation and display sequence:
+1. QML file (`OutputDisplay.qml`) had `visibility: Window.FullScreen` set directly
+2. This caused the window to show fullscreen on the default screen immediately when the QML loaded
+3. The C++ code in `OutputMain.cpp` tried to set the screen afterward, but it was too late
+4. Result: Window always appeared on default screen regardless of settings
+
+#### OutputDisplay.qml (modified)
+- Removed `visibility: Window.FullScreen` property that was causing premature display
+- Added `visible: false` to prevent automatic showing
+- This gives C++ code full control over when and where the window appears
+- Window now waits for explicit show command from C++ after screen is set
+
+#### OutputMain.cpp (modified)
+- Restructured window initialization sequence for proper screen selection:
+  1. Load QML (window created but not shown)
+  2. Get window object reference
+  3. Set target screen using `setScreen()`
+  4. Set window geometry to match target screen bounds
+  5. Explicitly call `showFullScreen()` to display on correct screen
+- Added validation to ensure window object is obtained successfully
+- Enhanced debug logging to show:
+  - Target screen index and name
+  - Screen geometry being applied
+  - Confirmation of which screen window is shown on
+- Better error handling if screen index is invalid
+
+### Technical Decisions
+
+**Window Visibility Control**
+- Moved visibility control from QML to C++ because:
+  - Screen must be set before window is shown
+  - QML `visibility` property triggers immediate display
+  - C++ `showFullScreen()` provides explicit timing control
+  - Ensures proper initialization sequence
+
+**Geometry Setting**
+- Added explicit `setGeometry()` call in addition to `setScreen()` to:
+  - Ensure window bounds match target screen
+  - Handle edge cases where `setScreen()` alone might not position correctly
+  - Provide consistent behavior across platforms
+
+### Testing Approach
+
+**Manual Testing Required**:
+1. Set screen selection in Settings dialog to non-default screen
+2. Launch Output Display
+3. Verify window appears on selected screen, not default screen
+4. Try different screen selections
+5. Verify window always appears on the correct screen
+
+**Debug Output to Verify**:
+- `ProcessManager: Launching output on screen X`
+- `OutputMain: Set window to screen X (name) at geometry ...`
+- `OutputMain: Window shown in fullscreen on screen (name)`
+
+### Code Changes
+- **Modified**: `src/Output/qml/OutputDisplay.qml` (3 lines changed)
+- **Modified**: `src/Output/OutputMain.cpp` (16 lines changed)
+- **Total**: 2 files, ~19 lines modified
+
+### Issues/Blockers
+None. Fix is straightforward and addresses the root cause directly.
+
+### Next Steps
+- Test with multi-monitor setup to verify screen selection works correctly
+- Consider adding validation for when selected screen is disconnected
+- May want to add fallback behavior if selected screen is no longer available
+
+### Commit
+Branch: `claude/fix-output-display-screen-Mq1Oh`
+Commit: `6676241` - "Fix Output Display to respect screen selection setting"
+
+---
+
 ## 2026-01-23 - Screen Selection Settings Implementation
 
 ### Summary
