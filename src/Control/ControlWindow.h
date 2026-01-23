@@ -3,6 +3,7 @@
 #include "Core/Presentation.h"
 #include "Core/PresentationModel.h"
 #include "Core/IpcServer.h"
+#include "Core/SettingsManager.h"
 #include "ProcessManager.h"
 #include <QMainWindow>
 #include <QListView>
@@ -33,6 +34,7 @@ private slots:
     void onLaunchOutput();
     void onLaunchConfidence();
     void onSlideClicked(const QModelIndex& index);
+    void onSettings();
 
     // IPC handlers
     void onClientConnected(QLocalSocket* client);
@@ -52,12 +54,14 @@ private:
     QPushButton* m_clearButton;
     QPushButton* m_launchOutputButton;
     QPushButton* m_launchConfidenceButton;
+    QPushButton* m_settingsButton;
     QLabel* m_statusLabel;
 
     // Data
     PresentationModel* m_presentationModel;
     IpcServer* m_ipcServer;
     ProcessManager* m_processManager;
+    SettingsManager* m_settingsManager;
 };
 
 } // namespace Clarity

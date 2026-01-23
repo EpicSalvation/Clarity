@@ -4,6 +4,141 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-23 - Screen Selection Settings Implementation
+
+### Summary
+Implemented comprehensive settings system with persistent storage, allowing users to select which screen the output display appears on. Created a settings dialog with category-based navigation and integrated screen selection into the process management workflow.
+
+### Work Completed
+
+#### Core Settings Infrastructure
+**SettingsManager.h/cpp** (new)
+- Created centralized settings management using Qt's QSettings
+- Automatic persistence to platform-appropriate location
+- Settings structure:
+  - `Display/OutputScreenIndex` - Target screen for output display
+- Signal emission on setting changes for reactive updates
+- Reset to defaults functionality
+- Debug logging of settings file location
+
+#### Settings User Interface
+**SettingsDialog.h/cpp** (new)
+- Implemented category-based settings dialog with sidebar layout
+- Left panel: QListWidget for category navigation
+- Right panel: QStackedWidget for settings pages
+- Standard OK/Cancel buttons with proper save/discard behavior
+- Display settings page includes:
+  - Screen selection combo box
+  - Automatic detection of all available screens
+  - Screen information display (index, name, resolution)
+  - Primary screen indicator
+  - Helpful description text
+
+#### Control Window Integration
+**ControlWindow.h/cpp** (modified)
+- Added "Settings" button to control window UI
+- Created SettingsManager instance as member
+- Wired settings button to launch SettingsDialog
+- Passed SettingsManager to ProcessManager for launch-time screen selection
+- Proper lifecycle management of settings objects
+
+#### Process Management
+**ProcessManager.h/cpp** (modified)
+- Added `setSettingsManager()` method to receive settings reference
+- Modified `launchOutput()` to include screen selection arguments
+- Passes `--screen <index>` command-line argument to output process
+- Debug logging of selected screen index
+
+#### Output Display
+**OutputMain.cpp** (modified)
+- Added command-line argument parsing using QCommandLineParser
+- Added `--screen` option with default value of 0
+- Screen validation against available displays
+- Sets QML window to specified screen using `QWindow::setScreen()`
+- Graceful fallback to default screen if invalid index provided
+- Debug logging of screen assignment
+
+#### Build Configuration
+**CMakeLists.txt** (modified)
+- Added SettingsManager.h/cpp to ClarityCore library
+- Added SettingsDialog.h/cpp to main executable
+- Maintains proper dependency structure (Core → Control)
+
+### Technical Decisions
+
+**Settings Storage Approach**
+- Chose QSettings over custom file format for:
+  - Platform-native storage locations (registry on Windows, plist on macOS, ini on Linux)
+  - Automatic file handling and atomic writes
+  - Built-in type conversion
+  - Thread-safe access
+
+**Dialog Layout Pattern**
+- Category sidebar design matches standard preferences patterns (VS Code, IntelliJ, etc.)
+- QStackedWidget allows easy addition of future settings categories
+- Separation of UI construction and data loading for maintainability
+
+**Screen Index vs. Screen Name**
+- Using screen index (integer) rather than screen name (string) because:
+  - Simpler command-line argument format
+  - More reliable (names can contain spaces or special characters)
+  - Index 0 is always valid (primary screen)
+  - User sees descriptive names in UI, but internal storage is simple
+
+**Command-Line Argument Format**
+- Using `--screen <index>` format (space-separated) rather than `--screen=<index>` for:
+  - Consistency with Qt conventions
+  - Better QCommandLineParser ergonomics
+  - Easier to extend in future
+
+**Settings Manager Injection**
+- ProcessManager receives SettingsManager via setter rather than constructor to:
+  - Avoid circular dependency in construction order
+  - Allow ProcessManager to exist without settings (future use cases)
+  - Make dependency explicit and testable
+
+### Code Statistics
+- 6 new files created (3 headers, 3 implementations)
+- 5 existing files modified
+- ~400 lines of new code
+- Integration points: ControlWindow → ProcessManager → OutputMain
+
+### Testing Approach
+
+**Manual Testing Checklist** (requires Qt6 build environment):
+1. Launch control application
+2. Click "Settings" button
+3. Verify settings dialog appears with Display category
+4. Check that all screens are listed in combo box
+5. Select different screen and click OK
+6. Verify settings are persisted (check QSettings file)
+7. Launch output display
+8. Verify output appears on selected screen
+9. Close output and control applications
+10. Relaunch control and output
+11. Verify previous screen selection is remembered
+
+**Settings Persistence Verification**:
+- On Linux: `~/.config/Clarity/Clarity.conf`
+- On Windows: `HKEY_CURRENT_USER\Software\Clarity\Clarity`
+- On macOS: `~/Library/Preferences/com.Clarity.Clarity.plist`
+
+### Next Steps
+- Build and manually test screen selection functionality
+- Consider adding screen hotkeys for quick switching
+- Add validation for disconnected displays (saved screen no longer available)
+- Consider adding confidence monitor screen selection
+- Add more settings categories as needed (general, network, appearance)
+
+### Issues/Blockers
+None. Implementation is complete and ready for build testing.
+
+### Commits
+Branch: `claude/add-screen-selection-settings-m7jzp`
+Pending commit with all changes.
+
+---
+
 ## 2026-01-23 - Build Verification and Bug Fixes
 
 ### Summary

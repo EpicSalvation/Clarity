@@ -1,4 +1,5 @@
 #include "ControlWindow.h"
+#include "SettingsDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QToolBar>
@@ -15,13 +16,18 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_clearButton(nullptr)
     , m_launchOutputButton(nullptr)
     , m_launchConfidenceButton(nullptr)
+    , m_settingsButton(nullptr)
     , m_statusLabel(nullptr)
     , m_presentationModel(new PresentationModel(this))
     , m_ipcServer(new IpcServer(this))
     , m_processManager(new ProcessManager(this))
+    , m_settingsManager(new SettingsManager(this))
 {
     setupUI();
     createDemoPresentation();
+
+    // Pass settings manager to process manager
+    m_processManager->setSettingsManager(m_settingsManager);
 
     // Start IPC server
     if (m_ipcServer->start()) {
@@ -83,13 +89,16 @@ void ControlWindow::setupUI()
 
     m_launchOutputButton = new QPushButton("Launch Output Display", this);
     m_launchConfidenceButton = new QPushButton("Launch Confidence Monitor", this);
+    m_settingsButton = new QPushButton("Settings", this);
 
     connect(m_launchOutputButton, &QPushButton::clicked, this, &ControlWindow::onLaunchOutput);
     connect(m_launchConfidenceButton, &QPushButton::clicked, this, &ControlWindow::onLaunchConfidence);
+    connect(m_settingsButton, &QPushButton::clicked, this, &ControlWindow::onSettings);
 
     processLayout->addWidget(m_launchOutputButton);
     processLayout->addWidget(m_launchConfidenceButton);
     processLayout->addStretch();
+    processLayout->addWidget(m_settingsButton);
 
     mainLayout->addLayout(processLayout);
 
@@ -228,6 +237,12 @@ void ControlWindow::onMessageReceived(QLocalSocket* client, const QJsonObject& m
     qDebug() << "ControlWindow: Received message type:" << type;
 
     // Handle client messages if needed in the future
+}
+
+void ControlWindow::onSettings()
+{
+    SettingsDialog dialog(m_settingsManager, this);
+    dialog.exec();
 }
 
 } // namespace Clarity

@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find Qt6 packages
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Quick Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network)
 
 # Core library (shared between all modes)
 add_library(ClarityCore STATIC
@@ -22,6 +22,8 @@ add_library(ClarityCore STATIC
     src/Core/IpcServer.cpp
     src/Core/IpcClient.h
     src/Core/IpcClient.cpp
+    src/Core/SettingsManager.h
+    src/Core/SettingsManager.cpp
 )
 
 target_link_libraries(ClarityCore
@@ -46,6 +48,8 @@ add_executable(Clarity
     src/Control/ControlWindow.cpp
     src/Control/ProcessManager.h
     src/Control/ProcessManager.cpp
+    src/Control/SettingsDialog.h
+    src/Control/SettingsDialog.cpp
 
     # Output display files
     src/Output/OutputMain.h
@@ -64,6 +68,7 @@ add_executable(Clarity
 target_link_libraries(Clarity
     PRIVATE
         ClarityCore
+        Qt6::Gui
         Qt6::Widgets
         Qt6::Quick
         Qt6::Network

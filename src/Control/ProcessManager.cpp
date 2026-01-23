@@ -7,12 +7,18 @@ namespace Clarity {
 
 ProcessManager::ProcessManager(QObject* parent)
     : QObject(parent)
+    , m_settingsManager(nullptr)
 {
 }
 
 ProcessManager::~ProcessManager()
 {
     terminateAll();
+}
+
+void ProcessManager::setSettingsManager(SettingsManager* settingsManager)
+{
+    m_settingsManager = settingsManager;
 }
 
 bool ProcessManager::launchOutput()
@@ -30,6 +36,13 @@ bool ProcessManager::launchOutput()
 
     QStringList args;
     args << "--output";
+
+    // Add screen index if settings manager is available
+    if (m_settingsManager) {
+        int screenIndex = m_settingsManager->outputScreenIndex();
+        args << "--screen" << QString::number(screenIndex);
+        qDebug() << "ProcessManager: Launching output on screen" << screenIndex;
+    }
 
     process->setProgram(execPath);
     process->setArguments(args);
