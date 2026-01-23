@@ -31,8 +31,11 @@ void SettingsDialog::setupUI()
     setWindowTitle("Settings");
     resize(700, 500);
 
-    // Main layout: horizontal split
-    QHBoxLayout* mainLayout = new QHBoxLayout(this);
+    // Main vertical layout
+    QVBoxLayout* outerLayout = new QVBoxLayout(this);
+
+    // Horizontal layout for category list and pages
+    QHBoxLayout* contentLayout = new QHBoxLayout();
 
     // Left side: Category list
     m_categoryList = new QListWidget(this);
@@ -46,17 +49,20 @@ void SettingsDialog::setupUI()
     connect(m_categoryList, &QListWidget::currentRowChanged,
             this, &SettingsDialog::onCategoryChanged);
 
-    mainLayout->addWidget(m_categoryList);
+    contentLayout->addWidget(m_categoryList);
 
     // Right side: Stacked widget for pages
     m_pageStack = new QStackedWidget(this);
-    mainLayout->addWidget(m_pageStack, 1); // Stretch factor 1 to take remaining space
+    contentLayout->addWidget(m_pageStack, 1); // Stretch factor 1 to take remaining space
 
     // Create settings pages
     createDisplayPage();
 
     // Set initial selection
     m_categoryList->setCurrentRow(0);
+
+    // Add content layout to main layout
+    outerLayout->addLayout(contentLayout, 1);
 
     // Bottom buttons
     QDialogButtonBox* buttonBox = new QDialogButtonBox(
@@ -65,13 +71,7 @@ void SettingsDialog::setupUI()
     connect(buttonBox, &QDialogButtonBox::accepted, this, &SettingsDialog::onOkClicked);
     connect(buttonBox, &QDialogButtonBox::rejected, this, &SettingsDialog::onCancelClicked);
 
-    // Main vertical layout to include button box at bottom
-    QVBoxLayout* outerLayout = new QVBoxLayout();
-    outerLayout->addLayout(mainLayout, 1);
     outerLayout->addWidget(buttonBox);
-
-    delete layout(); // Remove the layout we created initially
-    setLayout(outerLayout);
 }
 
 void SettingsDialog::createDisplayPage()
@@ -140,11 +140,21 @@ void SettingsDialog::loadSettings()
     int screenIndex = m_settingsManager->outputScreenIndex();
 
     // Find the combo box item with this index
+    bool found = false;
     for (int i = 0; i < m_screenComboBox->count(); ++i) {
         if (m_screenComboBox->itemData(i).toInt() == screenIndex) {
             m_screenComboBox->setCurrentIndex(i);
+            found = true;
             break;
         }
+    }
+
+    // If the saved screen index is not found (e.g., screen was disconnected),
+    // default to the first available screen
+    if (!found && m_screenComboBox->count() > 0) {
+        m_screenComboBox->setCurrentIndex(0);
+        qDebug() << "SettingsDialog: Saved screen" << screenIndex
+                 << "not found, defaulting to first screen";
     }
 }
 
