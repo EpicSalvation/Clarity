@@ -46,27 +46,42 @@ int OutputMain::run(int argc, char* argv[])
     // Expose to QML
     engine.rootContext()->setContextProperty("displayController", &displayController);
 
-    // Load QML
+    // Load QML (but don't show window yet)
     engine.load(QUrl("qrc:/qml/OutputDisplay.qml"));
 
     if (engine.rootObjects().isEmpty()) {
         return -1;
     }
 
-    // Set the window to the specified screen
+    // Get the window object
+    QWindow* window = qobject_cast<QWindow*>(engine.rootObjects().first());
+    if (!window) {
+        qWarning() << "OutputMain: Failed to get window object";
+        return -1;
+    }
+
+    // Set the window to the specified screen BEFORE showing it
     QList<QScreen*> screens = QGuiApplication::screens();
     if (screenIndex >= 0 && screenIndex < screens.size()) {
-        QWindow* window = qobject_cast<QWindow*>(engine.rootObjects().first());
-        if (window) {
-            QScreen* targetScreen = screens[screenIndex];
-            window->setScreen(targetScreen);
-            qDebug() << "OutputMain: Set window to screen" << screenIndex
-                     << "(" << targetScreen->name() << ")";
-        }
+        QScreen* targetScreen = screens[screenIndex];
+
+        // Move window to target screen first
+        window->setScreen(targetScreen);
+
+        // Position window on the target screen
+        window->setGeometry(targetScreen->geometry());
+
+        qDebug() << "OutputMain: Set window to screen" << screenIndex
+                 << "(" << targetScreen->name() << ")"
+                 << "at geometry" << targetScreen->geometry();
     } else {
         qWarning() << "OutputMain: Invalid screen index" << screenIndex
-                   << "- using default screen";
+                   << "- using default screen (available screens:" << screens.size() << ")";
     }
+
+    // Now show the window in fullscreen mode
+    window->showFullScreen();
+    qDebug() << "OutputMain: Window shown in fullscreen on screen" << window->screen()->name();
 
     return app.exec();
 }

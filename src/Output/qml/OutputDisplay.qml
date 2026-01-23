@@ -14,11 +14,12 @@ import QtQuick.Window
 Window {
     id: root
 
-    // Make window fullscreen
-    visibility: Window.FullScreen
-
     // Window title (not visible in fullscreen but useful for debugging)
     title: "Clarity - Output Display"
+
+    // Don't set visibility here - let C++ code control when to show
+    // This allows screen selection to happen before the window appears
+    visible: false
 
     // Background color binds to C++ displayController.backgroundColor property
     // This creates a reactive binding - when backgroundColor changes in C++, QML updates automatically
