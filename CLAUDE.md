@@ -103,23 +103,97 @@ clarity/
 
 JSON messages over QLocalSocket. Server name: `"clarity-ipc"`
 
-### Message Types (Phase 1)
+### Transport Details
+- **Protocol**: Newline-delimited JSON messages (`\n` separator)
+- **Format**: Compact JSON (no whitespace) via `QJsonDocument::Compact`
+- **Connection**: QLocalSocket/QLocalServer
+- **Error Handling**: All JSON parsing errors are logged via `qWarning()`
+
+### Message Types
+
+#### 1. Connection Message (Client → Server)
+Sent immediately upon connection to identify the client type.
 
 ```json
-// Client identifies itself on connection
-{ "type": "connect", "clientType": "output" }
+{
+  "type": "connect",
+  "clientType": "output"
+}
+```
 
-// Server sends full slide data
-{ "type": "slideData", "index": 0, "slide": { "text": "...", "backgroundColor": "#1e3a8a", "textColor": "#ffffff" } }
+**Fields**:
+- `type` (string, required): Always `"connect"`
+- `clientType` (string, required): Either `"output"` or `"confidence"`
 
-// Navigation commands
-{ "type": "gotoSlide", "index": 3 }
+**Usage**: Sent from IpcClient on connection (IpcClient.cpp:68-71)
+
+---
+
+#### 2. Slide Data Message (Server → Client)
+Sends complete slide information to display clients.
+
+```json
+{
+  "type": "slideData",
+  "index": 0,
+  "slide": {
+    "text": "Verse 1\nAmazing grace, how sweet the sound",
+    "backgroundColor": "#1e3a8a",
+    "textColor": "#ffffff",
+    "fontFamily": "Arial",
+    "fontSize": 48
+  }
+}
+```
+
+**Fields**:
+- `type` (string, required): Always `"slideData"`
+- `index` (integer, required): Zero-based slide index in presentation
+- `slide` (object, required): Complete Slide JSON object (see JSON Format Reference below)
+
+**Usage**: Sent from ControlWindow when slides change (ControlWindow.cpp:177-180)
+
+---
+
+#### 3. Navigation Commands (Server → Client)
+
+##### Next Slide
+```json
 { "type": "nextSlide" }
-{ "type": "prevSlide" }
+```
 
-// Clear to black
+##### Previous Slide
+```json
+{ "type": "prevSlide" }
+```
+
+##### Go to Specific Slide
+```json
+{
+  "type": "gotoSlide",
+  "index": 3
+}
+```
+
+**Fields** (gotoSlide only):
+- `type` (string, required): Always `"gotoSlide"`
+- `index` (integer, required): Target slide index (zero-based)
+
+**Note**: Navigation commands are reserved for future use; current implementation sends full `slideData` messages instead.
+
+---
+
+#### 4. Clear Output (Server → Client)
+Clears the output display (black screen).
+
+```json
 { "type": "clearOutput" }
 ```
+
+**Fields**:
+- `type` (string, required): Always `"clearOutput"`
+
+**Usage**: Sent from ControlWindow clear button (ControlWindow.cpp:207-209)
 
 ## Data Models
 
@@ -153,6 +227,183 @@ class Presentation {
 - Inherits `QAbstractListModel`
 - Provides data to QListView in control window
 - Roles: `TextRole`, `BackgroundColorRole`, `TextColorRole`
+
+## JSON Format Reference
+
+This section documents all JSON formats used in Clarity for serialization, IPC, and file storage.
+
+### Slide JSON Format
+
+Complete JSON representation of a single slide.
+
+```json
+{
+  "text": "Verse 1\nAmazing grace, how sweet the sound\nThat saved a wretch like me",
+  "backgroundColor": "#1e3a8a",
+  "textColor": "#ffffff",
+  "fontFamily": "Arial",
+  "fontSize": 48
+}
+```
+
+**Fields**:
+- `text` (string, required): Slide content. Supports multi-line text with `\n` characters
+- `backgroundColor` (string, required): Background color in hex format (e.g., `#1e3a8a`)
+- `textColor` (string, required): Text color in hex format (e.g., `#ffffff`)
+- `fontFamily` (string, required): Font family name (e.g., `"Arial"`, `"Helvetica"`)
+- `fontSize` (integer, required): Font size in points (typically 24-72)
+
+**Default Values** (when deserializing with missing fields):
+- `backgroundColor`: `"#1e3a8a"` (dark blue)
+- `textColor`: `"#ffffff"` (white)
+- `fontFamily`: `"Arial"`
+- `fontSize`: `48`
+
+**Implementation**: Slide.cpp:22-42
+- Serialization: `Slide::toJson()`
+- Deserialization: `Slide::fromJson(const QJsonObject&)`
+- Color Serialization: Uses `QColor::name()` to produce hex format
+
+---
+
+### Presentation JSON Format
+
+Complete JSON representation of a presentation document.
+
+```json
+{
+  "version": "1.0",
+  "title": "Sunday Service - January 23, 2026",
+  "currentSlideIndex": 0,
+  "createdDate": "2026-01-23T10:30:45",
+  "modifiedDate": "2026-01-23T11:45:30",
+  "slides": [
+    {
+      "text": "Amazing Grace",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48
+    },
+    {
+      "text": "Verse 1\nAmazing grace, how sweet the sound",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48
+    }
+  ]
+}
+```
+
+**Fields**:
+- `version` (string, required): Format version for future compatibility. Currently `"1.0"`
+- `title` (string, required): Presentation title
+- `currentSlideIndex` (integer, required): Current slide position (zero-based)
+- `createdDate` (string, required): ISO 8601 timestamp of creation (e.g., `"2026-01-23T10:30:45"`)
+- `modifiedDate` (string, required): ISO 8601 timestamp of last modification
+- `slides` (array, required): Array of Slide JSON objects (may be empty)
+
+**Default Values** (when deserializing with missing fields):
+- `title`: `"Untitled"`
+- `currentSlideIndex`: Validated to not exceed slide count; clamped to valid range
+
+**Validation**:
+- Version must be `"1.0"` (future versions may support migration)
+- `currentSlideIndex` is validated against slide array length
+- Timestamps are auto-generated on save, preserved on load
+
+**Implementation**: Presentation.cpp:124-164
+- Serialization: `Presentation::toJson()`
+- Deserialization: `Presentation::fromJson(const QJsonObject&)`
+- Timestamp Format: Qt's `QDateTime::toString(Qt::ISODate)` produces ISO 8601
+
+---
+
+### File Format Specification
+
+#### File Extension
+`.cly` (Clarity Presentation)
+
+#### File Format
+Human-readable indented JSON using the Presentation JSON format.
+
+**Example .cly File**:
+```json
+{
+  "version": "1.0",
+  "title": "Sunday Service",
+  "currentSlideIndex": 0,
+  "createdDate": "2026-01-23T10:30:45",
+  "modifiedDate": "2026-01-23T11:45:30",
+  "slides": [
+    {
+      "text": "Welcome",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48
+    }
+  ]
+}
+```
+
+**Format Details**:
+- **Encoding**: UTF-8
+- **Whitespace**: Indented for readability (`QJsonDocument::Indented`)
+- **Structure**: Direct serialization of Presentation::toJson()
+
+**File Operations** (ControlWindow.cpp):
+- **Save** (lines 417-438):
+  - Opens file in WriteOnly mode
+  - Serializes Presentation to indented JSON
+  - Writes to disk and marks presentation as clean
+  - Auto-appends `.cly` extension if missing (line 456)
+
+- **Load** (lines 380-407):
+  - Opens file in ReadOnly mode
+  - Reads entire file content
+  - Parses JSON with error handling
+  - Deserializes via `Presentation::fromJson()`
+  - Validates structure before loading into UI
+
+**File Dialog Configuration**:
+- Default filter: `"Clarity Presentations (*.cly);;All Files (*)"`
+- Default location: User's home directory (`QDir::homePath()`)
+
+**Compatibility**:
+- Version field enables future format migrations
+- Unknown fields are ignored (forward compatibility)
+- Missing optional fields use default values (backward compatibility)
+
+---
+
+### JSON Serialization Architecture
+
+**Qt Classes Used**:
+- `QJsonObject`: Primary data structure for messages and objects
+- `QJsonArray`: Slide collections in presentations
+- `QJsonDocument`: Conversion to/from byte arrays with formatting options
+- `QJsonParseError`: Error detection during deserialization
+- `QColor::name()`: Color serialization to hex format (e.g., `#ffffff`)
+
+**Serialization Format**:
+- **IPC Messages**: Compact (no whitespace) - `QJsonDocument::Compact`
+- **File Storage**: Indented (human-readable) - `QJsonDocument::Indented`
+- **Newline Delimiter**: IPC messages are newline-delimited (`\n`)
+
+**Error Handling**:
+- All JSON parsing uses `QJsonParseError` validation
+- Invalid JSON logged with `qWarning()` but doesn't crash
+- Silent failures are logged, not thrown as exceptions
+- Missing fields fall back to documented default values
+
+**Key Files**:
+- `/home/user/Clarity/src/Core/Slide.cpp` - Slide JSON serialization
+- `/home/user/Clarity/src/Core/Presentation.cpp` - Presentation JSON serialization
+- `/home/user/Clarity/src/Core/IpcServer.cpp` - Message transmission
+- `/home/user/Clarity/src/Core/IpcClient.cpp` - Message reception
+- `/home/user/Clarity/src/Control/ControlWindow.cpp` - File I/O operations
 
 ## Qt Quick Notes
 
