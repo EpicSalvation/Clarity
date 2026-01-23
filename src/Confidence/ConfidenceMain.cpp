@@ -1,6 +1,7 @@
 #include "ConfidenceMain.h"
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QUrl>
 #include <QDebug>
 
 namespace Clarity {
