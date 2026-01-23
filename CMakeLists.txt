@@ -22,6 +22,8 @@ add_library(ClarityCore STATIC
     src/Core/IpcServer.cpp
     src/Core/IpcClient.h
     src/Core/IpcClient.cpp
+    src/Core/SettingsManager.h
+    src/Core/SettingsManager.cpp
 )
 
 target_link_libraries(ClarityCore
@@ -46,6 +48,8 @@ add_executable(Clarity
     src/Control/ControlWindow.cpp
     src/Control/ProcessManager.h
     src/Control/ProcessManager.cpp
+    src/Control/SettingsDialog.h
+    src/Control/SettingsDialog.cpp
 
     # Output display files
     src/Output/OutputMain.h

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/SettingsManager.h"
 #include <QObject>
 #include <QProcess>
 #include <QList>
@@ -17,6 +18,8 @@ class ProcessManager : public QObject {
 public:
     explicit ProcessManager(QObject* parent = nullptr);
     ~ProcessManager();
+
+    void setSettingsManager(SettingsManager* settingsManager);
 
     bool launchOutput();
     bool launchConfidence();
@@ -37,6 +40,7 @@ private:
     QString getExecutablePath() const;
 
     QList<QProcess*> m_processes;
+    SettingsManager* m_settingsManager;
 };
 
 } // namespace Clarity
