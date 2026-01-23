@@ -4,6 +4,14 @@
 #include <QHBoxLayout>
 #include <QToolBar>
 #include <QStatusBar>
+#include <QMenuBar>
+#include <QMenu>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QFile>
+#include <QJsonDocument>
+#include <QCloseEvent>
+#include <QDir>
 #include <QDebug>
 
 namespace Clarity {
@@ -22,6 +30,8 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_ipcServer(new IpcServer(this))
     , m_processManager(new ProcessManager(this))
     , m_settingsManager(new SettingsManager(this))
+    , m_currentFilePath("")
+    , m_isDirty(false)
 {
     setupUI();
     createDemoPresentation();
@@ -41,7 +51,11 @@ ControlWindow::ControlWindow(QWidget* parent)
     connect(m_ipcServer, &IpcServer::clientDisconnected, this, &ControlWindow::onClientDisconnected);
     connect(m_ipcServer, &IpcServer::messageReceived, this, &ControlWindow::onMessageReceived);
 
+    // Connect presentation modification signal
+    connect(m_presentationModel, &PresentationModel::presentationModified, this, &ControlWindow::onPresentationModified);
+
     updateUI();
+    updateWindowTitle();
 }
 
 ControlWindow::~ControlWindow()
@@ -52,6 +66,19 @@ void ControlWindow::setupUI()
 {
     setWindowTitle("Clarity - Control");
     resize(800, 600);
+
+    // Menu bar
+    QMenuBar* menuBar = new QMenuBar(this);
+    QMenu* fileMenu = menuBar->addMenu("&File");
+
+    fileMenu->addAction("&New", this, &ControlWindow::newPresentation, QKeySequence::New);
+    fileMenu->addAction("&Open...", this, &ControlWindow::openPresentation, QKeySequence::Open);
+    fileMenu->addAction("&Save", this, &ControlWindow::savePresentation, QKeySequence::Save);
+    fileMenu->addAction("Save &As...", this, &ControlWindow::saveAsPresentation, QKeySequence::SaveAs);
+    fileMenu->addSeparator();
+    fileMenu->addAction("E&xit", this, &QWidget::close, QKeySequence::Quit);
+
+    setMenuBar(menuBar);
 
     // Central widget
     QWidget* centralWidget = new QWidget(this);
@@ -243,6 +270,194 @@ void ControlWindow::onSettings()
 {
     SettingsDialog dialog(m_settingsManager, this);
     dialog.exec();
+}
+
+void ControlWindow::updateWindowTitle()
+{
+    QString title = "Clarity";
+
+    if (m_currentFilePath.isEmpty()) {
+        title += " - Untitled";
+    } else {
+        QFileInfo fileInfo(m_currentFilePath);
+        title += " - " + fileInfo.fileName();
+    }
+
+    if (m_isDirty) {
+        title += "*";
+    }
+
+    setWindowTitle(title);
+}
+
+void ControlWindow::markDirty()
+{
+    if (!m_isDirty) {
+        m_isDirty = true;
+        updateWindowTitle();
+    }
+}
+
+void ControlWindow::markClean()
+{
+    if (m_isDirty) {
+        m_isDirty = false;
+        updateWindowTitle();
+    }
+}
+
+void ControlWindow::onPresentationModified()
+{
+    markDirty();
+}
+
+bool ControlWindow::promptSaveIfDirty()
+{
+    if (!m_isDirty) {
+        return true; // Nothing to save, proceed
+    }
+
+    QMessageBox::StandardButton reply = QMessageBox::question(
+        this,
+        "Unsaved Changes",
+        "Presentation has unsaved changes. Save before continuing?",
+        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel
+    );
+
+    if (reply == QMessageBox::Save) {
+        savePresentation();
+        return !m_isDirty; // If still dirty, save failed or was cancelled
+    } else if (reply == QMessageBox::Discard) {
+        return true;
+    } else { // Cancel
+        return false;
+    }
+}
+
+void ControlWindow::closeEvent(QCloseEvent* event)
+{
+    if (promptSaveIfDirty()) {
+        event->accept();
+    } else {
+        event->ignore();
+    }
+}
+
+void ControlWindow::newPresentation()
+{
+    if (!promptSaveIfDirty()) {
+        return; // User cancelled
+    }
+
+    // Create a new blank presentation
+    Presentation newPres("Untitled");
+    newPres.addSlide(Slide("New Slide", QColor("#1e3a8a"), QColor("#ffffff")));
+
+    m_presentationModel->setPresentation(newPres);
+    m_currentFilePath.clear();
+    m_isDirty = false;
+    updateWindowTitle();
+    updateUI();
+}
+
+void ControlWindow::openPresentation()
+{
+    if (!promptSaveIfDirty()) {
+        return; // User cancelled
+    }
+
+    QString filePath = QFileDialog::getOpenFileName(
+        this,
+        "Open Presentation",
+        QDir::homePath(),
+        "Clarity Presentations (*.cly);;All Files (*.*)"
+    );
+
+    if (filePath.isEmpty()) {
+        return; // User cancelled dialog
+    }
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::critical(this, "Error", "Could not open file: " + file.errorString());
+        qCritical() << "Failed to open file:" << filePath << file.errorString();
+        return;
+    }
+
+    QByteArray data = file.readAll();
+    file.close();
+
+    QJsonDocument doc = QJsonDocument::fromJson(data);
+
+    if (doc.isNull() || !doc.isObject()) {
+        QMessageBox::critical(this, "Error", "Invalid presentation file format.");
+        qCritical() << "Invalid JSON in file:" << filePath;
+        return;
+    }
+
+    Presentation loaded = Presentation::fromJson(doc.object());
+    m_presentationModel->setPresentation(loaded);
+    m_currentFilePath = filePath;
+    m_isDirty = false;
+    updateWindowTitle();
+    updateUI();
+    broadcastCurrentSlide();
+
+    qDebug() << "Loaded presentation from:" << filePath;
+}
+
+void ControlWindow::savePresentation()
+{
+    if (m_currentFilePath.isEmpty()) {
+        // No file path yet, delegate to Save As
+        saveAsPresentation();
+        return;
+    }
+
+    QFile file(m_currentFilePath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        QMessageBox::critical(this, "Error", "Could not save file: " + file.errorString());
+        qCritical() << "Failed to open file for writing:" << m_currentFilePath << file.errorString();
+        return;
+    }
+
+    Presentation presentation = m_presentationModel->presentation();
+    QJsonObject json = presentation.toJson();
+    QJsonDocument doc(json);
+
+    qint64 written = file.write(doc.toJson(QJsonDocument::Indented));
+    file.close();
+
+    if (written == -1) {
+        QMessageBox::critical(this, "Error", "Failed to write to file.");
+        qCritical() << "Failed to write to file:" << m_currentFilePath;
+        return;
+    }
+
+    markClean();
+    qDebug() << "Saved presentation to:" << m_currentFilePath;
+}
+
+void ControlWindow::saveAsPresentation()
+{
+    QString filePath = QFileDialog::getSaveFileName(
+        this,
+        "Save Presentation As",
+        QDir::homePath(),
+        "Clarity Presentations (*.cly);;All Files (*.*)"
+    );
+
+    if (filePath.isEmpty()) {
+        return; // User cancelled dialog
+    }
+
+    // Ensure .cly extension
+    if (!filePath.endsWith(".cly", Qt::CaseInsensitive)) {
+        filePath += ".cly";
+    }
+
+    m_currentFilePath = filePath;
+    savePresentation();
 }
 
 } // namespace Clarity

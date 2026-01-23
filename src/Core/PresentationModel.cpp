@@ -58,6 +58,7 @@ void PresentationModel::setPresentation(const Presentation& presentation)
     beginResetModel();
     m_presentation = presentation;
     endResetModel();
+    emit presentationModified();
 }
 
 void PresentationModel::setCurrentSlideIndex(int index)
