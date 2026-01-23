@@ -23,6 +23,10 @@ int OutputMain::run(int argc, char* argv[])
     parser.addHelpOption();
     parser.addVersionOption();
 
+    // Add --output option (already processed by Main.cpp, but parser needs to know about it)
+    QCommandLineOption outputOption("output", "Run in output display mode");
+    parser.addOption(outputOption);
+
     QCommandLineOption screenOption("screen",
                                      "Screen index to display on",
                                      "index",
