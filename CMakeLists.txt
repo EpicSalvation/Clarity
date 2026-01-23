@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find Qt6 packages
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Quick Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network)
 
 # Core library (shared between all modes)
 add_library(ClarityCore STATIC
@@ -68,6 +68,7 @@ add_executable(Clarity
 target_link_libraries(Clarity
     PRIVATE
         ClarityCore
+        Qt6::Gui
         Qt6::Widgets
         Qt6::Quick
         Qt6::Network
