@@ -1,0 +1,58 @@
+{
+  "version": "1.0",
+  "title": "Simple Sunday Service",
+  "currentSlideIndex": 0,
+  "createdDate": "2026-01-23T11:00:00",
+  "modifiedDate": "2026-01-23T11:00:00",
+  "slides": [
+    {
+      "text": "Sunday Service\n\nJanuary 23, 2026",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 56
+    },
+    {
+      "text": "Welcome",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 72
+    },
+    {
+      "text": "Opening Prayer",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 60
+    },
+    {
+      "text": "Worship Time",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 60
+    },
+    {
+      "text": "Message\n\nPastor John Smith",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 56
+    },
+    {
+      "text": "Closing Prayer",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 60
+    },
+    {
+      "text": "Thank You!",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 72
+    }
+  ]
+}

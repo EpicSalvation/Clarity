@@ -1,0 +1,79 @@
+{
+  "version": "1.0",
+  "title": "Style Demonstration - All Features",
+  "currentSlideIndex": 0,
+  "createdDate": "2026-01-23T10:45:00",
+  "modifiedDate": "2026-01-23T10:45:00",
+  "slides": [
+    {
+      "text": "Large Title",
+      "backgroundColor": "#000000",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 72
+    },
+    {
+      "text": "Medium Text\n\nThis demonstrates\nmid-size formatting",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48
+    },
+    {
+      "text": "Smaller Text for Detailed Content\n\nThis slide uses a smaller font size\nto fit more information on screen.\nPerfect for longer passages or\ndetailed announcements.",
+      "backgroundColor": "#0f172a",
+      "textColor": "#e2e8f0",
+      "fontFamily": "Arial",
+      "fontSize": 36
+    },
+    {
+      "text": "Georgia Font\n\nA serif font that works\nwell for scripture\nand formal content",
+      "backgroundColor": "#422006",
+      "textColor": "#fef3c7",
+      "fontFamily": "Georgia",
+      "fontSize": 48
+    },
+    {
+      "text": "Helvetica Font\n\nA clean sans-serif\nfor modern presentations",
+      "backgroundColor": "#14532d",
+      "textColor": "#d1fae5",
+      "fontFamily": "Helvetica",
+      "fontSize": 48
+    },
+    {
+      "text": "Verdana Font\n\nHighly readable\neven at smaller sizes",
+      "backgroundColor": "#1e1b4b",
+      "textColor": "#e0e7ff",
+      "fontFamily": "Verdana",
+      "fontSize": 48
+    },
+    {
+      "text": "High Contrast\n\nBlack on White",
+      "backgroundColor": "#ffffff",
+      "textColor": "#000000",
+      "fontFamily": "Arial",
+      "fontSize": 60
+    },
+    {
+      "text": "Dark Blue Background\n\nClassic church presentation style",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48
+    },
+    {
+      "text": "Warm Tones\n\nOrange and cream\nfor a welcoming feel",
+      "backgroundColor": "#c2410c",
+      "textColor": "#fff7ed",
+      "fontFamily": "Georgia",
+      "fontSize": 52
+    },
+    {
+      "text": "Cool Tones\n\nTeal and light blue\nfor a calming effect",
+      "backgroundColor": "#0e7490",
+      "textColor": "#cffafe",
+      "fontFamily": "Helvetica",
+      "fontSize": 52
+    }
+  ]
+}

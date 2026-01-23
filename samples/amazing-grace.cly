@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "title": "Amazing Grace - Worship Song",
+  "currentSlideIndex": 0,
+  "createdDate": "2026-01-23T10:00:00",
+  "modifiedDate": "2026-01-23T10:00:00",
+  "slides": [
+    {
+      "text": "Amazing Grace",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 72
+    },
+    {
+      "text": "Verse 1\n\nAmazing grace, how sweet the sound\nThat saved a wretch like me\nI once was lost, but now am found\nWas blind, but now I see",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48
+    },
+    {
+      "text": "Verse 2\n\n'Twas grace that taught my heart to fear\nAnd grace my fears relieved\nHow precious did that grace appear\nThe hour I first believed",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48
+    },
+    {
+      "text": "Verse 3\n\nThrough many dangers, toils, and snares\nI have already come\n'Tis grace hath brought me safe thus far\nAnd grace will lead me home",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48
+    },
+    {
+      "text": "Verse 4\n\nWhen we've been there ten thousand years\nBright shining as the sun\nWe've no less days to sing God's praise\nThan when we'd first begun",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48
+    }
+  ]
+}
