@@ -37,12 +37,13 @@ bool ProcessManager::launchOutput()
     QStringList args;
     args << "--output";
 
-    // Add screen index if settings manager is available
+    // Add screen index (default to 0 if no settings manager)
+    int screenIndex = 0;
     if (m_settingsManager) {
-        int screenIndex = m_settingsManager->outputScreenIndex();
-        args << "--screen" << QString::number(screenIndex);
-        qDebug() << "ProcessManager: Launching output on screen" << screenIndex;
+        screenIndex = m_settingsManager->outputScreenIndex();
     }
+    args << "--screen" << QString::number(screenIndex);
+    qDebug() << "ProcessManager: Launching output on screen" << screenIndex;
 
     process->setProgram(execPath);
     process->setArguments(args);

@@ -29,6 +29,7 @@ add_library(ClarityCore STATIC
 target_link_libraries(ClarityCore
     PUBLIC
         Qt6::Core
+        Qt6::Gui
         Qt6::Network
 )
 
