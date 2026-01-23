@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "title": "Sunday Service Announcements",
+  "currentSlideIndex": 0,
+  "createdDate": "2026-01-23T10:30:00",
+  "modifiedDate": "2026-01-23T10:30:00",
+  "slides": [
+    {
+      "text": "Welcome!",
+      "backgroundColor": "#059669",
+      "textColor": "#ffffff",
+      "fontFamily": "Helvetica",
+      "fontSize": 80
+    },
+    {
+      "text": "Today's Service\n\n10:00 AM - Worship\n10:30 AM - Message\n11:15 AM - Fellowship",
+      "backgroundColor": "#0284c7",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 44
+    },
+    {
+      "text": "Youth Group\n\nFriday, 7:00 PM\nGym Building\n\nAges 12-18",
+      "backgroundColor": "#7c3aed",
+      "textColor": "#fef3c7",
+      "fontFamily": "Verdana",
+      "fontSize": 48
+    },
+    {
+      "text": "Prayer Meeting\n\nWednesday Evenings\n6:30 PM\nSanctuary\n\nAll Are Welcome",
+      "backgroundColor": "#be123c",
+      "textColor": "#fef2f2",
+      "fontFamily": "Arial",
+      "fontSize": 46
+    },
+    {
+      "text": "Community Outreach\n\nFood Drive: Jan 25-31\nDonate non-perishable items\nat the welcome desk",
+      "backgroundColor": "#ea580c",
+      "textColor": "#fffbeb",
+      "fontFamily": "Helvetica",
+      "fontSize": 42
+    }
+  ]
+}

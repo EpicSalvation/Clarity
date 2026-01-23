@@ -1,0 +1,65 @@
+{
+  "version": "1.0",
+  "title": "Psalm 23 - Scripture Reading",
+  "currentSlideIndex": 0,
+  "createdDate": "2026-01-23T10:15:00",
+  "modifiedDate": "2026-01-23T10:15:00",
+  "slides": [
+    {
+      "text": "Psalm 23",
+      "backgroundColor": "#2d3748",
+      "textColor": "#fbbf24",
+      "fontFamily": "Georgia",
+      "fontSize": 64
+    },
+    {
+      "text": "The Lord is my shepherd;\nI shall not want.",
+      "backgroundColor": "#2d3748",
+      "textColor": "#f3f4f6",
+      "fontFamily": "Georgia",
+      "fontSize": 52
+    },
+    {
+      "text": "He makes me lie down in green pastures.\nHe leads me beside still waters.\nHe restores my soul.",
+      "backgroundColor": "#2d3748",
+      "textColor": "#f3f4f6",
+      "fontFamily": "Georgia",
+      "fontSize": 48
+    },
+    {
+      "text": "He leads me in paths of righteousness\nfor his name's sake.",
+      "backgroundColor": "#2d3748",
+      "textColor": "#f3f4f6",
+      "fontFamily": "Georgia",
+      "fontSize": 52
+    },
+    {
+      "text": "Even though I walk through the valley\nof the shadow of death,\nI will fear no evil,\nfor you are with me;",
+      "backgroundColor": "#2d3748",
+      "textColor": "#f3f4f6",
+      "fontFamily": "Georgia",
+      "fontSize": 48
+    },
+    {
+      "text": "your rod and your staff,\nthey comfort me.",
+      "backgroundColor": "#2d3748",
+      "textColor": "#f3f4f6",
+      "fontFamily": "Georgia",
+      "fontSize": 52
+    },
+    {
+      "text": "You prepare a table before me\nin the presence of my enemies;\nyou anoint my head with oil;\nmy cup overflows.",
+      "backgroundColor": "#2d3748",
+      "textColor": "#f3f4f6",
+      "fontFamily": "Georgia",
+      "fontSize": 48
+    },
+    {
+      "text": "Surely goodness and mercy\nshall follow me\nall the days of my life,\nand I shall dwell in the house\nof the Lord forever.",
+      "backgroundColor": "#2d3748",
+      "textColor": "#f3f4f6",
+      "fontFamily": "Georgia",
+      "fontSize": 48
+    }
+  ]
+}
