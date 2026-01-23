@@ -27,7 +27,17 @@ public:
     explicit ControlWindow(QWidget* parent = nullptr);
     ~ControlWindow();
 
+protected:
+    void closeEvent(QCloseEvent* event) override;
+
 private slots:
+    // File operations
+    void newPresentation();
+    void openPresentation();
+    void savePresentation();
+    void saveAsPresentation();
+
+    // Navigation and control
     void onPrevSlide();
     void onNextSlide();
     void onClearOutput();
@@ -35,6 +45,7 @@ private slots:
     void onLaunchConfidence();
     void onSlideClicked(const QModelIndex& index);
     void onSettings();
+    void onPresentationModified();
 
     // IPC handlers
     void onClientConnected(QLocalSocket* client);
@@ -46,6 +57,10 @@ private:
     void createDemoPresentation();
     void updateUI();
     void broadcastCurrentSlide();
+    void updateWindowTitle();
+    bool promptSaveIfDirty();
+    void markDirty();
+    void markClean();
 
     // UI components
     QListView* m_slideListView;
@@ -62,6 +77,10 @@ private:
     IpcServer* m_ipcServer;
     ProcessManager* m_processManager;
     SettingsManager* m_settingsManager;
+
+    // File management
+    QString m_currentFilePath;
+    bool m_isDirty;
 };
 
 } // namespace Clarity

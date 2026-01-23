@@ -32,6 +32,9 @@ public:
     void insertSlide(int index, const Slide& slide);
     void removeSlide(int index);
     void clearSlides();
+    void updateSlide(int index, const Slide& slide);
+    void moveSlide(int fromIndex, int toIndex);
+    Slide getSlide(int index) const;
 
     // Navigation
     bool nextSlide();

@@ -40,6 +40,7 @@ public:
 
 signals:
     void currentSlideChanged(int index);
+    void presentationModified();
 
 private:
     Presentation m_presentation;
