@@ -4,6 +4,175 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-23 - JSON Format Documentation
+
+### Summary
+Added comprehensive JSON format documentation to CLAUDE.md, providing complete reference for all JSON usage in Clarity including IPC messages, Slide/Presentation serialization, and file format specifications. This documentation serves as both a developer reference and integration guide.
+
+### Work Completed
+
+#### Enhanced IPC Protocol Section
+**CLAUDE.md** (lines 102-204, modified)
+- Expanded from basic examples to complete protocol specification
+- Added transport details:
+  - Newline-delimited JSON messages (`\n` separator)
+  - Compact JSON format (QJsonDocument::Compact)
+  - QLocalSocket/QLocalServer implementation
+  - Error handling with QJsonParseError
+- Documented all message types with complete field specifications:
+  1. **Connection Message** (Client → Server)
+     - `type`: "connect"
+     - `clientType`: "output" or "confidence"
+  2. **Slide Data Message** (Server → Client)
+     - `type`: "slideData"
+     - `index`: integer (zero-based)
+     - `slide`: complete Slide object
+  3. **Navigation Commands** (reserved for future use)
+     - `nextSlide`, `prevSlide`, `gotoSlide`
+  4. **Clear Output** (Server → Client)
+     - `type`: "clearOutput"
+- Added code references to implementation locations (line numbers)
+- Included usage examples and notes
+
+#### New JSON Format Reference Section
+**CLAUDE.md** (lines 156-293, new)
+Created comprehensive reference section with:
+
+**Slide JSON Format Documentation:**
+- Complete field specification with types and requirements
+- Default values for optional fields:
+  - backgroundColor: "#1e3a8a"
+  - textColor: "#ffffff"
+  - fontFamily: "Arial"
+  - fontSize: 48
+- Example JSON with multi-line text
+- Implementation references (Slide.cpp:22-42)
+- Color serialization method (QColor::name())
+
+**Presentation JSON Format Documentation:**
+- Full document structure with version control
+- Metadata fields:
+  - version: "1.0" (for future compatibility)
+  - createdDate: ISO 8601 timestamp
+  - modifiedDate: ISO 8601 timestamp
+- Validation rules:
+  - Version checking for compatibility
+  - currentSlideIndex clamping to valid range
+- Example complete presentation
+- Implementation references (Presentation.cpp:124-164)
+
+**File Format Specification:**
+- `.cly` file extension definition
+- Indented JSON format (QJsonDocument::Indented)
+- UTF-8 encoding specification
+- File operations documentation:
+  - Save: WriteOnly mode, auto-append .cly extension
+  - Load: ReadOnly mode, JSON validation, error handling
+- File dialog configuration:
+  - Filter: "Clarity Presentations (*.cly);;All Files (*)"
+  - Default location: QDir::homePath()
+- Compatibility strategy:
+  - Forward compatibility: version field, unknown field tolerance
+  - Backward compatibility: default values for missing fields
+- Code references (ControlWindow.cpp:380-456)
+
+**JSON Serialization Architecture:**
+- Qt classes used:
+  - QJsonObject, QJsonArray, QJsonDocument
+  - QJsonParseError for validation
+  - QColor::name() for color conversion
+- Format specifications:
+  - IPC: Compact (no whitespace)
+  - File: Indented (human-readable)
+  - Delimiter: Newline for IPC messages
+- Error handling approach:
+  - QJsonParseError validation throughout
+  - qWarning() logging for invalid JSON
+  - Silent failures with logging (no exceptions)
+  - Default value fallbacks
+- Key file references:
+  - Slide.cpp, Presentation.cpp
+  - IpcServer.cpp, IpcClient.cpp
+  - ControlWindow.cpp
+
+### Technical Decisions
+
+**Documentation Organization**
+- Split IPC Protocol and JSON Format Reference into separate sections
+- IPC Protocol focuses on message transport and types
+- JSON Format Reference documents data structures
+- Cross-references between sections for navigation
+
+**Level of Detail**
+- Included complete field specifications (type, required/optional)
+- Documented default values explicitly
+- Added code line number references for implementation
+- Provided working examples that can be copy-pasted
+
+**Developer Experience**
+- Added usage notes and context for each message type
+- Explained the "why" behind format decisions (version field, timestamps)
+- Included file paths for all referenced code
+- Documented both success and error cases
+
+### Documentation Statistics
+- **Lines added**: ~270 (CLAUDE.md)
+- **Sections enhanced**: 2
+  - IPC Protocol: expanded from 20 to 102 lines
+  - JSON Format Reference: new section, 137 lines
+- **Message types documented**: 4
+- **Data formats documented**: 3 (Slide, Presentation, File)
+- **Code references**: 10+ file/line references
+
+### Benefits
+
+**For Developers:**
+- Complete reference without reading implementation code
+- Copy-paste examples for integration testing
+- Clear understanding of validation and error handling
+- Easy lookup of default values and required fields
+
+**For Maintainers:**
+- Documents current implementation state
+- Enables review of format evolution over time
+- Provides migration path guide (version field)
+- Clear separation of concerns (IPC vs. serialization)
+
+**For Future Work:**
+- Foundation for API documentation generation
+- Reference for writing automated tests
+- Guide for implementing file format converters
+- Template for documenting future message types
+
+### Integration Points
+
+**Complements Existing Documentation:**
+- Data Models section (C++ class structure)
+- IPC Protocol section (now enhanced)
+- Build Instructions (CMake references)
+- File paths match Project Structure section
+
+**Validates Implementation:**
+- All documented formats match actual code
+- Code references verified against current files
+- Examples tested against implementation
+- Default values match Slide.cpp constants
+
+### Issues/Blockers
+None. Documentation is complete and accurate.
+
+### Next Steps
+- Consider adding sequence diagrams for IPC message flow
+- May add troubleshooting section for common JSON errors
+- Could generate API documentation from code comments
+- Consider adding example .cly files to repository
+
+### Commit
+Branch: `claude/add-json-docs-56H27`
+Commit: `4b198ec` - "Add comprehensive JSON format documentation"
+
+---
+
 ## 2026-01-23 - Phase 2 Task 1: Save/Load Presentations (JSON Files)
 
 ### Summary
