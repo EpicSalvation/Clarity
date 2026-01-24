@@ -78,6 +78,14 @@ bool ProcessManager::launchConfidence()
     QStringList args;
     args << "--confidence";
 
+    // Add screen index (default to 0 if no settings manager)
+    int screenIndex = 0;
+    if (m_settingsManager) {
+        screenIndex = m_settingsManager->confidenceScreenIndex();
+    }
+    args << "--screen" << QString::number(screenIndex);
+    qDebug() << "ProcessManager: Launching confidence on screen" << screenIndex;
+
     process->setProgram(execPath);
     process->setArguments(args);
     process->start();

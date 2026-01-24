@@ -39,11 +39,33 @@ void SettingsManager::setOutputScreenIndex(int index)
     }
 }
 
+int SettingsManager::confidenceScreenIndex() const
+{
+    return m_settings->value("Display/ConfidenceScreenIndex", DEFAULT_CONFIDENCE_SCREEN_INDEX).toInt();
+}
+
+void SettingsManager::setConfidenceScreenIndex(int index)
+{
+    if (index < 0) {
+        qWarning() << "SettingsManager: Invalid screen index:" << index;
+        return;
+    }
+
+    int currentIndex = confidenceScreenIndex();
+    if (currentIndex != index) {
+        m_settings->setValue("Display/ConfidenceScreenIndex", index);
+        m_settings->sync(); // Ensure written to disk immediately
+        emit confidenceScreenIndexChanged(index);
+        qDebug() << "SettingsManager: Confidence screen index set to" << index;
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";
     m_settings->clear();
     emit outputScreenIndexChanged(DEFAULT_OUTPUT_SCREEN_INDEX);
+    emit confidenceScreenIndexChanged(DEFAULT_CONFIDENCE_SCREEN_INDEX);
 }
 
 } // namespace Clarity

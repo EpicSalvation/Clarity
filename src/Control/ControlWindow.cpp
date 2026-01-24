@@ -197,12 +197,30 @@ void ControlWindow::broadcastCurrentSlide()
     Slide currentSlide = presentation.currentSlide();
     int currentIndex = presentation.currentSlideIndex();
 
-    QJsonObject message;
-    message["type"] = "slideData";
-    message["index"] = currentIndex;
-    message["slide"] = currentSlide.toJson();
+    // Send standard slideData message to output displays
+    QJsonObject outputMessage;
+    outputMessage["type"] = "slideData";
+    outputMessage["index"] = currentIndex;
+    outputMessage["slide"] = currentSlide.toJson();
+    m_ipcServer->sendToClientType("output", outputMessage);
 
-    m_ipcServer->sendToAll(message);
+    // Send enhanced confidenceData message to confidence monitors
+    QJsonObject confidenceMessage;
+    confidenceMessage["type"] = "confidenceData";
+    confidenceMessage["currentIndex"] = currentIndex;
+    confidenceMessage["totalSlides"] = presentation.slideCount();
+    confidenceMessage["currentSlide"] = currentSlide.toJson();
+
+    // Add next slide if available
+    if (currentIndex < presentation.slideCount() - 1) {
+        // Temporarily move to next slide to get its data
+        Presentation tempPresentation = presentation;
+        tempPresentation.nextSlide();
+        Slide nextSlide = tempPresentation.currentSlide();
+        confidenceMessage["nextSlide"] = nextSlide.toJson();
+    }
+
+    m_ipcServer->sendToClientType("confidence", confidenceMessage);
 }
 
 void ControlWindow::onPrevSlide()

@@ -40,7 +40,8 @@ private:
     QStackedWidget* m_pageStack;
 
     // Display page widgets
-    QComboBox* m_screenComboBox;
+    QComboBox* m_outputScreenComboBox;
+    QComboBox* m_confidenceScreenComboBox;
 
     // Settings manager
     SettingsManager* m_settingsManager;
