@@ -1,5 +1,6 @@
 #include "ConfidenceDisplay.h"
 #include <QDebug>
+#include <QCoreApplication>
 
 namespace Clarity {
 
@@ -10,10 +11,18 @@ ConfidenceDisplay::ConfidenceDisplay(QObject* parent)
     , m_isCleared(true)
     , m_currentSlideIndex(0)
     , m_totalSlides(0)
+    , m_updateTimer(new QTimer(this))
+    , m_pausedElapsedMs(0)
+    , m_timerRunning(false)
 {
     connect(m_ipcClient, &IpcClient::connected, this, &ConfidenceDisplay::onConnected);
     connect(m_ipcClient, &IpcClient::disconnected, this, &ConfidenceDisplay::onDisconnected);
     connect(m_ipcClient, &IpcClient::messageReceived, this, &ConfidenceDisplay::onMessageReceived);
+
+    // Setup update timer for clock and elapsed time display
+    // Updates every second to keep the display current
+    connect(m_updateTimer, &QTimer::timeout, this, &ConfidenceDisplay::onTimerTick);
+    m_updateTimer->start(1000); // Update every second
 
     // Connect to server
     m_ipcClient->connectToServer();
@@ -120,6 +129,16 @@ void ConfidenceDisplay::onMessageReceived(const QJsonObject& message)
 
     } else if (type == "clearOutput") {
         clearDisplay();
+    } else if (type == "timerStart") {
+        startTimer();
+    } else if (type == "timerPause") {
+        pauseTimer();
+    } else if (type == "timerReset") {
+        resetTimer();
+    } else if (type == "settingsChanged") {
+        // Settings were changed in Control app, notify QML to re-read them
+        emit settingsChanged();
+        qDebug() << "ConfidenceDisplay: Settings refreshed";
     } else {
         qDebug() << "ConfidenceDisplay: Unknown message type:" << type;
     }
@@ -141,6 +160,103 @@ void ConfidenceDisplay::clearDisplay()
     emit isClearedChanged();
 
     qDebug() << "ConfidenceDisplay: Display cleared";
+}
+
+QString ConfidenceDisplay::elapsedTime() const
+{
+    // Calculate total elapsed milliseconds
+    qint64 totalMs = m_pausedElapsedMs;
+    if (m_timerRunning && m_elapsedTimer.isValid()) {
+        totalMs += m_elapsedTimer.elapsed();
+    }
+
+    // Convert to hours, minutes, seconds
+    int totalSeconds = static_cast<int>(totalMs / 1000);
+    int hours = totalSeconds / 3600;
+    int minutes = (totalSeconds % 3600) / 60;
+    int seconds = totalSeconds % 60;
+
+    // Format as HH:MM:SS
+    return QString("%1:%2:%3")
+        .arg(hours, 2, 10, QChar('0'))
+        .arg(minutes, 2, 10, QChar('0'))
+        .arg(seconds, 2, 10, QChar('0'));
+}
+
+QString ConfidenceDisplay::currentTime() const
+{
+    // Return current time in HH:MM:SS format (12-hour with AM/PM)
+    return QDateTime::currentDateTime().toString("h:mm:ss AP");
+}
+
+void ConfidenceDisplay::startTimer()
+{
+    if (!m_timerRunning) {
+        m_elapsedTimer.start();
+        m_timerRunning = true;
+        emit timerRunningChanged();
+        qDebug() << "ConfidenceDisplay: Timer started";
+    }
+}
+
+void ConfidenceDisplay::pauseTimer()
+{
+    if (m_timerRunning) {
+        // Save the current elapsed time before pausing
+        m_pausedElapsedMs += m_elapsedTimer.elapsed();
+        m_timerRunning = false;
+        emit timerRunningChanged();
+        qDebug() << "ConfidenceDisplay: Timer paused at" << elapsedTime();
+    }
+}
+
+void ConfidenceDisplay::resetTimer()
+{
+    m_pausedElapsedMs = 0;
+    m_timerRunning = false;
+    m_elapsedTimer.invalidate();
+    emit timerRunningChanged();
+    emit elapsedTimeChanged();
+    qDebug() << "ConfidenceDisplay: Timer reset";
+}
+
+void ConfidenceDisplay::onTimerTick()
+{
+    // Emit signals to update the clock display every second
+    emit currentTimeChanged();
+
+    // Also update elapsed time display if timer is running
+    if (m_timerRunning) {
+        emit elapsedTimeChanged();
+    }
+}
+
+QString ConfidenceDisplay::settingsFontFamily() const
+{
+    QSettings settings(QCoreApplication::organizationName(),
+                       QCoreApplication::applicationName());
+    return settings.value("ConfidenceMonitor/FontFamily", "Arial").toString();
+}
+
+int ConfidenceDisplay::settingsFontSize() const
+{
+    QSettings settings(QCoreApplication::organizationName(),
+                       QCoreApplication::applicationName());
+    return settings.value("ConfidenceMonitor/FontSize", 32).toInt();
+}
+
+QColor ConfidenceDisplay::settingsTextColor() const
+{
+    QSettings settings(QCoreApplication::organizationName(),
+                       QCoreApplication::applicationName());
+    return QColor(settings.value("ConfidenceMonitor/TextColor", "#ffffff").toString());
+}
+
+QColor ConfidenceDisplay::settingsBackgroundColor() const
+{
+    QSettings settings(QCoreApplication::organizationName(),
+                       QCoreApplication::applicationName());
+    return QColor(settings.value("ConfidenceMonitor/BackgroundColor", "#2a2a2a").toString());
 }
 
 } // namespace Clarity

@@ -60,12 +60,78 @@ void SettingsManager::setConfidenceScreenIndex(int index)
     }
 }
 
+QString SettingsManager::confidenceFontFamily() const
+{
+    return m_settings->value("ConfidenceMonitor/FontFamily", "Arial").toString();
+}
+
+void SettingsManager::setConfidenceFontFamily(const QString& fontFamily)
+{
+    if (confidenceFontFamily() != fontFamily) {
+        m_settings->setValue("ConfidenceMonitor/FontFamily", fontFamily);
+        m_settings->sync();
+        emit confidenceDisplaySettingsChanged();
+        qDebug() << "SettingsManager: Confidence font family set to" << fontFamily;
+    }
+}
+
+int SettingsManager::confidenceFontSize() const
+{
+    return m_settings->value("ConfidenceMonitor/FontSize", DEFAULT_CONFIDENCE_FONT_SIZE).toInt();
+}
+
+void SettingsManager::setConfidenceFontSize(int size)
+{
+    if (size < 8 || size > 200) {
+        qWarning() << "SettingsManager: Invalid font size:" << size;
+        return;
+    }
+
+    if (confidenceFontSize() != size) {
+        m_settings->setValue("ConfidenceMonitor/FontSize", size);
+        m_settings->sync();
+        emit confidenceDisplaySettingsChanged();
+        qDebug() << "SettingsManager: Confidence font size set to" << size;
+    }
+}
+
+QColor SettingsManager::confidenceTextColor() const
+{
+    return QColor(m_settings->value("ConfidenceMonitor/TextColor", "#ffffff").toString());
+}
+
+void SettingsManager::setConfidenceTextColor(const QColor& color)
+{
+    if (confidenceTextColor() != color) {
+        m_settings->setValue("ConfidenceMonitor/TextColor", color.name());
+        m_settings->sync();
+        emit confidenceDisplaySettingsChanged();
+        qDebug() << "SettingsManager: Confidence text color set to" << color.name();
+    }
+}
+
+QColor SettingsManager::confidenceBackgroundColor() const
+{
+    return QColor(m_settings->value("ConfidenceMonitor/BackgroundColor", "#2a2a2a").toString());
+}
+
+void SettingsManager::setConfidenceBackgroundColor(const QColor& color)
+{
+    if (confidenceBackgroundColor() != color) {
+        m_settings->setValue("ConfidenceMonitor/BackgroundColor", color.name());
+        m_settings->sync();
+        emit confidenceDisplaySettingsChanged();
+        qDebug() << "SettingsManager: Confidence background color set to" << color.name();
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";
     m_settings->clear();
     emit outputScreenIndexChanged(DEFAULT_OUTPUT_SCREEN_INDEX);
     emit confidenceScreenIndexChanged(DEFAULT_CONFIDENCE_SCREEN_INDEX);
+    emit confidenceDisplaySettingsChanged();
 }
 
 } // namespace Clarity

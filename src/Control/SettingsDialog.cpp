@@ -7,6 +7,7 @@
 #include <QDialogButtonBox>
 #include <QScreen>
 #include <QGuiApplication>
+#include <QColorDialog>
 #include <QDebug>
 
 namespace Clarity {
@@ -17,6 +18,12 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_pageStack(nullptr)
     , m_outputScreenComboBox(nullptr)
     , m_confidenceScreenComboBox(nullptr)
+    , m_confidenceFontComboBox(nullptr)
+    , m_confidenceFontSizeSpinBox(nullptr)
+    , m_confidenceTextColorButton(nullptr)
+    , m_confidenceBackgroundColorButton(nullptr)
+    , m_confidenceTextColor(Qt::white)
+    , m_confidenceBackgroundColor("#2a2a2a")
     , m_settingsManager(settingsManager)
 {
     setupUI();
@@ -122,11 +129,11 @@ void SettingsDialog::createDisplayPage()
 
     pageLayout->addWidget(outputGroup);
 
-    // Confidence Monitor Settings group
-    QGroupBox* confidenceGroup = new QGroupBox("Confidence Monitor", displayPage);
-    QFormLayout* confidenceLayout = new QFormLayout(confidenceGroup);
+    // Confidence Monitor Screen Settings group
+    QGroupBox* confidenceScreenGroup = new QGroupBox("Confidence Monitor Screen", displayPage);
+    QFormLayout* confidenceScreenLayout = new QFormLayout(confidenceScreenGroup);
 
-    m_confidenceScreenComboBox = new QComboBox(confidenceGroup);
+    m_confidenceScreenComboBox = new QComboBox(confidenceScreenGroup);
 
     // Populate with available screens
     for (int i = 0; i < screens.size(); ++i) {
@@ -150,16 +157,53 @@ void SettingsDialog::createDisplayPage()
         m_confidenceScreenComboBox->addItem(screenInfo, i);
     }
 
-    confidenceLayout->addRow("Screen:", m_confidenceScreenComboBox);
+    confidenceScreenLayout->addRow("Screen:", m_confidenceScreenComboBox);
 
     QLabel* confidenceHelpLabel = new QLabel(
         "Select which screen the confidence monitor will appear on when launched.",
-        confidenceGroup);
+        confidenceScreenGroup);
     confidenceHelpLabel->setWordWrap(true);
     confidenceHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
-    confidenceLayout->addRow(confidenceHelpLabel);
+    confidenceScreenLayout->addRow(confidenceHelpLabel);
 
-    pageLayout->addWidget(confidenceGroup);
+    pageLayout->addWidget(confidenceScreenGroup);
+
+    // Confidence Monitor Display Settings group
+    QGroupBox* confidenceDisplayGroup = new QGroupBox("Confidence Monitor Display", displayPage);
+    QFormLayout* confidenceDisplayLayout = new QFormLayout(confidenceDisplayGroup);
+
+    // Font family
+    m_confidenceFontComboBox = new QFontComboBox(confidenceDisplayGroup);
+    confidenceDisplayLayout->addRow("Font:", m_confidenceFontComboBox);
+
+    // Font size
+    m_confidenceFontSizeSpinBox = new QSpinBox(confidenceDisplayGroup);
+    m_confidenceFontSizeSpinBox->setRange(8, 200);
+    m_confidenceFontSizeSpinBox->setSuffix(" pt");
+    confidenceDisplayLayout->addRow("Font Size:", m_confidenceFontSizeSpinBox);
+
+    // Text color
+    m_confidenceTextColorButton = new QPushButton(confidenceDisplayGroup);
+    m_confidenceTextColorButton->setMinimumWidth(100);
+    connect(m_confidenceTextColorButton, &QPushButton::clicked,
+            this, &SettingsDialog::onConfidenceTextColorClicked);
+    confidenceDisplayLayout->addRow("Text Color:", m_confidenceTextColorButton);
+
+    // Background color
+    m_confidenceBackgroundColorButton = new QPushButton(confidenceDisplayGroup);
+    m_confidenceBackgroundColorButton->setMinimumWidth(100);
+    connect(m_confidenceBackgroundColorButton, &QPushButton::clicked,
+            this, &SettingsDialog::onConfidenceBackgroundColorClicked);
+    confidenceDisplayLayout->addRow("Background Color:", m_confidenceBackgroundColorButton);
+
+    QLabel* displayHelpLabel = new QLabel(
+        "These settings control how slide text appears on the confidence monitor.",
+        confidenceDisplayGroup);
+    displayHelpLabel->setWordWrap(true);
+    displayHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    confidenceDisplayLayout->addRow(displayHelpLabel);
+
+    pageLayout->addWidget(confidenceDisplayGroup);
 
     pageLayout->addStretch(); // Push content to top
 
@@ -219,6 +263,18 @@ void SettingsDialog::loadSettings()
         qDebug() << "SettingsDialog: Saved confidence screen" << confidenceScreenIndex
                  << "not found, defaulting to first screen";
     }
+
+    // Load confidence monitor display settings
+    QString fontFamily = m_settingsManager->confidenceFontFamily();
+    m_confidenceFontComboBox->setCurrentFont(QFont(fontFamily));
+
+    m_confidenceFontSizeSpinBox->setValue(m_settingsManager->confidenceFontSize());
+
+    m_confidenceTextColor = m_settingsManager->confidenceTextColor();
+    updateColorButtonStyle(m_confidenceTextColorButton, m_confidenceTextColor);
+
+    m_confidenceBackgroundColor = m_settingsManager->confidenceBackgroundColor();
+    updateColorButtonStyle(m_confidenceBackgroundColorButton, m_confidenceBackgroundColor);
 }
 
 void SettingsDialog::saveSettings()
@@ -235,6 +291,12 @@ void SettingsDialog::saveSettings()
     // Save confidence screen index
     int confidenceScreenIndex = m_confidenceScreenComboBox->currentData().toInt();
     m_settingsManager->setConfidenceScreenIndex(confidenceScreenIndex);
+
+    // Save confidence monitor display settings
+    m_settingsManager->setConfidenceFontFamily(m_confidenceFontComboBox->currentFont().family());
+    m_settingsManager->setConfidenceFontSize(m_confidenceFontSizeSpinBox->value());
+    m_settingsManager->setConfidenceTextColor(m_confidenceTextColor);
+    m_settingsManager->setConfidenceBackgroundColor(m_confidenceBackgroundColor);
 }
 
 void SettingsDialog::onOkClicked()
@@ -246,6 +308,37 @@ void SettingsDialog::onOkClicked()
 void SettingsDialog::onCancelClicked()
 {
     reject();
+}
+
+void SettingsDialog::onConfidenceTextColorClicked()
+{
+    QColor color = QColorDialog::getColor(m_confidenceTextColor, this, "Select Text Color");
+    if (color.isValid()) {
+        m_confidenceTextColor = color;
+        updateColorButtonStyle(m_confidenceTextColorButton, color);
+    }
+}
+
+void SettingsDialog::onConfidenceBackgroundColorClicked()
+{
+    QColor color = QColorDialog::getColor(m_confidenceBackgroundColor, this, "Select Background Color");
+    if (color.isValid()) {
+        m_confidenceBackgroundColor = color;
+        updateColorButtonStyle(m_confidenceBackgroundColorButton, color);
+    }
+}
+
+void SettingsDialog::updateColorButtonStyle(QPushButton* button, const QColor& color)
+{
+    // Set button background to the selected color
+    // Use contrasting text color for readability
+    int brightness = (color.red() * 299 + color.green() * 587 + color.blue() * 114) / 1000;
+    QString textColor = brightness > 128 ? "black" : "white";
+
+    button->setStyleSheet(QString("QPushButton { background-color: %1; color: %2; }")
+                          .arg(color.name())
+                          .arg(textColor));
+    button->setText(color.name().toUpper());
 }
 
 } // namespace Clarity

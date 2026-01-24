@@ -14,7 +14,9 @@ namespace Clarity {
 int OutputMain::run(int argc, char* argv[])
 {
     QGuiApplication app(argc, argv);
-    app.setApplicationName("Clarity Output");
+    // Use same org/app name as Control app so QSettings reads the same file
+    app.setOrganizationName("Clarity");
+    app.setApplicationName("Clarity");
     app.setApplicationVersion("1.0.0");
 
     // Parse command line arguments

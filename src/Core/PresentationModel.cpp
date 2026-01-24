@@ -112,6 +112,27 @@ void PresentationModel::removeSlide(int index)
     emit presentationModified();
 }
 
+void PresentationModel::moveSlide(int fromIndex, int toIndex)
+{
+    if (fromIndex < 0 || fromIndex >= m_presentation.slideCount() ||
+        toIndex < 0 || toIndex >= m_presentation.slideCount() ||
+        fromIndex == toIndex) {
+        return;
+    }
+
+    // Use beginMoveRows/endMoveRows for proper model notification
+    // Note: Qt's move semantics require special handling of the destination index
+    int destIndex = (toIndex > fromIndex) ? toIndex + 1 : toIndex;
+
+    if (!beginMoveRows(QModelIndex(), fromIndex, fromIndex, QModelIndex(), destIndex)) {
+        return;
+    }
+
+    m_presentation.moveSlide(fromIndex, toIndex);
+    endMoveRows();
+    emit presentationModified();
+}
+
 Slide PresentationModel::getSlide(int index) const
 {
     return m_presentation.getSlide(index);

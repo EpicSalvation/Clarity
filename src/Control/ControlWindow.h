@@ -52,6 +52,13 @@ private slots:
     void onAddSlide();
     void onEditSlide();
     void onDeleteSlide();
+    void onMoveSlideUp();
+    void onMoveSlideDown();
+
+    // Timer controls
+    void onStartTimer();
+    void onPauseTimer();
+    void onResetTimer();
 
     // IPC handlers
     void onClientConnected(QLocalSocket* client);
@@ -79,6 +86,11 @@ private:
     QPushButton* m_addSlideButton;
     QPushButton* m_editSlideButton;
     QPushButton* m_deleteSlideButton;
+    QPushButton* m_moveUpButton;
+    QPushButton* m_moveDownButton;
+    QPushButton* m_timerStartButton;
+    QPushButton* m_timerPauseButton;
+    QPushButton* m_timerResetButton;
     QLabel* m_statusLabel;
 
     // Data
