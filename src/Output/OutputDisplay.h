@@ -25,6 +25,9 @@ class OutputDisplay : public QObject {
     Q_PROPERTY(bool isCleared READ isCleared NOTIFY isClearedChanged)
     Q_PROPERTY(QString backgroundType READ backgroundType NOTIFY backgroundTypeChanged)
     Q_PROPERTY(QByteArray backgroundImageData READ backgroundImageData NOTIFY backgroundImageDataChanged)
+    Q_PROPERTY(QColor gradientStartColor READ gradientStartColor NOTIFY gradientStartColorChanged)
+    Q_PROPERTY(QColor gradientEndColor READ gradientEndColor NOTIFY gradientEndColorChanged)
+    Q_PROPERTY(int gradientAngle READ gradientAngle NOTIFY gradientAngleChanged)
 
 public:
     explicit OutputDisplay(QObject* parent = nullptr);
@@ -38,6 +41,9 @@ public:
     bool isCleared() const { return m_isCleared; }
     QString backgroundType() const { return m_backgroundType; }
     QByteArray backgroundImageData() const { return m_backgroundImageData; }
+    QColor gradientStartColor() const { return m_gradientStartColor; }
+    QColor gradientEndColor() const { return m_gradientEndColor; }
+    int gradientAngle() const { return m_gradientAngle; }
 
 signals:
     void slideTextChanged();
@@ -48,6 +54,9 @@ signals:
     void isClearedChanged();
     void backgroundTypeChanged();
     void backgroundImageDataChanged();
+    void gradientStartColorChanged();
+    void gradientEndColorChanged();
+    void gradientAngleChanged();
 
 private slots:
     void onConnected();
@@ -68,6 +77,9 @@ private:
     bool m_isCleared;
     QString m_backgroundType;
     QByteArray m_backgroundImageData;
+    QColor m_gradientStartColor;
+    QColor m_gradientEndColor;
+    int m_gradientAngle;
 };
 
 } // namespace Clarity

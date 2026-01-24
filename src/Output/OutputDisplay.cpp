@@ -12,6 +12,9 @@ OutputDisplay::OutputDisplay(QObject* parent)
     , m_fontSize(48)
     , m_isCleared(true)
     , m_backgroundType("solidColor")
+    , m_gradientStartColor("#1e3a8a")
+    , m_gradientEndColor("#60a5fa")
+    , m_gradientAngle(135)
 {
     connect(m_ipcClient, &IpcClient::connected, this, &OutputDisplay::onConnected);
     connect(m_ipcClient, &IpcClient::disconnected, this, &OutputDisplay::onDisconnected);
@@ -101,6 +104,25 @@ void OutputDisplay::updateSlide(const Slide& slide)
         changed = true;
     }
 
+    // Handle gradient properties
+    if (m_gradientStartColor != slide.gradientStartColor()) {
+        m_gradientStartColor = slide.gradientStartColor();
+        emit gradientStartColorChanged();
+        changed = true;
+    }
+
+    if (m_gradientEndColor != slide.gradientEndColor()) {
+        m_gradientEndColor = slide.gradientEndColor();
+        emit gradientEndColorChanged();
+        changed = true;
+    }
+
+    if (m_gradientAngle != slide.gradientAngle()) {
+        m_gradientAngle = slide.gradientAngle();
+        emit gradientAngleChanged();
+        changed = true;
+    }
+
     if (m_isCleared) {
         m_isCleared = false;
         emit isClearedChanged();
@@ -117,12 +139,18 @@ void OutputDisplay::clearDisplay()
     m_backgroundColor = QColor("#000000");
     m_backgroundType = "solidColor";
     m_backgroundImageData.clear();
+    m_gradientStartColor = QColor("#1e3a8a");
+    m_gradientEndColor = QColor("#60a5fa");
+    m_gradientAngle = 135;
     m_isCleared = true;
 
     emit slideTextChanged();
     emit backgroundColorChanged();
     emit backgroundTypeChanged();
     emit backgroundImageDataChanged();
+    emit gradientStartColorChanged();
+    emit gradientEndColorChanged();
+    emit gradientAngleChanged();
     emit isClearedChanged();
 
     qDebug() << "OutputDisplay: Display cleared";

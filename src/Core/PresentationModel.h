@@ -38,6 +38,13 @@ public:
     int currentSlideIndex() const { return m_presentation.currentSlideIndex(); }
     void setCurrentSlideIndex(int index);
 
+    // Slide manipulation
+    void addSlide(const Slide& slide);
+    void insertSlide(int index, const Slide& slide);
+    void updateSlide(int index, const Slide& slide);
+    void removeSlide(int index);
+    Slide getSlide(int index) const;
+
 signals:
     void currentSlideChanged(int index);
     void presentationModified();

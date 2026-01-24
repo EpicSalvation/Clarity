@@ -1,5 +1,6 @@
 #include "ControlWindow.h"
 #include "SettingsDialog.h"
+#include "SlideEditorDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QToolBar>
@@ -25,6 +26,9 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_launchOutputButton(nullptr)
     , m_launchConfidenceButton(nullptr)
     , m_settingsButton(nullptr)
+    , m_addSlideButton(nullptr)
+    , m_editSlideButton(nullptr)
+    , m_deleteSlideButton(nullptr)
     , m_statusLabel(nullptr)
     , m_presentationModel(new PresentationModel(this))
     , m_ipcServer(new IpcServer(this))
@@ -91,7 +95,26 @@ void ControlWindow::setupUI()
     m_slideListView = new QListView(this);
     m_slideListView->setModel(m_presentationModel);
     connect(m_slideListView, &QListView::clicked, this, &ControlWindow::onSlideClicked);
+    connect(m_slideListView, &QListView::doubleClicked, this, &ControlWindow::onSlideDoubleClicked);
     mainLayout->addWidget(m_slideListView);
+
+    // Slide editing buttons
+    QHBoxLayout* editLayout = new QHBoxLayout();
+
+    m_addSlideButton = new QPushButton("Add Slide", this);
+    m_editSlideButton = new QPushButton("Edit Slide", this);
+    m_deleteSlideButton = new QPushButton("Delete Slide", this);
+
+    connect(m_addSlideButton, &QPushButton::clicked, this, &ControlWindow::onAddSlide);
+    connect(m_editSlideButton, &QPushButton::clicked, this, &ControlWindow::onEditSlide);
+    connect(m_deleteSlideButton, &QPushButton::clicked, this, &ControlWindow::onDeleteSlide);
+
+    editLayout->addWidget(m_addSlideButton);
+    editLayout->addWidget(m_editSlideButton);
+    editLayout->addWidget(m_deleteSlideButton);
+    editLayout->addStretch();
+
+    mainLayout->addLayout(editLayout);
 
     // Control buttons
     QHBoxLayout* buttonLayout = new QHBoxLayout();
@@ -309,6 +332,100 @@ void ControlWindow::markClean()
 void ControlWindow::onPresentationModified()
 {
     markDirty();
+}
+
+void ControlWindow::onSlideDoubleClicked(const QModelIndex& index)
+{
+    // Double-click to edit slide
+    if (index.isValid()) {
+        onEditSlide();
+    }
+}
+
+void ControlWindow::onAddSlide()
+{
+    // Create a new slide with default values
+    Slide newSlide;
+    newSlide.setText("New Slide");
+    newSlide.setBackgroundColor(QColor("#1e3a8a"));
+    newSlide.setTextColor(QColor("#ffffff"));
+
+    // Open editor dialog
+    SlideEditorDialog dialog(this);
+    dialog.setSlide(newSlide);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        Slide editedSlide = dialog.slide();
+        m_presentationModel->addSlide(editedSlide);
+
+        // Select the new slide
+        int newIndex = m_presentationModel->rowCount() - 1;
+        m_slideListView->setCurrentIndex(m_presentationModel->index(newIndex, 0));
+        m_presentationModel->setCurrentSlideIndex(newIndex);
+        broadcastCurrentSlide();
+    }
+}
+
+void ControlWindow::onEditSlide()
+{
+    QModelIndex currentIndex = m_slideListView->currentIndex();
+    if (!currentIndex.isValid()) {
+        QMessageBox::information(this, "No Slide Selected", "Please select a slide to edit.");
+        return;
+    }
+
+    int index = currentIndex.row();
+    Slide currentSlide = m_presentationModel->getSlide(index);
+
+    // Open editor dialog
+    SlideEditorDialog dialog(this);
+    dialog.setSlide(currentSlide);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        Slide editedSlide = dialog.slide();
+        m_presentationModel->updateSlide(index, editedSlide);
+
+        // Broadcast updated slide if it's the current one
+        if (index == m_presentationModel->currentSlideIndex()) {
+            broadcastCurrentSlide();
+        }
+    }
+}
+
+void ControlWindow::onDeleteSlide()
+{
+    QModelIndex currentIndex = m_slideListView->currentIndex();
+    if (!currentIndex.isValid()) {
+        QMessageBox::information(this, "No Slide Selected", "Please select a slide to delete.");
+        return;
+    }
+
+    int index = currentIndex.row();
+
+    // Confirm deletion
+    QMessageBox::StandardButton reply = QMessageBox::question(
+        this,
+        "Delete Slide",
+        "Are you sure you want to delete this slide?",
+        QMessageBox::Yes | QMessageBox::No
+    );
+
+    if (reply == QMessageBox::Yes) {
+        m_presentationModel->removeSlide(index);
+
+        // Update UI to select next available slide
+        if (m_presentationModel->rowCount() > 0) {
+            int newIndex = qMin(index, m_presentationModel->rowCount() - 1);
+            m_slideListView->setCurrentIndex(m_presentationModel->index(newIndex, 0));
+            m_presentationModel->setCurrentSlideIndex(newIndex);
+            broadcastCurrentSlide();
+        } else {
+            // No slides left, clear output
+            onClearOutput();
+        }
+
+        updateUI();
+    }
 }
 
 bool ControlWindow::promptSaveIfDirty()

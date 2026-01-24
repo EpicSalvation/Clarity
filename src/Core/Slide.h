@@ -36,6 +36,9 @@ public:
     BackgroundType backgroundType() const { return m_backgroundType; }
     QString backgroundImagePath() const { return m_backgroundImagePath; }
     QByteArray backgroundImageData() const { return m_backgroundImageData; }
+    QColor gradientStartColor() const { return m_gradientStartColor; }
+    QColor gradientEndColor() const { return m_gradientEndColor; }
+    int gradientAngle() const { return m_gradientAngle; }
 
     // Setters
     void setText(const QString& text) { m_text = text; }
@@ -46,6 +49,9 @@ public:
     void setBackgroundType(BackgroundType type) { m_backgroundType = type; }
     void setBackgroundImagePath(const QString& path) { m_backgroundImagePath = path; }
     void setBackgroundImageData(const QByteArray& data) { m_backgroundImageData = data; }
+    void setGradientStartColor(const QColor& color) { m_gradientStartColor = color; }
+    void setGradientEndColor(const QColor& color) { m_gradientEndColor = color; }
+    void setGradientAngle(int angle) { m_gradientAngle = angle; }
 
     // JSON serialization
     QJsonObject toJson() const;
@@ -62,6 +68,11 @@ private:
     BackgroundType m_backgroundType;
     QString m_backgroundImagePath;      ///< Original image file path (for reference)
     QByteArray m_backgroundImageData;   ///< Base64-encoded image data for IPC/storage
+
+    // Phase 2: Gradient support
+    QColor m_gradientStartColor;        ///< Gradient start color
+    QColor m_gradientEndColor;          ///< Gradient end color
+    int m_gradientAngle;                ///< Gradient angle in degrees (0=top-to-bottom, 90=left-to-right)
 };
 
 } // namespace Clarity

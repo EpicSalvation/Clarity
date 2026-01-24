@@ -44,8 +44,14 @@ private slots:
     void onLaunchOutput();
     void onLaunchConfidence();
     void onSlideClicked(const QModelIndex& index);
+    void onSlideDoubleClicked(const QModelIndex& index);
     void onSettings();
     void onPresentationModified();
+
+    // Slide editing
+    void onAddSlide();
+    void onEditSlide();
+    void onDeleteSlide();
 
     // IPC handlers
     void onClientConnected(QLocalSocket* client);
@@ -70,6 +76,9 @@ private:
     QPushButton* m_launchOutputButton;
     QPushButton* m_launchConfidenceButton;
     QPushButton* m_settingsButton;
+    QPushButton* m_addSlideButton;
+    QPushButton* m_editSlideButton;
+    QPushButton* m_deleteSlideButton;
     QLabel* m_statusLabel;
 
     // Data

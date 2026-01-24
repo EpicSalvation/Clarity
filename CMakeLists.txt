@@ -51,6 +51,8 @@ add_executable(Clarity
     src/Control/ProcessManager.cpp
     src/Control/SettingsDialog.h
     src/Control/SettingsDialog.cpp
+    src/Control/SlideEditorDialog.h
+    src/Control/SlideEditorDialog.cpp
 
     # Output display files
     src/Output/OutputMain.h
