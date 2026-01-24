@@ -11,6 +11,7 @@ OutputDisplay::OutputDisplay(QObject* parent)
     , m_fontFamily("Arial")
     , m_fontSize(48)
     , m_isCleared(true)
+    , m_backgroundType("solidColor")
 {
     connect(m_ipcClient, &IpcClient::connected, this, &OutputDisplay::onConnected);
     connect(m_ipcClient, &IpcClient::disconnected, this, &OutputDisplay::onDisconnected);
@@ -80,6 +81,26 @@ void OutputDisplay::updateSlide(const Slide& slide)
         changed = true;
     }
 
+    // Handle background type and image data
+    QString bgType = "solidColor";
+    if (slide.backgroundType() == Slide::Image) {
+        bgType = "image";
+    } else if (slide.backgroundType() == Slide::Gradient) {
+        bgType = "gradient";
+    }
+
+    if (m_backgroundType != bgType) {
+        m_backgroundType = bgType;
+        emit backgroundTypeChanged();
+        changed = true;
+    }
+
+    if (m_backgroundImageData != slide.backgroundImageData()) {
+        m_backgroundImageData = slide.backgroundImageData();
+        emit backgroundImageDataChanged();
+        changed = true;
+    }
+
     if (m_isCleared) {
         m_isCleared = false;
         emit isClearedChanged();
@@ -94,10 +115,14 @@ void OutputDisplay::clearDisplay()
 {
     m_slideText.clear();
     m_backgroundColor = QColor("#000000");
+    m_backgroundType = "solidColor";
+    m_backgroundImageData.clear();
     m_isCleared = true;
 
     emit slideTextChanged();
     emit backgroundColorChanged();
+    emit backgroundTypeChanged();
+    emit backgroundImageDataChanged();
     emit isClearedChanged();
 
     qDebug() << "OutputDisplay: Display cleared";

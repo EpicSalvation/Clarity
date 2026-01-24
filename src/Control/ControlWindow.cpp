@@ -71,12 +71,12 @@ void ControlWindow::setupUI()
     QMenuBar* menuBar = new QMenuBar(this);
     QMenu* fileMenu = menuBar->addMenu("&File");
 
-    fileMenu->addAction("&New", this, &ControlWindow::newPresentation, QKeySequence::New);
-    fileMenu->addAction("&Open...", this, &ControlWindow::openPresentation, QKeySequence::Open);
-    fileMenu->addAction("&Save", this, &ControlWindow::savePresentation, QKeySequence::Save);
-    fileMenu->addAction("Save &As...", this, &ControlWindow::saveAsPresentation, QKeySequence::SaveAs);
+    fileMenu->addAction("&New", QKeySequence::New, this, &ControlWindow::newPresentation);
+    fileMenu->addAction("&Open...", QKeySequence::Open, this, &ControlWindow::openPresentation);
+    fileMenu->addAction("&Save", QKeySequence::Save, this, &ControlWindow::savePresentation);
+    fileMenu->addAction("Save &As...", QKeySequence::SaveAs, this, &ControlWindow::saveAsPresentation);
     fileMenu->addSeparator();
-    fileMenu->addAction("E&xit", this, &QWidget::close, QKeySequence::Quit);
+    fileMenu->addAction("E&xit", QKeySequence::Quit, this, &QWidget::close);
 
     setMenuBar(menuBar);
 

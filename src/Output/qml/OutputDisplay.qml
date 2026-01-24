@@ -7,9 +7,11 @@ import QtQuick.Window
  * QML Concepts used here:
  * - Window: Top-level QML type for creating windows
  * - Rectangle: Basic visual element with color and border properties
+ * - Image: Displays images from various sources (files, base64 data URLs)
  * - Text: Displays text with styling options
  * - Property bindings: text, color properties automatically update when C++ properties change
- * - Anchors: Positioning system (centerIn aligns item to parent center)
+ * - Anchors: Positioning system (centerIn aligns item to parent center, fill makes element fill parent)
+ * - Conditional visibility: visible property can be bound to expressions
  */
 Window {
     id: root
@@ -24,6 +26,28 @@ Window {
     // Background color binds to C++ displayController.backgroundColor property
     // This creates a reactive binding - when backgroundColor changes in C++, QML updates automatically
     color: displayController.backgroundColor
+
+    // Background image (only visible when backgroundType is "image")
+    // QML Image can load from data URLs: "data:image/png;base64,iVBORw0KG..."
+    Image {
+        id: backgroundImage
+
+        // Fill the entire window
+        anchors.fill: parent
+
+        // Only show when background type is image
+        visible: displayController.backgroundType === "image"
+
+        // Convert QByteArray to base64 data URL for QML Image
+        // The Image source expects a URL string, so we create a data URL from the base64 data
+        source: visible ? "data:image/png;base64," + displayController.backgroundImageData.toBase64() : ""
+
+        // Fill mode - preserveAspectCrop fills the window while maintaining aspect ratio
+        fillMode: Image.PreserveAspectCrop
+
+        // Smooth scaling for better image quality
+        smooth: true
+    }
 
     // Text element for slide content
     Text {
@@ -49,6 +73,10 @@ Window {
 
         // Limit width to 80% of screen for readability
         width: parent.width * 0.8
+
+        // Add text shadow for better readability over images
+        style: Text.Outline
+        styleColor: "black"
     }
 
     // Debug output when window loads
