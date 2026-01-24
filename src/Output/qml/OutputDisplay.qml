@@ -32,8 +32,14 @@ Window {
     Rectangle {
         id: gradientBackground
 
-        // Fill the entire window
-        anchors.fill: parent
+        // Center the rectangle in the window
+        anchors.centerIn: parent
+
+        // Make the rectangle large enough to cover the screen when rotated
+        // Use the diagonal of the screen to ensure full coverage at any rotation angle
+        // Diagonal = sqrt(width^2 + height^2), but we use width + height as a simpler upper bound
+        width: parent.width + parent.height
+        height: parent.width + parent.height
 
         // Only show when background type is gradient
         visible: displayController.backgroundType === "gradient"
