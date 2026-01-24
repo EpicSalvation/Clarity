@@ -5,6 +5,10 @@
 #include "Core/Presentation.h"
 #include <QObject>
 #include <QColor>
+#include <QTimer>
+#include <QDateTime>
+#include <QElapsedTimer>
+#include <QSettings>
 
 namespace Clarity {
 
@@ -51,6 +55,17 @@ class ConfidenceDisplay : public QObject {
     Q_PROPERTY(int currentSlideIndex READ currentSlideIndex NOTIFY currentSlideIndexChanged)
     Q_PROPERTY(int totalSlides READ totalSlides NOTIFY totalSlidesChanged)
 
+    // Timer and clock properties
+    Q_PROPERTY(QString elapsedTime READ elapsedTime NOTIFY elapsedTimeChanged)
+    Q_PROPERTY(QString currentTime READ currentTime NOTIFY currentTimeChanged)
+    Q_PROPERTY(bool timerRunning READ timerRunning NOTIFY timerRunningChanged)
+
+    // Display settings (from settings file)
+    Q_PROPERTY(QString settingsFontFamily READ settingsFontFamily NOTIFY settingsChanged)
+    Q_PROPERTY(int settingsFontSize READ settingsFontSize NOTIFY settingsChanged)
+    Q_PROPERTY(QColor settingsTextColor READ settingsTextColor NOTIFY settingsChanged)
+    Q_PROPERTY(QColor settingsBackgroundColor READ settingsBackgroundColor NOTIFY settingsChanged)
+
 public:
     explicit ConfidenceDisplay(QObject* parent = nullptr);
 
@@ -84,17 +99,38 @@ public:
     int currentSlideIndex() const { return m_currentSlideIndex; }
     int totalSlides() const { return m_totalSlides; }
 
+    // Timer and clock getters
+    QString elapsedTime() const;
+    QString currentTime() const;
+    bool timerRunning() const { return m_timerRunning; }
+
+    // Settings getters
+    QString settingsFontFamily() const;
+    int settingsFontSize() const;
+    QColor settingsTextColor() const;
+    QColor settingsBackgroundColor() const;
+
+    // Timer control methods (can be called from QML)
+    Q_INVOKABLE void startTimer();
+    Q_INVOKABLE void pauseTimer();
+    Q_INVOKABLE void resetTimer();
+
 signals:
     void currentSlideChanged();
     void nextSlideChanged();
     void isClearedChanged();
     void currentSlideIndexChanged();
     void totalSlidesChanged();
+    void elapsedTimeChanged();
+    void currentTimeChanged();
+    void timerRunningChanged();
+    void settingsChanged();
 
 private slots:
     void onConnected();
     void onDisconnected();
     void onMessageReceived(const QJsonObject& message);
+    void onTimerTick();
 
 private:
     void clearDisplay();
@@ -107,6 +143,12 @@ private:
     bool m_isCleared;
     int m_currentSlideIndex;
     int m_totalSlides;
+
+    // Timer and clock
+    QTimer* m_updateTimer;       // Updates the display every second
+    QElapsedTimer m_elapsedTimer; // Tracks elapsed presentation time
+    qint64 m_pausedElapsedMs;    // Elapsed time when paused
+    bool m_timerRunning;
 };
 
 } // namespace Clarity

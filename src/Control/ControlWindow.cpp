@@ -29,6 +29,11 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_addSlideButton(nullptr)
     , m_editSlideButton(nullptr)
     , m_deleteSlideButton(nullptr)
+    , m_moveUpButton(nullptr)
+    , m_moveDownButton(nullptr)
+    , m_timerStartButton(nullptr)
+    , m_timerPauseButton(nullptr)
+    , m_timerResetButton(nullptr)
     , m_statusLabel(nullptr)
     , m_presentationModel(new PresentationModel(this))
     , m_ipcServer(new IpcServer(this))
@@ -57,6 +62,13 @@ ControlWindow::ControlWindow(QWidget* parent)
 
     // Connect presentation modification signal
     connect(m_presentationModel, &PresentationModel::presentationModified, this, &ControlWindow::onPresentationModified);
+
+    // Broadcast settings changes to confidence monitor
+    connect(m_settingsManager, &SettingsManager::confidenceDisplaySettingsChanged, this, [this]() {
+        QJsonObject message;
+        message["type"] = "settingsChanged";
+        m_ipcServer->sendToClientType("confidence", message);
+    });
 
     updateUI();
     updateWindowTitle();
@@ -104,14 +116,20 @@ void ControlWindow::setupUI()
     m_addSlideButton = new QPushButton("Add Slide", this);
     m_editSlideButton = new QPushButton("Edit Slide", this);
     m_deleteSlideButton = new QPushButton("Delete Slide", this);
+    m_moveUpButton = new QPushButton("Move Up", this);
+    m_moveDownButton = new QPushButton("Move Down", this);
 
     connect(m_addSlideButton, &QPushButton::clicked, this, &ControlWindow::onAddSlide);
     connect(m_editSlideButton, &QPushButton::clicked, this, &ControlWindow::onEditSlide);
     connect(m_deleteSlideButton, &QPushButton::clicked, this, &ControlWindow::onDeleteSlide);
+    connect(m_moveUpButton, &QPushButton::clicked, this, &ControlWindow::onMoveSlideUp);
+    connect(m_moveDownButton, &QPushButton::clicked, this, &ControlWindow::onMoveSlideDown);
 
     editLayout->addWidget(m_addSlideButton);
     editLayout->addWidget(m_editSlideButton);
     editLayout->addWidget(m_deleteSlideButton);
+    editLayout->addWidget(m_moveUpButton);
+    editLayout->addWidget(m_moveDownButton);
     editLayout->addStretch();
 
     mainLayout->addLayout(editLayout);
@@ -131,6 +149,19 @@ void ControlWindow::setupUI()
     buttonLayout->addWidget(m_nextButton);
     buttonLayout->addWidget(m_clearButton);
     buttonLayout->addStretch();
+
+    // Timer control buttons
+    m_timerStartButton = new QPushButton("Start Timer", this);
+    m_timerPauseButton = new QPushButton("Pause Timer", this);
+    m_timerResetButton = new QPushButton("Reset Timer", this);
+
+    connect(m_timerStartButton, &QPushButton::clicked, this, &ControlWindow::onStartTimer);
+    connect(m_timerPauseButton, &QPushButton::clicked, this, &ControlWindow::onPauseTimer);
+    connect(m_timerResetButton, &QPushButton::clicked, this, &ControlWindow::onResetTimer);
+
+    buttonLayout->addWidget(m_timerStartButton);
+    buttonLayout->addWidget(m_timerPauseButton);
+    buttonLayout->addWidget(m_timerResetButton);
 
     mainLayout->addLayout(buttonLayout);
 
@@ -444,6 +475,81 @@ void ControlWindow::onDeleteSlide()
 
         updateUI();
     }
+}
+
+void ControlWindow::onMoveSlideUp()
+{
+    QModelIndex currentIndex = m_slideListView->currentIndex();
+    if (!currentIndex.isValid()) {
+        return;
+    }
+
+    int index = currentIndex.row();
+    if (index <= 0) {
+        return; // Already at top
+    }
+
+    // Move slide up (swap with previous)
+    m_presentationModel->moveSlide(index, index - 1);
+
+    // The moved slide is now at index - 1, make it the current displayed slide
+    m_presentationModel->setCurrentSlideIndex(index - 1);
+
+    updateUI();
+
+    // Set selection AFTER updateUI so the moved slide stays selected
+    m_slideListView->setCurrentIndex(m_presentationModel->index(index - 1, 0));
+
+    // Broadcast updated slide to output and confidence monitor
+    broadcastCurrentSlide();
+}
+
+void ControlWindow::onMoveSlideDown()
+{
+    QModelIndex currentIndex = m_slideListView->currentIndex();
+    if (!currentIndex.isValid()) {
+        return;
+    }
+
+    int index = currentIndex.row();
+    if (index >= m_presentationModel->rowCount() - 1) {
+        return; // Already at bottom
+    }
+
+    // Move slide down (swap with next)
+    m_presentationModel->moveSlide(index, index + 1);
+
+    // The moved slide is now at index + 1, make it the current displayed slide
+    m_presentationModel->setCurrentSlideIndex(index + 1);
+
+    updateUI();
+
+    // Set selection AFTER updateUI so the moved slide stays selected
+    m_slideListView->setCurrentIndex(m_presentationModel->index(index + 1, 0));
+
+    // Broadcast updated slide to output and confidence monitor
+    broadcastCurrentSlide();
+}
+
+void ControlWindow::onStartTimer()
+{
+    QJsonObject message;
+    message["type"] = "timerStart";
+    m_ipcServer->sendToClientType("confidence", message);
+}
+
+void ControlWindow::onPauseTimer()
+{
+    QJsonObject message;
+    message["type"] = "timerPause";
+    m_ipcServer->sendToClientType("confidence", message);
+}
+
+void ControlWindow::onResetTimer()
+{
+    QJsonObject message;
+    message["type"] = "timerReset";
+    m_ipcServer->sendToClientType("confidence", message);
 }
 
 bool ControlWindow::promptSaveIfDirty()

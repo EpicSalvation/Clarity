@@ -4,6 +4,182 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-24 - Phase 2 Completion: Confidence Monitor, Timer, Slide Reordering
+
+### Summary
+Completed all remaining Phase 2 features including full confidence monitor implementation with current/next slide display, presentation timer with start/pause/reset controls, real-time clock, slide reordering (move up/down), and confidence monitor display settings. Fixed multiple bugs related to gradient rotation, image backgrounds, and settings synchronization across processes.
+
+### Work Completed
+
+#### Confidence Monitor Implementation
+**ConfidenceDisplay.h/cpp** (new/modified)
+- Created controller class for confidence monitor QML
+- Exposed current slide properties via Q_PROPERTY:
+  - `currentSlideText`, `currentBackgroundColor`, `currentTextColor`
+  - `currentFontFamily`, `currentFontSize`, `currentBackgroundType`
+  - `currentBackgroundImageDataBase64`, `currentGradientStartColor/EndColor/Angle`
+- Exposed next slide properties with same pattern
+- Added state properties: `hasNextSlide`, `isCleared`, `currentSlideIndex`, `totalSlides`
+- Timer functionality:
+  - `elapsedTime` - formatted as HH:MM:SS
+  - `currentTime` - 12-hour format with AM/PM
+  - `timerRunning` - tracks timer state
+  - `startTimer()`, `pauseTimer()`, `resetTimer()` - Q_INVOKABLE methods
+- Settings properties for display customization:
+  - `settingsFontFamily`, `settingsFontSize`
+  - `settingsTextColor`, `settingsBackgroundColor`
+- IPC message handling for `confidenceData`, `timerStart/Pause/Reset`, `settingsChanged`
+
+**ConfidenceMonitor.qml** (rewritten)
+- Two-panel layout: Current slide (65%) + Next slide (35%)
+- Current slide panel with green "CURRENT SLIDE" header showing position (X / Y)
+- Next slide panel with orange "NEXT SLIDE" header
+- Bottom timer bar showing:
+  - Elapsed time (left, green when running)
+  - Current clock time (right)
+- Settings-based display: Uses configured font, text color, and background color
+- No slide backgrounds shown (per user requirement) - just text on settings background
+- Proper margins to prevent clock text cutoff
+
+#### Timer and Clock Feature
+- QTimer updates display every second
+- QElapsedTimer tracks presentation duration with pause support
+- `m_pausedElapsedMs` accumulates time during pauses
+- Timer controls moved to ControlWindow (not on confidence monitor)
+- IPC messages relay timer commands from Control to Confidence
+
+#### Slide Reordering
+**PresentationModel.h/cpp** (modified)
+- Added `moveSlide(int fromIndex, int toIndex)` method
+- Uses `beginMoveRows()`/`endMoveRows()` for proper Qt model notifications
+- Handles Qt's move semantics (destination index adjustment)
+- Emits `presentationModified()` for dirty tracking
+
+**ControlWindow.h/cpp** (modified)
+- Added "Move Up" and "Move Down" buttons
+- `onMoveSlideUp()` / `onMoveSlideDown()` slots
+- Selection follows moved slide (fixed bug where displaced slide was selected)
+- Current displayed slide index updates correctly
+- Broadcasts updated slide order to confidence monitor
+
+#### Confidence Monitor Settings
+**SettingsManager.h/cpp** (modified)
+- Added confidence display settings:
+  - `confidenceFontFamily()` / `setConfidenceFontFamily()`
+  - `confidenceFontSize()` / `setConfidenceFontSize()`
+  - `confidenceTextColor()` / `setConfidenceTextColor()`
+  - `confidenceBackgroundColor()` / `setConfidenceBackgroundColor()`
+- Added `confidenceDisplaySettingsChanged()` signal
+- Default values: Arial, 32pt, white text, dark gray background
+
+**SettingsDialog.h/cpp** (modified)
+- Added "Confidence Monitor Display" group in Display page
+- QFontComboBox for font selection
+- QSpinBox for font size (8-200 pt)
+- Color picker buttons for text and background colors
+- Buttons show selected color and hex code
+- Live settings update via IPC when OK clicked
+
+#### IPC Protocol Enhancements
+**New message types:**
+- `confidenceData` - Enhanced slide data for confidence monitor:
+  ```json
+  {
+    "type": "confidenceData",
+    "currentIndex": 0,
+    "totalSlides": 6,
+    "currentSlide": { ... },
+    "nextSlide": { ... }
+  }
+  ```
+- `timerStart`, `timerPause`, `timerReset` - Timer control commands
+- `settingsChanged` - Notifies confidence monitor to refresh settings
+
+**ControlWindow.cpp** (modified)
+- `broadcastCurrentSlide()` sends different messages to output vs confidence
+- Timer buttons send IPC commands to confidence monitors
+- Settings change signal triggers IPC broadcast
+
+#### Process Configuration Fix
+**ConfidenceMain.cpp** and **OutputMain.cpp** (modified)
+- Set `organizationName` and `applicationName` to match Control app
+- Ensures all processes read from same QSettings file
+- Fixed settings not applying in confidence monitor
+
+#### Bug Fixes
+- **Gradient rotation**: Fixed gradients not filling screen when rotated
+  - Calculated exact dimensions using trigonometry
+  - `width = screenWidth * |cos(θ)| + screenHeight * |sin(θ)|`
+  - `height = screenWidth * |sin(θ)| + screenHeight * |cos(θ)|`
+- **Image backgrounds**: Fixed images not displaying
+  - Added `backgroundImageDataBase64` QString property (QML can't call toBase64)
+- **Slide reorder selection**: Fixed selection jumping to displaced slide
+  - Moved `setCurrentIndex()` after `updateUI()` to prevent overwrite
+- **Clock cutoff**: Added proper margins (20px) to timer bar
+- **Settings sync**: Fixed settings not updating live
+  - Added IPC message and `settingsChanged` signal emission
+
+### Technical Decisions
+
+**Timer Location**
+- Timer runs in ConfidenceDisplay (confidence monitor process)
+- Controls are in ControlWindow (control process)
+- IPC relays commands - cleaner than syncing timer state
+
+**Confidence Monitor Display**
+- No slide backgrounds shown - just text with settings-based colors
+- Rationale: Presenter needs to read text quickly, not see pretty backgrounds
+- Keeps confidence monitor consistent regardless of slide styling
+
+**Settings Storage**
+- All processes share same QSettings file via matching org/app names
+- Settings read on-demand in ConfidenceDisplay (no caching)
+- IPC notification triggers QML property re-read
+
+**Slide Reorder Behavior**
+- Moving a slide makes it the current displayed slide
+- Next slide preview updates to reflect new order
+- Selection follows the moved slide for repeated moves
+
+### Testing
+
+Manual testing performed:
+- Slide reordering with Move Up/Down buttons
+- Timer start/pause/reset from Control window
+- Clock display updates every second
+- Settings changes apply immediately to confidence monitor
+- Confidence monitor survives Control app restart
+- All background types display correctly on Output
+- Confidence monitor shows plain text (no backgrounds)
+
+### Issues/Blockers
+None. Phase 2 is complete.
+
+### Phase 2 Summary
+
+All planned features implemented:
+- ✅ Save/Load presentations (.cly files)
+- ✅ Image backgrounds
+- ✅ Gradient backgrounds
+- ✅ Slide editor (add/edit/delete)
+- ✅ Slide reordering
+- ✅ Confidence monitor with current/next slides
+- ✅ Presentation timer
+- ✅ Real-time clock
+- ✅ Confidence monitor display settings
+
+### Next Steps
+- Commit and push Phase 2 completion
+- Plan Phase 3 features
+- Consider: Scripture lookup, song lyrics database, transitions, themes
+
+### Commit Information
+Branch: `claude/fix-gradient-rotation-MNvPO`
+Commit: (pending)
+Message: "Complete Phase 2: Confidence monitor, timer, slide reordering, settings"
+
+---
+
 ## 2026-01-24 - Gradient Backgrounds and Slide Editor Implementation
 
 ### Summary

@@ -43,6 +43,7 @@ public:
     void insertSlide(int index, const Slide& slide);
     void updateSlide(int index, const Slide& slide);
     void removeSlide(int index);
+    void moveSlide(int fromIndex, int toIndex);
     Slide getSlide(int index) const;
 
 signals:

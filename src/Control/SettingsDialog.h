@@ -6,6 +6,8 @@
 #include <QStackedWidget>
 #include <QComboBox>
 #include <QPushButton>
+#include <QFontComboBox>
+#include <QSpinBox>
 
 namespace Clarity {
 
@@ -28,12 +30,15 @@ private slots:
     void onCategoryChanged(int row);
     void onOkClicked();
     void onCancelClicked();
+    void onConfidenceTextColorClicked();
+    void onConfidenceBackgroundColorClicked();
 
 private:
     void setupUI();
     void createDisplayPage();
     void loadSettings();
     void saveSettings();
+    void updateColorButtonStyle(QPushButton* button, const QColor& color);
 
     // UI components
     QListWidget* m_categoryList;
@@ -42,6 +47,14 @@ private:
     // Display page widgets
     QComboBox* m_outputScreenComboBox;
     QComboBox* m_confidenceScreenComboBox;
+
+    // Confidence monitor display settings
+    QFontComboBox* m_confidenceFontComboBox;
+    QSpinBox* m_confidenceFontSizeSpinBox;
+    QPushButton* m_confidenceTextColorButton;
+    QPushButton* m_confidenceBackgroundColorButton;
+    QColor m_confidenceTextColor;
+    QColor m_confidenceBackgroundColor;
 
     // Settings manager
     SettingsManager* m_settingsManager;

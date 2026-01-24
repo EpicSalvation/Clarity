@@ -39,12 +39,45 @@ Window {
                 color: "#666666"
                 font.pixelSize: 32
             }
+
+            // Timer and clock always visible, even when cleared
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 60
+                color: "#2a2a2a"
+
+                // Elapsed time display (left side)
+                Text {
+                    id: elapsedTimeText
+                    anchors.left: parent.left
+                    anchors.leftMargin: 20
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: confidenceDisplay.elapsedTime
+                    color: confidenceDisplay.timerRunning ? "#00ff00" : "#ffffff"
+                    font.pixelSize: 36
+                    font.family: "Consolas"
+                }
+
+                // Current time clock (right side)
+                Text {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 20
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: confidenceDisplay.currentTime
+                    color: "#ffffff"
+                    font.pixelSize: 36
+                    font.family: "Consolas"
+                }
+            }
         }
 
         // Main content - visible when not cleared
         Row {
             anchors.fill: parent
             anchors.margins: 20
+            anchors.bottomMargin: 80  // Leave room for timer bar
             spacing: 20
             visible: !confidenceDisplay.isCleared
 
@@ -76,54 +109,24 @@ Window {
                         }
                     }
 
-                    // Current slide display
+                    // Current slide display - uses settings colors, not slide backgrounds
                     Rectangle {
                         width: parent.width
                         height: parent.height - 40
-                        color: confidenceDisplay.currentBackgroundType === "solidColor" ? confidenceDisplay.currentBackgroundColor : "transparent"
+                        color: confidenceDisplay.settingsBackgroundColor
                         clip: true
 
-                        // Gradient background for current slide
-                        Rectangle {
-                            anchors.centerIn: parent
-                            visible: confidenceDisplay.currentBackgroundType === "gradient"
-
-                            property real angleRad: confidenceDisplay.currentGradientAngle * Math.PI / 180.0
-                            property real absSin: Math.abs(Math.sin(angleRad))
-                            property real absCos: Math.abs(Math.cos(angleRad))
-
-                            width: parent.width * absCos + parent.height * absSin
-                            height: parent.width * absSin + parent.height * absCos
-                            rotation: confidenceDisplay.currentGradientAngle
-
-                            gradient: Gradient {
-                                GradientStop { position: 0.0; color: confidenceDisplay.currentGradientStartColor }
-                                GradientStop { position: 1.0; color: confidenceDisplay.currentGradientEndColor }
-                            }
-                        }
-
-                        // Image background for current slide
-                        Image {
-                            anchors.fill: parent
-                            visible: confidenceDisplay.currentBackgroundType === "image"
-                            source: visible ? "data:image/png;base64," + confidenceDisplay.currentBackgroundImageDataBase64 : ""
-                            fillMode: Image.PreserveAspectCrop
-                            smooth: true
-                        }
-
-                        // Current slide text
+                        // Current slide text using settings
                         Text {
                             anchors.centerIn: parent
                             text: confidenceDisplay.currentSlideText
-                            color: confidenceDisplay.currentTextColor
-                            font.family: confidenceDisplay.currentFontFamily
-                            font.pixelSize: confidenceDisplay.currentFontSize * 0.6 // Scale down for confidence monitor
+                            color: confidenceDisplay.settingsTextColor
+                            font.family: confidenceDisplay.settingsFontFamily
+                            font.pixelSize: confidenceDisplay.settingsFontSize
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             wrapMode: Text.WordWrap
                             width: parent.width * 0.9
-                            style: Text.Outline
-                            styleColor: "black"
                         }
                     }
                 }
@@ -157,58 +160,60 @@ Window {
                         }
                     }
 
-                    // Next slide preview
+                    // Next slide preview - uses settings colors, not slide backgrounds
                     Rectangle {
                         width: parent.width
                         height: parent.height - 35
-                        color: confidenceDisplay.hasNextSlide && confidenceDisplay.nextBackgroundType === "solidColor" ? confidenceDisplay.nextBackgroundColor : "#3a3a3a"
+                        color: confidenceDisplay.settingsBackgroundColor
                         clip: true
 
-                        // Gradient background for next slide
-                        Rectangle {
-                            anchors.centerIn: parent
-                            visible: confidenceDisplay.hasNextSlide && confidenceDisplay.nextBackgroundType === "gradient"
-
-                            property real angleRad: confidenceDisplay.nextGradientAngle * Math.PI / 180.0
-                            property real absSin: Math.abs(Math.sin(angleRad))
-                            property real absCos: Math.abs(Math.cos(angleRad))
-
-                            width: parent.width * absCos + parent.height * absSin
-                            height: parent.width * absSin + parent.height * absCos
-                            rotation: confidenceDisplay.nextGradientAngle
-
-                            gradient: Gradient {
-                                GradientStop { position: 0.0; color: confidenceDisplay.nextGradientStartColor }
-                                GradientStop { position: 1.0; color: confidenceDisplay.nextGradientEndColor }
-                            }
-                        }
-
-                        // Image background for next slide
-                        Image {
-                            anchors.fill: parent
-                            visible: confidenceDisplay.hasNextSlide && confidenceDisplay.nextBackgroundType === "image"
-                            source: visible ? "data:image/png;base64," + confidenceDisplay.nextBackgroundImageDataBase64 : ""
-                            fillMode: Image.PreserveAspectCrop
-                            smooth: true
-                        }
-
-                        // Next slide text or placeholder
+                        // Next slide text or placeholder using settings
                         Text {
                             anchors.centerIn: parent
                             text: confidenceDisplay.hasNextSlide ? confidenceDisplay.nextSlideText : "End of presentation"
-                            color: confidenceDisplay.hasNextSlide ? confidenceDisplay.nextTextColor : "#666666"
-                            font.family: confidenceDisplay.hasNextSlide ? confidenceDisplay.nextFontFamily : "Arial"
-                            font.pixelSize: confidenceDisplay.hasNextSlide ? confidenceDisplay.nextFontSize * 0.3 : 20
+                            color: confidenceDisplay.hasNextSlide ? confidenceDisplay.settingsTextColor : "#666666"
+                            font.family: confidenceDisplay.settingsFontFamily
+                            font.pixelSize: confidenceDisplay.hasNextSlide ? confidenceDisplay.settingsFontSize * 0.6 : 20
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             wrapMode: Text.WordWrap
                             width: parent.width * 0.9
-                            style: confidenceDisplay.hasNextSlide ? Text.Outline : Text.Normal
-                            styleColor: "black"
                             font.italic: !confidenceDisplay.hasNextSlide
                         }
                     }
                 }
+            }
+        }
+
+        // Timer and clock bar at bottom - visible when content is showing
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 60
+            color: "#2a2a2a"
+            visible: !confidenceDisplay.isCleared
+
+            // Elapsed time display (left side)
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: 20
+                anchors.verticalCenter: parent.verticalCenter
+                text: confidenceDisplay.elapsedTime
+                color: confidenceDisplay.timerRunning ? "#00ff00" : "#ffffff"
+                font.pixelSize: 36
+                font.family: "Consolas"
+            }
+
+            // Current time clock (right side)
+            Text {
+                anchors.right: parent.right
+                anchors.rightMargin: 20
+                anchors.verticalCenter: parent.verticalCenter
+                text: confidenceDisplay.currentTime
+                color: "#ffffff"
+                font.pixelSize: 36
+                font.family: "Consolas"
             }
         }
     }
