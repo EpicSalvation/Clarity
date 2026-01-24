@@ -23,6 +23,8 @@ class OutputDisplay : public QObject {
     Q_PROPERTY(QString fontFamily READ fontFamily NOTIFY fontFamilyChanged)
     Q_PROPERTY(int fontSize READ fontSize NOTIFY fontSizeChanged)
     Q_PROPERTY(bool isCleared READ isCleared NOTIFY isClearedChanged)
+    Q_PROPERTY(QString backgroundType READ backgroundType NOTIFY backgroundTypeChanged)
+    Q_PROPERTY(QByteArray backgroundImageData READ backgroundImageData NOTIFY backgroundImageDataChanged)
 
 public:
     explicit OutputDisplay(QObject* parent = nullptr);
@@ -34,6 +36,8 @@ public:
     QString fontFamily() const { return m_fontFamily; }
     int fontSize() const { return m_fontSize; }
     bool isCleared() const { return m_isCleared; }
+    QString backgroundType() const { return m_backgroundType; }
+    QByteArray backgroundImageData() const { return m_backgroundImageData; }
 
 signals:
     void slideTextChanged();
@@ -42,6 +46,8 @@ signals:
     void fontFamilyChanged();
     void fontSizeChanged();
     void isClearedChanged();
+    void backgroundTypeChanged();
+    void backgroundImageDataChanged();
 
 private slots:
     void onConnected();
@@ -60,6 +66,8 @@ private:
     QString m_fontFamily;
     int m_fontSize;
     bool m_isCleared;
+    QString m_backgroundType;
+    QByteArray m_backgroundImageData;
 };
 
 } // namespace Clarity
