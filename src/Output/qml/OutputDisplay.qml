@@ -79,7 +79,8 @@ Window {
 
         // Convert QByteArray to base64 data URL for QML Image
         // The Image source expects a URL string, so we create a data URL from the base64 data
-        source: visible ? "data:image/png;base64," + displayController.backgroundImageData.toBase64() : ""
+        // Note: All images are converted to PNG format when loaded in the slide editor
+        source: visible ? "data:image/png;base64," + displayController.backgroundImageDataBase64 : ""
 
         // Fill mode - preserveAspectCrop fills the window while maintaining aspect ratio
         fillMode: Image.PreserveAspectCrop

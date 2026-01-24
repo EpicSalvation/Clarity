@@ -25,6 +25,7 @@ class OutputDisplay : public QObject {
     Q_PROPERTY(bool isCleared READ isCleared NOTIFY isClearedChanged)
     Q_PROPERTY(QString backgroundType READ backgroundType NOTIFY backgroundTypeChanged)
     Q_PROPERTY(QByteArray backgroundImageData READ backgroundImageData NOTIFY backgroundImageDataChanged)
+    Q_PROPERTY(QString backgroundImageDataBase64 READ backgroundImageDataBase64 NOTIFY backgroundImageDataChanged)
     Q_PROPERTY(QColor gradientStartColor READ gradientStartColor NOTIFY gradientStartColorChanged)
     Q_PROPERTY(QColor gradientEndColor READ gradientEndColor NOTIFY gradientEndColorChanged)
     Q_PROPERTY(int gradientAngle READ gradientAngle NOTIFY gradientAngleChanged)
@@ -41,6 +42,7 @@ public:
     bool isCleared() const { return m_isCleared; }
     QString backgroundType() const { return m_backgroundType; }
     QByteArray backgroundImageData() const { return m_backgroundImageData; }
+    QString backgroundImageDataBase64() const { return QString(m_backgroundImageData.toBase64()); }
     QColor gradientStartColor() const { return m_gradientStartColor; }
     QColor gradientEndColor() const { return m_gradientEndColor; }
     int gradientAngle() const { return m_gradientAngle; }
