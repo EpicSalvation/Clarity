@@ -46,6 +46,16 @@ This directory contains sample `.cly` files for testing Clarity's features.
   - Cool tones (teal/light blue)
 - Tests edge cases and visual variety
 
+### 6. `easter-service.cly` ⭐ NEW - Phase 2
+**Use for**: Image background testing
+- 4 slides demonstrating image backgrounds (Phase 2 feature)
+- 3 slides use the Three Crosses image as background
+- 1 slide uses traditional solid color background
+- Demonstrates mixing background types in one presentation
+- Base64-encoded image data embedded in JSON (~1.6MB file size)
+- Font sizes: 42pt to 72pt
+- Easter-themed content with scripture (Luke 24:6-7)
+
 ## Feature Coverage
 
 | Feature | Files |
@@ -57,6 +67,8 @@ This directory contains sample `.cly` files for testing Clarity's features.
 | Color variety | announcements.cly, style-demo.cly |
 | Large text (60+pt) | amazing-grace.cly, style-demo.cly, simple-service.cly |
 | Small text (36pt) | style-demo.cly |
+| **Image backgrounds (Phase 2)** | **easter-service.cly** |
+| **Mixed background types** | **easter-service.cly** |
 
 ## Testing Recommendations
 
@@ -64,7 +76,8 @@ This directory contains sample `.cly` files for testing Clarity's features.
 2. **Multi-line testing**: Use `amazing-grace.cly`
 3. **Style testing**: Use `style-demo.cly`
 4. **Real-world simulation**: Use `psalm-23.cly` or `announcements.cly`
-5. **Full feature test**: Load all files and navigate through each
+5. **Image backgrounds (Phase 2)**: Use `easter-service.cly`
+6. **Full feature test**: Load all files and navigate through each
 
 ## File Format Notes
 
