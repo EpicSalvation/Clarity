@@ -63,6 +63,8 @@ add_executable(Clarity
     # Confidence monitor files
     src/Confidence/ConfidenceMain.h
     src/Confidence/ConfidenceMain.cpp
+    src/Confidence/ConfidenceDisplay.h
+    src/Confidence/ConfidenceDisplay.cpp
 
     # Resources
     resources/Resources.qrc
