@@ -70,4 +70,51 @@ void PresentationModel::setCurrentSlideIndex(int index)
     }
 }
 
+void PresentationModel::addSlide(const Slide& slide)
+{
+    int index = m_presentation.slideCount();
+    beginInsertRows(QModelIndex(), index, index);
+    m_presentation.addSlide(slide);
+    endInsertRows();
+    emit presentationModified();
+}
+
+void PresentationModel::insertSlide(int index, const Slide& slide)
+{
+    if (index < 0 || index > m_presentation.slideCount()) {
+        return;
+    }
+    beginInsertRows(QModelIndex(), index, index);
+    m_presentation.insertSlide(index, slide);
+    endInsertRows();
+    emit presentationModified();
+}
+
+void PresentationModel::updateSlide(int index, const Slide& slide)
+{
+    if (index < 0 || index >= m_presentation.slideCount()) {
+        return;
+    }
+    m_presentation.updateSlide(index, slide);
+    QModelIndex modelIndex = createIndex(index, 0);
+    emit dataChanged(modelIndex, modelIndex);
+    emit presentationModified();
+}
+
+void PresentationModel::removeSlide(int index)
+{
+    if (index < 0 || index >= m_presentation.slideCount()) {
+        return;
+    }
+    beginRemoveRows(QModelIndex(), index, index);
+    m_presentation.removeSlide(index);
+    endRemoveRows();
+    emit presentationModified();
+}
+
+Slide PresentationModel::getSlide(int index) const
+{
+    return m_presentation.getSlide(index);
+}
+
 } // namespace Clarity

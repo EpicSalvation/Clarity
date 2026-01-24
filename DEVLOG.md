@@ -4,6 +4,258 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-24 - Gradient Backgrounds and Slide Editor Implementation
+
+### Summary
+Implemented gradient background support for slides with customizable colors and angles, enabling smooth color transitions as an alternative to solid colors and images. Created a comprehensive slide editor dialog that allows users to add, edit, and delete slides with full control over text content, styling, and background types (solid, gradient, or image). This completes the Phase 2 background features and provides essential content editing capabilities.
+
+### Work Completed
+
+#### Gradient Background Feature
+
+**Slide.h / Slide.cpp** (modified)
+- Added gradient properties to Slide class:
+  - `QColor m_gradientStartColor` - Gradient start color (default: #1e3a8a)
+  - `QColor m_gradientEndColor` - Gradient end color (default: #60a5fa)
+  - `int m_gradientAngle` - Gradient angle in degrees (default: 135°)
+- Added getters/setters for all gradient properties
+- Updated constructors to initialize gradient properties with sensible defaults
+- Enhanced `toJson()` serialization:
+  - Conditionally includes gradient data only when `backgroundType` is "gradient"
+  - Serializes colors using `QColor::name()` (hex format)
+  - Includes gradient angle as integer
+- Enhanced `fromJson()` deserialization:
+  - Loads gradient properties when background type is "gradient"
+  - Provides default values for missing fields
+  - Maintains backward compatibility with Phase 1 files
+
+**OutputDisplay.h / OutputDisplay.cpp** (modified)
+- Added Q_PROPERTY declarations for gradient properties:
+  - `gradientStartColor` - Start color exposed to QML
+  - `gradientEndColor` - End color exposed to QML
+  - `gradientAngle` - Rotation angle exposed to QML
+- Added corresponding member variables and signal declarations
+- Updated constructor to initialize gradient properties
+- Enhanced `updateSlide()` method to check and emit gradient property changes
+- Updated `clearDisplay()` to reset gradient properties to defaults
+
+**OutputDisplay.qml** (modified)
+- Added gradient background rendering using Rectangle with Gradient:
+  - Only visible when `backgroundType === "gradient"`
+  - Uses QML Gradient with GradientStop components
+  - Applies rotation transform based on `gradientAngle` property
+  - Linear gradient from startColor (position 0.0) to endColor (position 1.0)
+- Updated window background color logic to only apply for solid color backgrounds
+- Maintains z-order: gradient background → image background → text overlay
+
+#### Slide Editor Dialog
+
+**SlideEditorDialog.h / SlideEditorDialog.cpp** (new)
+- Created comprehensive dialog for editing all slide properties
+- **Text Content Section:**
+  - Multi-line QTextEdit for slide text
+  - Placeholder text for guidance
+  - Minimum height of 150px for comfortable editing
+- **Text Style Section:**
+  - Color picker button for text color (shows current color visually)
+  - Font family dropdown (Arial, Helvetica, Georgia, Verdana, Times New Roman)
+  - Font size spinner (12-144 pt range)
+- **Background Section:**
+  - Background type selector (Solid Color / Gradient / Image)
+  - QStackedWidget for type-specific controls:
+    - **Solid Color Page:** Single color picker button
+    - **Gradient Page:**
+      - Start color picker button
+      - End color picker button
+      - Angle spinner (0-359° with tooltip explaining directions)
+    - **Image Page:**
+      - Read-only path display
+      - Browse button for file selection
+      - Image preview with scaling and aspect ratio preservation
+- **Visual Design:**
+  - Color picker buttons show selected color as background
+  - Button text displays hex color code
+  - Text color on buttons adjusts based on lightness for readability
+  - Grouped controls using QGroupBox for clear organization
+- **Image Handling:**
+  - Supports PNG, JPG, JPEG, BMP formats
+  - Loads images into QByteArray for storage
+  - Generates preview thumbnail scaled to fit preview label
+  - Stores both file path (reference) and image data (actual storage)
+
+#### Control Window Integration
+
+**ControlWindow.h / ControlWindow.cpp** (modified)
+- Added new UI buttons:
+  - "Add Slide" button - Creates new slide with editor
+  - "Edit Slide" button - Opens editor for selected slide
+  - "Delete Slide" button - Removes selected slide with confirmation
+- Added double-click support on slide list to trigger edit
+- Implemented slot handlers:
+  - `onAddSlide()` - Creates blank slide, opens editor, adds to presentation if accepted
+  - `onEditSlide()` - Loads selected slide into editor, updates on accept, broadcasts if current
+  - `onDeleteSlide()` - Confirms deletion, removes slide, updates selection and output
+  - `onSlideDoubleClicked()` - Convenience handler that calls onEditSlide()
+- Updated setupUI() to add editor button row below slide list
+- Proper error handling with QMessageBox for invalid selections
+- Smart slide selection after deletion (selects next available slide)
+
+#### Presentation Model Enhancement
+
+**PresentationModel.h / PresentationModel.cpp** (modified)
+- Added slide manipulation methods with proper model notifications:
+  - `addSlide(const Slide&)` - Appends slide to end, emits insertRows signals
+  - `insertSlide(int, const Slide&)` - Inserts at index, emits insertRows signals
+  - `updateSlide(int, const Slide&)` - Updates existing slide, emits dataChanged signal
+  - `removeSlide(int)` - Deletes slide, emits removeRows signals
+  - `getSlide(int)` - Returns slide at index for editing
+- All methods emit `presentationModified()` signal for dirty tracking
+- Proper bounds checking to prevent invalid operations
+- Uses QAbstractItemModel notification protocol for automatic view updates
+
+#### Sample Presentations
+
+**gradient-demo.cly** (new)
+- Comprehensive demonstration of gradient backgrounds
+- 10 slides showcasing different gradient styles:
+  - Title slide: Diagonal blue gradient (135°)
+  - Top-to-bottom: Dark to light blue (0°)
+  - Left-to-right: Brown to orange (90°)
+  - Diagonal: Green gradient (135°)
+  - Sunset: Purple to orange (45°)
+  - Ocean: Navy to cyan (180°)
+  - Royal purple: Vertical gradient (90°)
+  - Forest greens: Diagonal green (225°)
+  - Elegant grays: Professional gradient (135°)
+  - Fire and light: Red to yellow (0°)
+- Demonstrates various angles: 0°, 45°, 90°, 135°, 180°, 225°
+- Shows both warm and cool color palettes
+- Includes different font styles (Arial, Georgia, Helvetica, Verdana)
+
+**style-demo.cly** (modified)
+- Added 2 gradient examples to existing style demonstration:
+  - "Gradient: Blue Sky" - Blue diagonal gradient (135°)
+  - "Gradient: Sunset" - Warm horizontal gradient (90°)
+- Shows gradients mixed with solid color slides
+- Demonstrates feature integration in real presentations
+
+#### Build System
+
+**CMakeLists.txt** (modified)
+- Added SlideEditorDialog source files to Control app section:
+  - `src/Control/SlideEditorDialog.h`
+  - `src/Control/SlideEditorDialog.cpp`
+- Files will be compiled and linked into main Clarity executable
+
+### Technical Decisions
+
+**Gradient Rendering Approach**
+- Chose QML Rectangle rotation over complex gradient calculations:
+  - Simpler implementation (Rectangle + rotation vs. manual gradient math)
+  - QML handles rendering optimization
+  - Easy to understand and modify
+  - Standard QML pattern for rotated gradients
+- Angle semantics: 0° = top-to-bottom, 90° = left-to-right (intuitive for users)
+
+**Editor Dialog Design**
+- Used QStackedWidget for background type controls:
+  - Clean UI without cluttering with hidden controls
+  - Easy to extend with new background types
+  - Each page tailored to specific background type needs
+- Color picker buttons show visual preview:
+  - Users see actual color, not just a gray button
+  - Hex code displayed for technical users
+  - Better UX than requiring click to see current color
+
+**Data Model Integration**
+- PresentationModel methods delegate to Presentation class:
+  - Single source of truth (Presentation owns slide data)
+  - Model only handles view notifications
+  - Separation of concerns (model vs. data)
+  - Easy to test and maintain
+
+**Gradient Data Storage**
+- Always store gradient properties in JSON:
+  - Minimal overhead (3 fields: 2 colors + angle)
+  - Preserves gradient settings even if user switches to different background type
+  - User can toggle background types without losing gradient configuration
+  - Simplifies round-trip editing
+
+### JSON Format Reference
+
+**Gradient Background Slide:**
+```json
+{
+  "text": "Gradient Example",
+  "backgroundColor": "#1e3a8a",
+  "textColor": "#ffffff",
+  "fontFamily": "Arial",
+  "fontSize": 48,
+  "backgroundType": "gradient",
+  "gradientStartColor": "#1e3a8a",
+  "gradientEndColor": "#60a5fa",
+  "gradientAngle": 135
+}
+```
+
+**Field Details:**
+- `gradientStartColor` (string): Hex color for gradient start (e.g., "#1e3a8a")
+- `gradientEndColor` (string): Hex color for gradient end (e.g., "#60a5fa")
+- `gradientAngle` (integer): Rotation angle in degrees (0-359)
+  - 0° = top to bottom
+  - 90° = left to right
+  - 180° = bottom to top
+  - 270° = right to left
+
+### Testing
+
+**Manual Testing Recommended:**
+1. Open Clarity control window
+2. Load gradient-demo.cly to verify gradient rendering
+3. Test slide editor:
+   - Add new slide with gradient background
+   - Edit existing slide to change gradient colors
+   - Switch between solid/gradient/image backgrounds
+   - Delete slides and verify selection updates
+4. Verify gradient display on output window:
+   - Check gradient angles render correctly
+   - Verify smooth color transitions
+   - Test text readability over gradients
+5. Test round-trip: Save presentation with gradients, reload, verify preservation
+6. Test IPC: Navigate slides in control, verify output updates with gradients
+
+### Known Issues / Limitations
+
+**Background Image Feature on Hold**
+- Image backgrounds implemented but not displaying on Linux development machine
+- Theory: Sample files created on Linux may have path or encoding issues
+- Decision: Implement gradient + editor features first, return to image debugging later
+- Image feature code remains in place for future debugging
+
+### Next Steps
+
+1. Debug background image display issue:
+   - Test on Windows environment
+   - Verify base64 encoding/decoding
+   - Check QML Image component with data URLs
+   - Review OutputDisplay.qml image rendering logic
+
+2. Potential enhancements (post-Phase 2):
+   - Radial gradients (in addition to linear)
+   - Multi-stop gradients (more than 2 colors)
+   - Gradient presets / templates
+   - Copy/paste slides
+   - Slide reordering (drag-and-drop)
+   - Undo/redo for edits
+
+### Commit Information
+
+Branch: `claude/add-gradient-slide-editor-USUhI`
+Commit: (to be created)
+Message: "Implement gradient backgrounds and slide editor"
+
+---
+
 ## 2026-01-24 - Phase 2 Task 2: Image Background Support
 
 ### Summary

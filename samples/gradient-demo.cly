@@ -1,0 +1,119 @@
+{
+  "version": "1.0",
+  "title": "Gradient Backgrounds Demo",
+  "currentSlideIndex": 0,
+  "createdDate": "2026-01-24T10:00:00",
+  "modifiedDate": "2026-01-24T10:00:00",
+  "slides": [
+    {
+      "text": "Gradient Backgrounds",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 72,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#1e3a8a",
+      "gradientEndColor": "#60a5fa",
+      "gradientAngle": 135
+    },
+    {
+      "text": "Top to Bottom\n\nClassic vertical gradient\nfrom dark to light blue",
+      "backgroundColor": "#0f172a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#0f172a",
+      "gradientEndColor": "#3b82f6",
+      "gradientAngle": 0
+    },
+    {
+      "text": "Left to Right\n\nHorizontal gradient\nfor dynamic presentations",
+      "backgroundColor": "#7c2d12",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#7c2d12",
+      "gradientEndColor": "#fb923c",
+      "gradientAngle": 90
+    },
+    {
+      "text": "Diagonal Gradient\n\n135° angle creates\na dynamic diagonal sweep",
+      "backgroundColor": "#14532d",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#14532d",
+      "gradientEndColor": "#86efac",
+      "gradientAngle": 135
+    },
+    {
+      "text": "Sunset Colors\n\nWarm gradient from\ndeep purple to golden orange",
+      "backgroundColor": "#581c87",
+      "textColor": "#ffffff",
+      "fontFamily": "Georgia",
+      "fontSize": 48,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#581c87",
+      "gradientEndColor": "#f97316",
+      "gradientAngle": 45
+    },
+    {
+      "text": "Ocean Blues\n\nCool gradient from\ndeep navy to bright cyan",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#1e3a8a",
+      "gradientEndColor": "#22d3ee",
+      "gradientAngle": 180
+    },
+    {
+      "text": "Royal Purple\n\nRich gradient for\nspecial occasions",
+      "backgroundColor": "#4c1d95",
+      "textColor": "#f3e8ff",
+      "fontFamily": "Georgia",
+      "fontSize": 52,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#4c1d95",
+      "gradientEndColor": "#c084fc",
+      "gradientAngle": 90
+    },
+    {
+      "text": "Forest Greens\n\nNatural gradient\nfrom dark forest to spring green",
+      "backgroundColor": "#14532d",
+      "textColor": "#ffffff",
+      "fontFamily": "Verdana",
+      "fontSize": 48,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#14532d",
+      "gradientEndColor": "#4ade80",
+      "gradientAngle": 225
+    },
+    {
+      "text": "Elegant Grays\n\nSubtle gradient\nfor professional presentations",
+      "backgroundColor": "#18181b",
+      "textColor": "#ffffff",
+      "fontFamily": "Helvetica",
+      "fontSize": 48,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#18181b",
+      "gradientEndColor": "#71717a",
+      "gradientAngle": 135
+    },
+    {
+      "text": "Fire and Light\n\nDramatic gradient\nfrom deep red to bright yellow",
+      "backgroundColor": "#7f1d1d",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 52,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#7f1d1d",
+      "gradientEndColor": "#fde047",
+      "gradientAngle": 0
+    }
+  ]
+}

@@ -8,6 +8,9 @@ Slide::Slide()
     , m_fontFamily("Arial")
     , m_fontSize(48)
     , m_backgroundType(SolidColor)
+    , m_gradientStartColor("#1e3a8a")
+    , m_gradientEndColor("#60a5fa")
+    , m_gradientAngle(135)
 {
 }
 
@@ -18,6 +21,9 @@ Slide::Slide(const QString& text, const QColor& backgroundColor, const QColor& t
     , m_fontFamily("Arial")
     , m_fontSize(48)
     , m_backgroundType(SolidColor)
+    , m_gradientStartColor("#1e3a8a")
+    , m_gradientEndColor("#60a5fa")
+    , m_gradientAngle(135)
 {
 }
 
@@ -51,6 +57,13 @@ QJsonObject Slide::toJson() const
         json["backgroundImageData"] = QString(m_backgroundImageData.toBase64());
     }
 
+    // Include gradient data if background type is Gradient
+    if (m_backgroundType == Gradient) {
+        json["gradientStartColor"] = m_gradientStartColor.name();
+        json["gradientEndColor"] = m_gradientEndColor.name();
+        json["gradientAngle"] = m_gradientAngle;
+    }
+
     return json;
 }
 
@@ -74,6 +87,9 @@ Slide Slide::fromJson(const QJsonObject& json)
         slide.m_backgroundImageData = QByteArray::fromBase64(base64Data.toUtf8());
     } else if (bgTypeString == "gradient") {
         slide.m_backgroundType = Gradient;
+        slide.m_gradientStartColor = QColor(json["gradientStartColor"].toString("#1e3a8a"));
+        slide.m_gradientEndColor = QColor(json["gradientEndColor"].toString("#60a5fa"));
+        slide.m_gradientAngle = json["gradientAngle"].toInt(135);
     } else {
         slide.m_backgroundType = SolidColor;
     }

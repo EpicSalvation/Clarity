@@ -74,6 +74,28 @@
       "textColor": "#cffafe",
       "fontFamily": "Helvetica",
       "fontSize": 52
+    },
+    {
+      "text": "Gradient: Blue Sky\n\nSmooth transition from\ndeep blue to light blue",
+      "backgroundColor": "#1e3a8a",
+      "textColor": "#ffffff",
+      "fontFamily": "Arial",
+      "fontSize": 48,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#1e3a8a",
+      "gradientEndColor": "#60a5fa",
+      "gradientAngle": 135
+    },
+    {
+      "text": "Gradient: Sunset\n\nWarm colors create\na welcoming atmosphere",
+      "backgroundColor": "#7c2d12",
+      "textColor": "#ffffff",
+      "fontFamily": "Georgia",
+      "fontSize": 48,
+      "backgroundType": "gradient",
+      "gradientStartColor": "#7c2d12",
+      "gradientEndColor": "#fbbf24",
+      "gradientAngle": 90
     }
   ]
 }

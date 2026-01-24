@@ -25,7 +25,29 @@ Window {
 
     // Background color binds to C++ displayController.backgroundColor property
     // This creates a reactive binding - when backgroundColor changes in C++, QML updates automatically
-    color: displayController.backgroundColor
+    // Only used for solid color backgrounds
+    color: displayController.backgroundType === "solidColor" ? displayController.backgroundColor : "transparent"
+
+    // Gradient background (only visible when backgroundType is "gradient")
+    Rectangle {
+        id: gradientBackground
+
+        // Fill the entire window
+        anchors.fill: parent
+
+        // Only show when background type is gradient
+        visible: displayController.backgroundType === "gradient"
+
+        // Apply gradient
+        // QML Gradient works from top to bottom by default
+        // We rotate the rectangle to achieve the desired angle
+        rotation: displayController.gradientAngle
+
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: displayController.gradientStartColor }
+            GradientStop { position: 1.0; color: displayController.gradientEndColor }
+        }
+    }
 
     // Background image (only visible when backgroundType is "image")
     // QML Image can load from data URLs: "data:image/png;base64,iVBORw0KG..."
