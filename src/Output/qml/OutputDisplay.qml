@@ -35,11 +35,22 @@ Window {
         // Center the rectangle in the window
         anchors.centerIn: parent
 
-        // Make the rectangle large enough to cover the screen when rotated
-        // Use the diagonal of the screen to ensure full coverage at any rotation angle
-        // Diagonal = sqrt(width^2 + height^2), but we use width + height as a simpler upper bound
-        width: parent.width + parent.height
-        height: parent.width + parent.height
+        // Calculate exact dimensions needed to fill screen when rotated
+        // The gradient runs from top to bottom of this rectangle
+        // When rotated, we need to ensure both colors are visible on screen
+        //
+        // For a gradient at angle θ:
+        // - height (gradient length) = screenWidth * |sin(θ)| + screenHeight * |cos(θ)|
+        // - width (perpendicular) = screenWidth * |cos(θ)| + screenHeight * |sin(θ)|
+        //
+        // This ensures the rotated rectangle exactly covers the screen
+        // with both gradient endpoints visible
+        property real angleRad: displayController.gradientAngle * Math.PI / 180.0
+        property real absSin: Math.abs(Math.sin(angleRad))
+        property real absCos: Math.abs(Math.cos(angleRad))
+
+        width: parent.width * absCos + parent.height * absSin
+        height: parent.width * absSin + parent.height * absCos
 
         // Only show when background type is gradient
         visible: displayController.backgroundType === "gradient"
