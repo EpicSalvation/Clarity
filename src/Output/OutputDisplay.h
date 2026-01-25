@@ -30,6 +30,10 @@ class OutputDisplay : public QObject {
     Q_PROPERTY(QColor gradientEndColor READ gradientEndColor NOTIFY gradientEndColorChanged)
     Q_PROPERTY(int gradientAngle READ gradientAngle NOTIFY gradientAngleChanged)
 
+    // Transition properties
+    Q_PROPERTY(QString transitionType READ transitionType NOTIFY transitionTypeChanged)
+    Q_PROPERTY(int transitionDuration READ transitionDuration NOTIFY transitionDurationChanged)
+
 public:
     explicit OutputDisplay(QObject* parent = nullptr);
 
@@ -47,6 +51,13 @@ public:
     QColor gradientEndColor() const { return m_gradientEndColor; }
     int gradientAngle() const { return m_gradientAngle; }
 
+    // Transition getters
+    QString transitionType() const { return m_transitionType; }
+    int transitionDuration() const { return m_transitionDuration; }
+
+    // Called by QML when transition is complete
+    Q_INVOKABLE void transitionComplete();
+
 signals:
     void slideTextChanged();
     void backgroundColorChanged();
@@ -59,6 +70,11 @@ signals:
     void gradientStartColorChanged();
     void gradientEndColorChanged();
     void gradientAngleChanged();
+    void transitionTypeChanged();
+    void transitionDurationChanged();
+
+    // Signal to trigger transition in QML
+    void startTransition();
 
 private slots:
     void onConnected();
@@ -82,6 +98,10 @@ private:
     QColor m_gradientStartColor;
     QColor m_gradientEndColor;
     int m_gradientAngle;
+
+    // Transition properties
+    QString m_transitionType;
+    int m_transitionDuration;
 };
 
 } // namespace Clarity

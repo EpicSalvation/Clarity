@@ -56,6 +56,10 @@ private:
     QColor m_confidenceTextColor;
     QColor m_confidenceBackgroundColor;
 
+    // Transition settings
+    QComboBox* m_transitionTypeComboBox;
+    QComboBox* m_transitionDurationComboBox;
+
     // Settings manager
     SettingsManager* m_settingsManager;
 };

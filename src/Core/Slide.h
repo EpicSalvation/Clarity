@@ -40,6 +40,11 @@ public:
     QColor gradientEndColor() const { return m_gradientEndColor; }
     int gradientAngle() const { return m_gradientAngle; }
 
+    // Transition overrides (empty/negative means use default)
+    QString transitionType() const { return m_transitionType; }
+    int transitionDuration() const { return m_transitionDuration; }
+    bool hasTransitionOverride() const { return !m_transitionType.isEmpty() || m_transitionDuration >= 0; }
+
     // Setters
     void setText(const QString& text) { m_text = text; }
     void setBackgroundColor(const QColor& color) { m_backgroundColor = color; }
@@ -52,6 +57,11 @@ public:
     void setGradientStartColor(const QColor& color) { m_gradientStartColor = color; }
     void setGradientEndColor(const QColor& color) { m_gradientEndColor = color; }
     void setGradientAngle(int angle) { m_gradientAngle = angle; }
+
+    // Transition overrides
+    void setTransitionType(const QString& type) { m_transitionType = type; }
+    void setTransitionDuration(int duration) { m_transitionDuration = duration; }
+    void clearTransitionOverride() { m_transitionType.clear(); m_transitionDuration = -1; }
 
     // JSON serialization
     QJsonObject toJson() const;
@@ -73,6 +83,10 @@ private:
     QColor m_gradientStartColor;        ///< Gradient start color
     QColor m_gradientEndColor;          ///< Gradient end color
     int m_gradientAngle;                ///< Gradient angle in degrees (0=top-to-bottom, 90=left-to-right)
+
+    // Phase 3: Per-slide transition override
+    QString m_transitionType;           ///< Override transition type (empty = use default)
+    int m_transitionDuration;           ///< Override transition duration in ms (-1 = use default)
 };
 
 } // namespace Clarity

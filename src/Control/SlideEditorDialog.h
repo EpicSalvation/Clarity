@@ -72,6 +72,10 @@ private:
     QPushButton* m_okButton;
     QPushButton* m_cancelButton;
 
+    // Transition override controls
+    QComboBox* m_transitionTypeCombo;
+    QComboBox* m_transitionDurationCombo;
+
     // Current slide data
     Slide m_slide;
 };

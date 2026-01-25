@@ -16,6 +16,7 @@
 #include <QCloseEvent>
 #include <QDir>
 #include <QStandardPaths>
+#include <QTimer>
 #include <QDebug>
 
 namespace Clarity {
@@ -253,6 +254,20 @@ void ControlWindow::broadcastCurrentSlide()
     outputMessage["type"] = "slideData";
     outputMessage["index"] = currentIndex;
     outputMessage["slide"] = currentSlide.toJson();
+
+    // Include transition settings (per-slide override or global default)
+    QString transitionType = currentSlide.transitionType();
+    if (transitionType.isEmpty()) {
+        transitionType = m_settingsManager->transitionType();
+    }
+    outputMessage["transitionType"] = transitionType;
+
+    int transitionDuration = currentSlide.transitionDuration();
+    if (transitionDuration < 0) {
+        transitionDuration = m_settingsManager->transitionDuration();
+    }
+    outputMessage["transitionDuration"] = transitionDuration;
+
     m_ipcServer->sendToClientType("output", outputMessage);
 
     // Send enhanced confidenceData message to confidence monitors
@@ -337,9 +352,7 @@ void ControlWindow::onClientConnected(QLocalSocket* client)
 {
     Q_UNUSED(client);
     m_statusLabel->setText("IPC Server: Client connected");
-
-    // Send current slide to newly connected client
-    broadcastCurrentSlide();
+    // Note: Current slide is sent when client identifies itself in onMessageReceived
 }
 
 void ControlWindow::onClientDisconnected(QLocalSocket* client)
@@ -350,12 +363,20 @@ void ControlWindow::onClientDisconnected(QLocalSocket* client)
 
 void ControlWindow::onMessageReceived(QLocalSocket* client, const QJsonObject& message)
 {
-    Q_UNUSED(client);
-
     QString type = message["type"].toString();
     qDebug() << "ControlWindow: Received message type:" << type;
 
-    // Handle client messages if needed in the future
+    // When a client identifies itself, send it the current slide
+    if (type == "connect") {
+        QString clientType = message["clientType"].toString();
+        qDebug() << "ControlWindow: Client identified as:" << clientType;
+
+        // Send current slide to newly identified client
+        if (clientType == "output" || clientType == "confidence") {
+            // Use a small delay to ensure the client is fully registered
+            QTimer::singleShot(100, this, &ControlWindow::broadcastCurrentSlide);
+        }
+    }
 }
 
 void ControlWindow::onSettings()

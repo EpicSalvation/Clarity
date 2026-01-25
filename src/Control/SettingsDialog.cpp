@@ -9,6 +9,7 @@
 #include <QGuiApplication>
 #include <QColorDialog>
 #include <QDebug>
+#include <climits>
 
 namespace Clarity {
 
@@ -24,6 +25,8 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_confidenceBackgroundColorButton(nullptr)
     , m_confidenceTextColor(Qt::white)
     , m_confidenceBackgroundColor("#2a2a2a")
+    , m_transitionTypeComboBox(nullptr)
+    , m_transitionDurationComboBox(nullptr)
     , m_settingsManager(settingsManager)
 {
     setupUI();
@@ -205,6 +208,41 @@ void SettingsDialog::createDisplayPage()
 
     pageLayout->addWidget(confidenceDisplayGroup);
 
+    // Transition Settings group
+    QGroupBox* transitionGroup = new QGroupBox("Slide Transitions", displayPage);
+    QFormLayout* transitionLayout = new QFormLayout(transitionGroup);
+
+    // Transition type
+    m_transitionTypeComboBox = new QComboBox(transitionGroup);
+    m_transitionTypeComboBox->addItem("Cut (Instant)", "cut");
+    m_transitionTypeComboBox->addItem("Fade", "fade");
+    m_transitionTypeComboBox->addItem("Slide Left", "slideLeft");
+    m_transitionTypeComboBox->addItem("Slide Right", "slideRight");
+    m_transitionTypeComboBox->addItem("Slide Up", "slideUp");
+    m_transitionTypeComboBox->addItem("Slide Down", "slideDown");
+    transitionLayout->addRow("Transition:", m_transitionTypeComboBox);
+
+    // Transition duration
+    m_transitionDurationComboBox = new QComboBox(transitionGroup);
+    m_transitionDurationComboBox->addItem("Instant (0 ms)", 0);
+    m_transitionDurationComboBox->addItem("Very Fast (250 ms)", 250);
+    m_transitionDurationComboBox->addItem("Fast (500 ms)", 500);
+    m_transitionDurationComboBox->addItem("Normal (750 ms)", 750);
+    m_transitionDurationComboBox->addItem("Slow (1000 ms)", 1000);
+    m_transitionDurationComboBox->addItem("Very Slow (1500 ms)", 1500);
+    m_transitionDurationComboBox->addItem("Extra Slow (2000 ms)", 2000);
+    transitionLayout->addRow("Duration:", m_transitionDurationComboBox);
+
+    QLabel* transitionHelpLabel = new QLabel(
+        "Controls how slides transition on the output display. "
+        "The confidence monitor always shows instant transitions.",
+        transitionGroup);
+    transitionHelpLabel->setWordWrap(true);
+    transitionHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    transitionLayout->addRow(transitionHelpLabel);
+
+    pageLayout->addWidget(transitionGroup);
+
     pageLayout->addStretch(); // Push content to top
 
     m_pageStack->addWidget(displayPage);
@@ -275,6 +313,28 @@ void SettingsDialog::loadSettings()
 
     m_confidenceBackgroundColor = m_settingsManager->confidenceBackgroundColor();
     updateColorButtonStyle(m_confidenceBackgroundColorButton, m_confidenceBackgroundColor);
+
+    // Load transition settings
+    QString transitionType = m_settingsManager->transitionType();
+    for (int i = 0; i < m_transitionTypeComboBox->count(); ++i) {
+        if (m_transitionTypeComboBox->itemData(i).toString() == transitionType) {
+            m_transitionTypeComboBox->setCurrentIndex(i);
+            break;
+        }
+    }
+
+    int transitionDuration = m_settingsManager->transitionDuration();
+    // Find closest match in duration combo box
+    int closestIndex = 0;
+    int closestDiff = INT_MAX;
+    for (int i = 0; i < m_transitionDurationComboBox->count(); ++i) {
+        int diff = qAbs(m_transitionDurationComboBox->itemData(i).toInt() - transitionDuration);
+        if (diff < closestDiff) {
+            closestDiff = diff;
+            closestIndex = i;
+        }
+    }
+    m_transitionDurationComboBox->setCurrentIndex(closestIndex);
 }
 
 void SettingsDialog::saveSettings()
@@ -297,6 +357,13 @@ void SettingsDialog::saveSettings()
     m_settingsManager->setConfidenceFontSize(m_confidenceFontSizeSpinBox->value());
     m_settingsManager->setConfidenceTextColor(m_confidenceTextColor);
     m_settingsManager->setConfidenceBackgroundColor(m_confidenceBackgroundColor);
+
+    // Save transition settings
+    QString transitionType = m_transitionTypeComboBox->currentData().toString();
+    m_settingsManager->setTransitionType(transitionType);
+
+    int transitionDuration = m_transitionDurationComboBox->currentData().toInt();
+    m_settingsManager->setTransitionDuration(transitionDuration);
 }
 
 void SettingsDialog::onOkClicked()

@@ -11,6 +11,7 @@ Slide::Slide()
     , m_gradientStartColor("#1e3a8a")
     , m_gradientEndColor("#60a5fa")
     , m_gradientAngle(135)
+    , m_transitionDuration(-1)
 {
 }
 
@@ -24,6 +25,7 @@ Slide::Slide(const QString& text, const QColor& backgroundColor, const QColor& t
     , m_gradientStartColor("#1e3a8a")
     , m_gradientEndColor("#60a5fa")
     , m_gradientAngle(135)
+    , m_transitionDuration(-1)
 {
 }
 
@@ -64,6 +66,14 @@ QJsonObject Slide::toJson() const
         json["gradientAngle"] = m_gradientAngle;
     }
 
+    // Phase 3: Per-slide transition override (only include if set)
+    if (!m_transitionType.isEmpty()) {
+        json["transitionType"] = m_transitionType;
+    }
+    if (m_transitionDuration >= 0) {
+        json["transitionDuration"] = m_transitionDuration;
+    }
+
     return json;
 }
 
@@ -92,6 +102,14 @@ Slide Slide::fromJson(const QJsonObject& json)
         slide.m_gradientAngle = json["gradientAngle"].toInt(135);
     } else {
         slide.m_backgroundType = SolidColor;
+    }
+
+    // Phase 3: Per-slide transition override
+    if (json.contains("transitionType")) {
+        slide.m_transitionType = json["transitionType"].toString();
+    }
+    if (json.contains("transitionDuration")) {
+        slide.m_transitionDuration = json["transitionDuration"].toInt();
     }
 
     return slide;
