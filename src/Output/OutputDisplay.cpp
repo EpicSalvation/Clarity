@@ -15,6 +15,8 @@ OutputDisplay::OutputDisplay(QObject* parent)
     , m_gradientStartColor("#1e3a8a")
     , m_gradientEndColor("#60a5fa")
     , m_gradientAngle(135)
+    , m_transitionType("fade")
+    , m_transitionDuration(500)
 {
     connect(m_ipcClient, &IpcClient::connected, this, &OutputDisplay::onConnected);
     connect(m_ipcClient, &IpcClient::disconnected, this, &OutputDisplay::onDisconnected);
@@ -42,7 +44,33 @@ void OutputDisplay::onMessageReceived(const QJsonObject& message)
     if (type == "slideData") {
         QJsonObject slideJson = message["slide"].toObject();
         Slide slide = Slide::fromJson(slideJson);
-        updateSlide(slide);
+
+        // Update transition settings if provided
+        if (message.contains("transitionType")) {
+            QString newType = message["transitionType"].toString();
+            if (m_transitionType != newType) {
+                m_transitionType = newType;
+                emit transitionTypeChanged();
+            }
+        }
+        if (message.contains("transitionDuration")) {
+            int newDuration = message["transitionDuration"].toInt();
+            if (m_transitionDuration != newDuration) {
+                m_transitionDuration = newDuration;
+                emit transitionDurationChanged();
+            }
+        }
+
+        // For "cut" transition or first slide, update immediately
+        if (m_transitionType == "cut" || m_isCleared) {
+            updateSlide(slide);
+        } else {
+            // Update the display controller properties with the NEW slide data
+            // QML will copy this to the incoming container before animating
+            updateSlide(slide);
+            // Signal QML to start the transition animation
+            emit startTransition();
+        }
     } else if (type == "clearOutput") {
         clearDisplay();
     } else {
@@ -154,6 +182,13 @@ void OutputDisplay::clearDisplay()
     emit isClearedChanged();
 
     qDebug() << "OutputDisplay: Display cleared";
+}
+
+void OutputDisplay::transitionComplete()
+{
+    // Called by QML when transition animation finishes
+    // Slide data was already applied before transition started
+    qDebug() << "OutputDisplay: Transition complete";
 }
 
 } // namespace Clarity

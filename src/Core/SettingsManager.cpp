@@ -125,6 +125,47 @@ void SettingsManager::setConfidenceBackgroundColor(const QColor& color)
     }
 }
 
+QString SettingsManager::transitionType() const
+{
+    return m_settings->value("Transitions/Type", "fade").toString();
+}
+
+void SettingsManager::setTransitionType(const QString& type)
+{
+    QStringList validTypes = {"cut", "fade", "slideLeft", "slideRight", "slideUp", "slideDown"};
+    if (!validTypes.contains(type)) {
+        qWarning() << "SettingsManager: Invalid transition type:" << type;
+        return;
+    }
+
+    if (transitionType() != type) {
+        m_settings->setValue("Transitions/Type", type);
+        m_settings->sync();
+        emit transitionSettingsChanged();
+        qDebug() << "SettingsManager: Transition type set to" << type;
+    }
+}
+
+int SettingsManager::transitionDuration() const
+{
+    return m_settings->value("Transitions/Duration", DEFAULT_TRANSITION_DURATION).toInt();
+}
+
+void SettingsManager::setTransitionDuration(int ms)
+{
+    if (ms < 0 || ms > 2000) {
+        qWarning() << "SettingsManager: Invalid transition duration:" << ms;
+        return;
+    }
+
+    if (transitionDuration() != ms) {
+        m_settings->setValue("Transitions/Duration", ms);
+        m_settings->sync();
+        emit transitionSettingsChanged();
+        qDebug() << "SettingsManager: Transition duration set to" << ms << "ms";
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";
@@ -132,6 +173,7 @@ void SettingsManager::resetToDefaults()
     emit outputScreenIndexChanged(DEFAULT_OUTPUT_SCREEN_INDEX);
     emit confidenceScreenIndexChanged(DEFAULT_CONFIDENCE_SCREEN_INDEX);
     emit confidenceDisplaySettingsChanged();
+    emit transitionSettingsChanged();
 }
 
 } // namespace Clarity

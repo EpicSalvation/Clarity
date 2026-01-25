@@ -124,6 +124,33 @@ void SlideEditorDialog::setupUI()
     backgroundLayout->addWidget(m_backgroundStack);
     mainLayout->addWidget(backgroundGroup);
 
+    // Transition override section
+    QGroupBox* transitionGroup = new QGroupBox("Transition Override", this);
+    QFormLayout* transitionLayout = new QFormLayout(transitionGroup);
+
+    m_transitionTypeCombo = new QComboBox(this);
+    m_transitionTypeCombo->addItem("Use Default", "");  // Empty string = use default
+    m_transitionTypeCombo->addItem("Cut (Instant)", "cut");
+    m_transitionTypeCombo->addItem("Fade", "fade");
+    m_transitionTypeCombo->addItem("Slide Left", "slideLeft");
+    m_transitionTypeCombo->addItem("Slide Right", "slideRight");
+    m_transitionTypeCombo->addItem("Slide Up", "slideUp");
+    m_transitionTypeCombo->addItem("Slide Down", "slideDown");
+    transitionLayout->addRow("Transition Type:", m_transitionTypeCombo);
+
+    m_transitionDurationCombo = new QComboBox(this);
+    m_transitionDurationCombo->addItem("Use Default", -1);  // -1 = use default
+    m_transitionDurationCombo->addItem("Instant (0 ms)", 0);
+    m_transitionDurationCombo->addItem("Very Fast (250 ms)", 250);
+    m_transitionDurationCombo->addItem("Fast (500 ms)", 500);
+    m_transitionDurationCombo->addItem("Medium (750 ms)", 750);
+    m_transitionDurationCombo->addItem("Slow (1000 ms)", 1000);
+    m_transitionDurationCombo->addItem("Very Slow (1500 ms)", 1500);
+    m_transitionDurationCombo->addItem("Extra Slow (2000 ms)", 2000);
+    transitionLayout->addRow("Transition Duration:", m_transitionDurationCombo);
+
+    mainLayout->addWidget(transitionGroup);
+
     // Dialog buttons
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->addStretch();
@@ -182,6 +209,25 @@ void SlideEditorDialog::setSlide(const Slide& slide)
     }
 
     updateBackgroundControls();
+
+    // Set transition override settings
+    // Find matching transition type in combo box
+    QString transitionType = slide.transitionType();
+    int typeIndex = m_transitionTypeCombo->findData(transitionType);
+    if (typeIndex >= 0) {
+        m_transitionTypeCombo->setCurrentIndex(typeIndex);
+    } else {
+        m_transitionTypeCombo->setCurrentIndex(0);  // Default to "Use Default"
+    }
+
+    // Find matching transition duration in combo box
+    int transitionDuration = slide.transitionDuration();
+    int durationIndex = m_transitionDurationCombo->findData(transitionDuration);
+    if (durationIndex >= 0) {
+        m_transitionDurationCombo->setCurrentIndex(durationIndex);
+    } else {
+        m_transitionDurationCombo->setCurrentIndex(0);  // Default to "Use Default"
+    }
 }
 
 Slide SlideEditorDialog::slide() const
@@ -207,6 +253,13 @@ Slide SlideEditorDialog::slide() const
             slide.setBackgroundType(Slide::Image);
             break;
     }
+
+    // Transition override settings
+    QString transitionType = m_transitionTypeCombo->currentData().toString();
+    int transitionDuration = m_transitionDurationCombo->currentData().toInt();
+
+    slide.setTransitionType(transitionType);
+    slide.setTransitionDuration(transitionDuration);
 
     return slide;
 }

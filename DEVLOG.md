@@ -4,6 +4,84 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-25 - Phase 3 Task 3: Slide Transitions (Complete)
+
+### Summary
+Implemented slide transitions for the output display, allowing smooth visual effects when navigating between slides. Added support for multiple transition types (fade, slide left/right/up/down, cut) with configurable duration. Includes per-slide transition overrides and fixes for several bugs discovered during testing.
+
+### Work Completed
+
+#### SettingsManager Updates (src/Core/SettingsManager.h/.cpp)
+- Added transition type setting: "cut", "fade", "slideLeft", "slideRight", "slideUp", "slideDown"
+- Added transition duration setting: 0-2000ms
+- Added `transitionSettingsChanged()` signal
+- Default: fade transition at 500ms
+
+#### OutputDisplay Updates (src/Output/OutputDisplay.h/.cpp)
+- Added `transitionType` and `transitionDuration` Q_PROPERTYs
+- Added `startTransition()` signal to trigger QML animations
+- Added `transitionComplete()` Q_INVOKABLE for QML to call when animation finishes
+- Transition settings received via IPC message with each slide update
+
+#### QML Transition Implementation (src/Output/qml/OutputDisplay.qml)
+- Completely rewrote QML to support transitions
+- Two slide containers (slideA and slideB) that swap roles with cached properties
+- Each container maintains its own copy of slide data to preserve outgoing slide during transition
+- Changed from `anchors.fill: parent` to explicit `width/height` to allow position animation
+- Explicit animation target assignment before starting animations (fixes timing issues)
+- Transition types:
+  - **Cut**: Instant switch, no animation
+  - **Fade**: Cross-dissolve (both slides visible during transition)
+  - **Slide Left/Right**: Horizontal slide with outgoing going opposite direction
+  - **Slide Up/Down**: Vertical slide with outgoing going opposite direction
+- Easing: InOutQuad for smooth acceleration/deceleration
+- Added `onIsClearedChanged` handler for immediate clear display updates
+
+#### Per-Slide Transition Overrides (src/Core/Slide.h/.cpp)
+- Added `transitionType` and `transitionDuration` properties to Slide class
+- Empty string / -1 means "use default" from settings
+- `hasTransitionOverride()` helper method
+- `clearTransitionOverride()` to reset to defaults
+- JSON serialization only includes when override is set
+
+#### SlideEditorDialog Updates (src/Control/SlideEditorDialog.h/.cpp)
+- Added "Transition Override" group with type and duration dropdowns
+- "Use Default" option at top of each dropdown
+- Loads/saves per-slide transition settings
+
+#### ControlWindow Updates (src/Control/ControlWindow.cpp)
+- `broadcastCurrentSlide()` uses per-slide overrides when set, falls back to global settings
+- Handle client "connect" message to send current slide after client identifies itself
+- Fixed output display showing black on launch (was broadcasting before client registered)
+
+### Bug Fixes
+1. **Transitions only showed delay, no animation**: Both containers were bound to same displayController properties. Fixed by caching slide data separately for each container.
+2. **Only fade worked, others alternated fade/instant**: Animation targets evaluated at wrong time. Fixed by setting targets explicitly in JavaScript before starting animations.
+3. **Slide transitions didn't animate positions**: `anchors.fill: parent` overrides x/y changes. Fixed by using explicit `width: parent.width` and `height: parent.height`.
+4. **Output display showed black on launch**: `broadcastCurrentSlide()` was called before client identified itself. Fixed by sending slide when "connect" message is received.
+5. **Clear Output didn't work**: QML only updated for "cut" transitions. Fixed by adding `onIsClearedChanged` handler.
+
+### Technical Decisions
+- **Two-container approach**: Using slideA/slideB containers that swap ensures smooth crossfade without complex state management
+- **Cached properties**: Each container has its own copy of all slide properties to preserve the outgoing slide appearance during transition
+- **Per-message settings**: Transition settings sent with each IPC message allows real-time settings changes and per-slide overrides
+- **Confidence monitor excluded**: Transitions only apply to output display; confidence monitor shows instant transitions for presenter clarity
+
+### Testing
+- [x] Fade transition smooth and complete
+- [x] Slide transitions move in correct direction
+- [x] Cut transition is instant
+- [x] Duration setting affects all transitions
+- [x] Per-slide overrides work correctly
+- [x] Output display shows selected slide on launch
+- [x] Clear output clears the display
+
+### Next Steps
+- Task 4: Themes/Templates
+- Task 5: Presenter Notes
+
+---
+
 ## 2026-01-24 - Phase 3 Task 1: Scripture/Bible Integration
 
 ### Summary
