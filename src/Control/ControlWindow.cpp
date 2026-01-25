@@ -1,6 +1,8 @@
 #include "ControlWindow.h"
 #include "SettingsDialog.h"
 #include "SlideEditorDialog.h"
+#include "ScriptureDialog.h"
+#include "SongLibraryDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QToolBar>
@@ -13,6 +15,7 @@
 #include <QJsonDocument>
 #include <QCloseEvent>
 #include <QDir>
+#include <QStandardPaths>
 #include <QDebug>
 
 namespace Clarity {
@@ -39,11 +42,19 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_ipcServer(new IpcServer(this))
     , m_processManager(new ProcessManager(this))
     , m_settingsManager(new SettingsManager(this))
+    , m_bibleDatabase(new BibleDatabase(this))
+    , m_songLibrary(new SongLibrary(this))
     , m_currentFilePath("")
     , m_isDirty(false)
 {
     setupUI();
     createDemoPresentation();
+
+    // Initialize Bible database
+    initializeBibleDatabase();
+
+    // Load song library
+    m_songLibrary->loadLibrary();
 
     // Pass settings manager to process manager
     m_processManager->setSettingsManager(m_settingsManager);
@@ -93,6 +104,15 @@ void ControlWindow::setupUI()
     fileMenu->addAction("Save &As...", QKeySequence::SaveAs, this, &ControlWindow::saveAsPresentation);
     fileMenu->addSeparator();
     fileMenu->addAction("E&xit", QKeySequence::Quit, this, &QWidget::close);
+
+    // Slide menu
+    QMenu* slideMenu = menuBar->addMenu("&Slide");
+    slideMenu->addAction("&Add Slide", QKeySequence("Ctrl+Shift+N"), this, &ControlWindow::onAddSlide);
+    slideMenu->addAction("&Edit Slide", QKeySequence("Ctrl+E"), this, &ControlWindow::onEditSlide);
+    slideMenu->addAction("&Delete Slide", QKeySequence::Delete, this, &ControlWindow::onDeleteSlide);
+    slideMenu->addSeparator();
+    slideMenu->addAction("Insert &Scripture...", QKeySequence("Ctrl+B"), this, &ControlWindow::onInsertScripture);
+    slideMenu->addAction("Insert S&ong...", QKeySequence("Ctrl+L"), this, &ControlWindow::onInsertSong);
 
     setMenuBar(menuBar);
 
@@ -699,6 +719,146 @@ void ControlWindow::saveAsPresentation()
 
     m_currentFilePath = filePath;
     savePresentation();
+}
+
+void ControlWindow::initializeBibleDatabase()
+{
+    // Look for Bible database in standard locations
+    QStringList searchPaths;
+
+    // First check next to executable
+    QString appDir = QCoreApplication::applicationDirPath();
+    searchPaths << appDir + "/data/bible.db"
+                << appDir + "/bible.db";
+
+    // Check in app data directory
+    QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    searchPaths << dataDir + "/data/bible.db"
+                << dataDir + "/bible.db";
+
+    // Check in config directory
+    QString configDir = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) + "/Clarity";
+    searchPaths << configDir + "/data/bible.db"
+                << configDir + "/bible.db";
+
+    for (const QString& path : searchPaths) {
+        if (QFile::exists(path)) {
+            if (m_bibleDatabase->initialize(path)) {
+                qDebug() << "Bible database loaded from:" << path;
+                return;
+            }
+        }
+    }
+
+    qWarning() << "Bible database not found. Scripture lookup will be unavailable.";
+    qWarning() << "Searched paths:";
+    for (const QString& path : searchPaths) {
+        qWarning() << "  -" << path;
+    }
+}
+
+void ControlWindow::onInsertScripture()
+{
+    if (!m_bibleDatabase->isValid()) {
+        QMessageBox::warning(
+            this,
+            "Bible Database Not Available",
+            "The Bible database could not be loaded.\n\n"
+            "Please ensure the bible.db file is present in one of the following locations:\n"
+            "- <app directory>/data/bible.db\n"
+            "- <app data>/Clarity/data/bible.db\n\n"
+            "You can download the database from the Clarity releases page."
+        );
+        return;
+    }
+
+    ScriptureDialog dialog(m_bibleDatabase, this);
+
+    // Set default style based on current presentation theme
+    Presentation presentation = m_presentationModel->presentation();
+    if (presentation.slideCount() > 0) {
+        Slide currentSlide = presentation.currentSlide();
+        dialog.setDefaultStyle(
+            currentSlide.backgroundColor(),
+            currentSlide.textColor(),
+            currentSlide.fontFamily(),
+            currentSlide.fontSize()
+        );
+    }
+
+    if (dialog.exec() == QDialog::Accepted) {
+        QList<Slide> slides = dialog.getSlides();
+
+        if (slides.isEmpty()) {
+            return;
+        }
+
+        // Insert slides after current position
+        int insertPos = m_presentationModel->currentSlideIndex() + 1;
+
+        for (const Slide& slide : slides) {
+            m_presentationModel->insertSlide(insertPos, slide);
+            insertPos++;
+        }
+
+        // Select the first inserted slide
+        int firstInsertedIndex = m_presentationModel->currentSlideIndex() + 1;
+        m_slideListView->setCurrentIndex(m_presentationModel->index(firstInsertedIndex, 0));
+        m_presentationModel->setCurrentSlideIndex(firstInsertedIndex);
+        broadcastCurrentSlide();
+        updateUI();
+
+        qDebug() << "Inserted" << slides.count() << "scripture slide(s)";
+    }
+}
+
+void ControlWindow::onInsertSong()
+{
+    SongLibraryDialog dialog(m_songLibrary, this);
+
+    // Set default style based on current presentation theme
+    Presentation presentation = m_presentationModel->presentation();
+    if (presentation.slideCount() > 0) {
+        Slide currentSlide = presentation.currentSlide();
+        dialog.setDefaultStyle(
+            currentSlide.backgroundColor(),
+            currentSlide.textColor(),
+            currentSlide.fontFamily(),
+            currentSlide.fontSize()
+        );
+    }
+
+    if (dialog.exec() == QDialog::Accepted) {
+        QList<Slide> slides = dialog.getSlides();
+
+        if (slides.isEmpty()) {
+            return;
+        }
+
+        // Mark the song as used
+        int songId = dialog.selectedSongId();
+        if (songId > 0) {
+            m_songLibrary->markAsUsed(songId);
+            m_songLibrary->saveLibrary();
+        }
+
+        // Insert slides after current position
+        int insertPos = m_presentationModel->currentSlideIndex() + 1;
+
+        for (const Slide& slide : slides) {
+            m_presentationModel->insertSlide(insertPos, slide);
+            insertPos++;
+        }
+
+        // Select the first inserted slide
+        int firstInsertedIndex = m_presentationModel->currentSlideIndex() + 1;
+        m_slideListView->setCurrentIndex(m_presentationModel->index(firstInsertedIndex, 0));
+        m_presentationModel->setCurrentSlideIndex(firstInsertedIndex);
+        broadcastCurrentSlide();
+        updateUI();
+
+        qDebug() << "Inserted" << slides.count() << "song slide(s)";
+    }
 }
 
 } // namespace Clarity
