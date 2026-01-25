@@ -4,6 +4,8 @@
 #include "Core/PresentationModel.h"
 #include "Core/IpcServer.h"
 #include "Core/SettingsManager.h"
+#include "Core/BibleDatabase.h"
+#include "Core/SongLibrary.h"
 #include "ProcessManager.h"
 #include <QMainWindow>
 #include <QListView>
@@ -55,6 +57,10 @@ private slots:
     void onMoveSlideUp();
     void onMoveSlideDown();
 
+    // Content insertion
+    void onInsertScripture();
+    void onInsertSong();
+
     // Timer controls
     void onStartTimer();
     void onPauseTimer();
@@ -68,6 +74,7 @@ private slots:
 private:
     void setupUI();
     void createDemoPresentation();
+    void initializeBibleDatabase();
     void updateUI();
     void broadcastCurrentSlide();
     void updateWindowTitle();
@@ -98,6 +105,8 @@ private:
     IpcServer* m_ipcServer;
     ProcessManager* m_processManager;
     SettingsManager* m_settingsManager;
+    BibleDatabase* m_bibleDatabase;
+    SongLibrary* m_songLibrary;
 
     // File management
     QString m_currentFilePath;

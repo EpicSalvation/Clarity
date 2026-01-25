@@ -1528,4 +1528,33 @@ Language:
 
 ---
 
+## Phase 4 Planning Notes
+
+Features to consider for Phase 4:
+
+### Bible Enhancements
+- **Full Bible Importer**: Tool/UI to import complete Bible translations from standard formats (OSIS, USFM, Zefania XML)
+- **Red Letter Edition**: Format words of Jesus in red text on slides
+  - Requires verse-level markup in database schema
+  - UI option to enable/disable red letters
+  - May need rich text support in slides
+
+### Song Library Enhancements
+- **SongSelect Integration**: Direct integration with CCLI SongSelect service
+  - Search SongSelect catalog from within Clarity
+  - Download lyrics directly (requires CCLI subscription)
+  - Automatic CCLI reporting integration
+  - OAuth authentication with SongSelect API
+  - Cache downloaded songs in local library
+
+### Other Potential Features
+- Radial gradients
+- Multi-stop gradients
+- Drag-and-drop slide reordering
+- Undo/redo for edits
+- Cloud sync for presentations
+- Presentation templates marketplace
+
+---
+
 **End of Phase 3 Implementation Plan**

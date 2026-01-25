@@ -4,6 +4,388 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-24 - Phase 3 Task 1: Scripture/Bible Integration
+
+### Summary
+Implemented Bible scripture lookup and insertion feature, allowing users to search for verses by reference (John 3:16) or keyword and insert them as slides into presentations. Created a SQLite-based Bible database system with full-text search support, a comprehensive ScriptureDialog UI, and integrated everything into the Control Window with a Ctrl+B shortcut.
+
+### Work Completed
+
+#### BibleDatabase Class (src/Core/BibleDatabase.h/.cpp)
+- Created SQLite interface for Bible verse lookup
+- **BibleVerse struct**: Holds verse data (book, chapter, verse, text, translation)
+  - `reference()` method returns short form (e.g., "John 3:16")
+  - `fullReference()` method includes translation (e.g., "John 3:16 (KJV)")
+- **BibleReference struct**: Parsed reference for lookups
+  - Supports single verses, verse ranges, cross-chapter ranges, and entire chapters
+- **Reference parsing** with regex patterns:
+  - Single verse: "John 3:16"
+  - Verse range: "John 3:16-17"
+  - Cross-chapter: "John 3:16-4:3"
+  - Entire chapter: "Psalm 23"
+- **Book name normalization**: Handles 150+ abbreviations and variations
+  - "Jn" → "John", "1 Jn" → "1 John", "Rev" → "Revelation", etc.
+  - Case-insensitive matching
+  - Supports "1st John", "First John" variations
+- **Search methods**:
+  - `lookupReference()` - Parse and retrieve verses by reference
+  - `searchKeyword()` - Full-text search with FTS5 support
+- **Utility methods**:
+  - `availableTranslations()` - List installed translations
+  - `bookNames()` - List all 66 Bible books
+  - `chapterCount()` / `verseCount()` - Navigation helpers
+
+#### ScriptureDialog UI (src/Control/ScriptureDialog.h/.cpp)
+- Created comprehensive dialog for scripture search and insertion
+- **Search controls**:
+  - Search type selector (Reference or Keyword)
+  - Translation dropdown (populated from database)
+  - Search input with Enter key support
+- **Results display**:
+  - QListWidget with multi-select support (Ctrl+Click)
+  - Results count label
+  - Truncated verse preview in list items
+- **Live preview**:
+  - Shows selected verses formatted as they'll appear on slides
+  - Updates dynamically when selection or options change
+  - Styled to match default slide appearance
+- **Insert options**:
+  - "Include reference on slide" checkbox (default: on)
+  - "One verse per slide" checkbox (creates multiple slides)
+  - Font size spinner (12-144 pt)
+- **Slide generation**:
+  - Creates properly formatted Slide objects
+  - Inherits style from current presentation
+  - Smart reference formatting for verse ranges
+
+#### ControlWindow Integration
+- Added BibleDatabase member and initialization
+- **Menu integration**: Slide menu with "Insert Scripture..." (Ctrl+B)
+- **Database path search**: Checks multiple locations for bible.db:
+  - `<app>/data/bible.db`
+  - `<appdata>/Clarity/data/bible.db`
+  - `<config>/Clarity/data/bible.db`
+- **Insert workflow**:
+  - Opens ScriptureDialog with current slide style
+  - Inserts returned slides after current position
+  - Updates selection and broadcasts to displays
+- User-friendly error message if database unavailable
+
+#### Bible Database Tool (tools/create_bible_db.py)
+- Python script to create SQLite Bible database
+- **Schema**:
+  - `books` table: id, name, abbreviation, testament, chapters
+  - `verses` table: id, book_id, chapter, verse, text, translation
+  - `verses_fts` FTS5 virtual table for full-text search
+- **Indexes**: Reference lookup, translation filter, book-chapter combo
+- **Sample data**: 112 commonly-used KJV verses including:
+  - Genesis 1:1-5, 26-28 (Creation)
+  - Psalm 23 (complete), Psalm 100 (complete), Psalm 119:105,11
+  - Proverbs 3:5-6, 22:6
+  - Isaiah 40:31, 41:10, 53:5-6
+  - Jeremiah 29:11
+  - Matthew 5:3-9,14,16, 6:9-13,33, 11:28-30, 28:19-20
+  - John 1:1-5,14, 3:16-17, 10:10, 14:6,27
+  - Romans 3:23, 5:8, 6:23, 8:1,28,31,38-39, 10:9-10, 12:1-2
+  - 1 Corinthians 10:13, 13:4-8,13
+  - And many more popular verses
+- **Verification**: Test queries for reference lookup and FTS search
+
+#### Build System Updates (CMakeLists.txt)
+- Added Qt6::Sql to find_package and ClarityCore
+- Added BibleDatabase.h/.cpp to ClarityCore library
+- Added ScriptureDialog.h/.cpp to main executable
+- **Database deployment**: Post-build command copies bible.db to output
+  - Creates `data/` directory next to executable
+  - Uses `copy_if_different` for efficiency
+- **Install target**: Includes bible.db in bin/data/
+
+### Database Schema
+
+```sql
+CREATE TABLE books (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    abbreviation TEXT,
+    testament TEXT,
+    chapters INTEGER
+);
+
+CREATE TABLE verses (
+    id INTEGER PRIMARY KEY,
+    book_id INTEGER NOT NULL,
+    chapter INTEGER NOT NULL,
+    verse INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    translation TEXT NOT NULL DEFAULT 'KJV',
+    FOREIGN KEY (book_id) REFERENCES books(id)
+);
+
+CREATE VIRTUAL TABLE verses_fts USING fts5(
+    text,
+    content=verses,
+    content_rowid=id
+);
+```
+
+### Technical Decisions
+
+**SQLite for Bible Storage**
+- Offline capability (no internet required)
+- Fast local queries (<100ms)
+- FTS5 for keyword search
+- Extensible to multiple translations
+- ~76KB for sample data, ~5MB for full Bible
+
+**Reference Parsing Strategy**
+- Regex-based parsing with multiple patterns
+- Most specific patterns tried first (cross-chapter range)
+- Book name normalization as separate step
+- Graceful failure with empty result (no exceptions)
+
+**Dialog Design**
+- Splitter between results and preview for flexible sizing
+- Multi-select for inserting multiple verses
+- Live preview updates as selection changes
+- Options affect both preview and final output
+
+**Database Location Search**
+- Multiple paths checked in priority order
+- Allows both development and installed configurations
+- Clear warning if database not found
+- User-friendly error dialog with path hints
+
+### Testing Checklist
+
+- [x] Reference parsing handles various formats
+- [x] Book name abbreviations resolve correctly
+- [x] Keyword search finds relevant verses
+- [x] Multiple verse selection works
+- [x] Preview updates correctly
+- [x] Slides generated with proper formatting
+- [x] Reference included/excluded based on option
+- [x] One-per-slide creates correct number of slides
+- [x] Database copied to build directory
+- [ ] Manual testing with full Bible data
+
+### Files Created/Modified
+
+**New files:**
+- `src/Core/BibleDatabase.h` - Database interface header
+- `src/Core/BibleDatabase.cpp` - Database implementation
+- `src/Control/ScriptureDialog.h` - Dialog header
+- `src/Control/ScriptureDialog.cpp` - Dialog implementation
+- `tools/create_bible_db.py` - Database creation script
+- `data/bible.db` - Sample Bible database (76KB)
+
+**Modified files:**
+- `CMakeLists.txt` - Added Sql module, new files, database copy command
+- `src/Control/ControlWindow.h` - Added BibleDatabase, insertScripture slot
+- `src/Control/ControlWindow.cpp` - Added Slide menu, database init, dialog integration
+
+### Next Steps
+- Extend sample Bible data with more verses
+- Consider adding full KJV/WEB Bible import
+- Add verse highlighting in search results
+- Consider book/chapter browser as alternative to search
+- Phase 3 Task 2: Song Lyrics Database
+
+### Commit Information
+Branch: `claude/implement-confidence-monitor-MNvPO`
+Commit: (pending)
+Message: "Implement Phase 3 Task 1: Scripture/Bible integration with search and insert"
+
+---
+
+## 2026-01-24 - Phase 3 Task 2: Song Lyrics Database
+
+### Summary
+Implemented a complete song library system for managing worship songs. Users can create, import, edit, and organize songs, then insert them as slides into presentations. The library persists to a JSON file in the user's config directory and supports importing from OpenLyrics XML format or plain text with section markers.
+
+### Work Completed
+
+#### Song Data Model (src/Core/Song.h/.cpp)
+- **SongSection struct**: Represents a section of a song
+  - `type`: verse, chorus, bridge, pre-chorus, tag, intro, outro
+  - `label`: Display name (e.g., "Verse 1", "Chorus")
+  - `text`: Section lyrics
+- **SlideStyle struct**: Styling options for slide generation
+  - backgroundColor, textColor, fontFamily, fontSize
+- **Song class**: Complete song data model
+  - Metadata: id, title, author, copyright, ccliNumber, addedDate, lastUsed
+  - Sections list with add/clear/count methods
+  - `allLyrics()` - Returns combined text for search indexing
+  - `toSlides()` - Converts song to presentation slides
+  - JSON serialization: `toJson()` / `fromJson()`
+- **Import formats**:
+  - `fromOpenLyrics()` - Parses OpenLyrics XML format
+    - Extracts title, authors, CCLI number, copyright
+    - Converts verse names (v1, c, b) to labels (Verse 1, Chorus, Bridge)
+  - `fromPlainText()` - Parses text with section markers
+    - Recognizes [Verse 1], [Chorus], [Bridge], etc.
+    - Auto-numbers verses if no number specified
+    - Creates single section if no markers found
+
+#### SongLibrary Class (src/Core/SongLibrary.h/.cpp)
+- Persistent song collection stored in `~/.config/Clarity/songs.json`
+- **Library management**:
+  - `loadLibrary()` / `saveLibrary()` - JSON persistence
+  - `addSong()` - Adds song with auto-assigned ID
+  - `updateSong()` / `removeSong()` - Modify existing songs
+  - `getSong()` / `indexOf()` - Lookup by ID
+- **Search functionality**:
+  - `search(query)` - Searches title, author, lyrics, CCLI number
+  - `recentSongs(count)` - Returns recently used songs
+  - `markAsUsed()` - Updates lastUsed timestamp
+- **Import support**:
+  - `importFromFile()` - Detects format by extension (.xml, .txt)
+  - Returns Song object for review/editing before adding
+- **Signals**: songAdded, songUpdated, songRemoved, libraryLoaded
+
+#### SongLibraryDialog (src/Control/SongLibraryDialog.h/.cpp)
+- Main dialog for browsing and managing the song library
+- **Search UI**:
+  - Real-time search as user types
+  - Searches across title, author, and lyrics
+- **Song list**:
+  - Shows title and author
+  - Double-click to insert
+  - Count label shows total/filtered songs
+- **Song details panel**:
+  - Title, author, copyright, CCLI number
+  - Full lyrics preview with section labels
+- **Library management buttons**:
+  - Import: Opens file dialog, parses file, opens editor for review
+  - New: Opens blank song editor
+  - Edit: Opens selected song in editor
+  - Delete: Removes song with confirmation
+- **Insert options**:
+  - Include section labels checkbox
+  - Font size spinner
+- Inherits slide style from current presentation
+
+#### SongEditorDialog (src/Control/SongEditorDialog.h/.cpp)
+- Dialog for creating and editing songs
+- **Metadata fields**: Title, author, copyright, CCLI number
+- **Section editor**:
+  - Left panel: Section list with reorder buttons
+  - Right panel: Section type dropdown, label field, lyrics text area
+  - Add/remove sections
+  - Move up/down for reordering
+- **Section types**: Verse, Chorus, Bridge, Pre-Chorus, Tag, Intro, Outro
+- Auto-generates label when adding new sections (Verse 1, Verse 2, etc.)
+- Saves changes as user switches between sections
+
+#### ControlWindow Integration
+- Added SongLibrary member and initialization
+- **Menu integration**: Slide > Insert Song... (Ctrl+L)
+- Loads song library on startup
+- Marks songs as used when inserted (for recent songs tracking)
+- Inherits style from current slide
+
+### Library File Format
+
+```json
+{
+  "version": "1.0",
+  "nextId": 4,
+  "songs": [
+    {
+      "id": 1,
+      "title": "Amazing Grace",
+      "author": "John Newton",
+      "copyright": "Public Domain",
+      "ccliNumber": "",
+      "addedDate": "2026-01-24T10:00:00",
+      "sections": [
+        {
+          "type": "verse",
+          "label": "Verse 1",
+          "text": "Amazing grace, how sweet the sound..."
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Technical Decisions
+
+**JSON for Library Storage**
+- Human-readable and editable
+- Easy to backup and share
+- Consistent with presentation file format
+- No database overhead for small collections
+
+**Section-Based Architecture**
+- Each section becomes one slide
+- Natural fit for worship lyrics (verse, chorus, bridge)
+- Allows flexible ordering (repeat chorus, skip verses)
+- Easy to understand for users
+
+**Import-Then-Edit Workflow**
+- Imported songs open in editor for review
+- User can fix parsing errors before saving
+- Prevents bad data from entering library
+- Consistent experience for all import formats
+
+**Recent Songs Tracking**
+- Updates lastUsed timestamp on insert
+- Enables "recently used" feature for quick access
+- Useful for recurring service elements
+
+### Files Created/Modified
+
+**New files:**
+- `src/Core/Song.h` - Song and SongSection data models
+- `src/Core/Song.cpp` - Implementation with import parsers
+- `src/Core/SongLibrary.h` - Library manager header
+- `src/Core/SongLibrary.cpp` - Persistence and search implementation
+- `src/Control/SongLibraryDialog.h` - Library browser dialog
+- `src/Control/SongLibraryDialog.cpp` - Dialog implementation
+- `src/Control/SongEditorDialog.h` - Song editor dialog
+- `src/Control/SongEditorDialog.cpp` - Editor implementation
+- `samples/songs.json` - Sample library with 3 classic hymns
+
+**Modified files:**
+- `CMakeLists.txt` - Added new source files
+- `src/Control/ControlWindow.h` - Added SongLibrary, onInsertSong slot
+- `src/Control/ControlWindow.cpp` - Menu item, library init, insert handler
+
+### Sample Songs Included
+
+1. **Amazing Grace** (John Newton) - 4 verses
+2. **How Great Thou Art** (Carl Boberg) - 4 verses + chorus
+3. **Great Is Thy Faithfulness** (Thomas Chisholm) - 3 verses + chorus
+
+### Testing Checklist
+
+- [x] Song data model serializes correctly
+- [x] OpenLyrics XML import parses correctly
+- [x] Plain text import handles section markers
+- [x] Library saves and loads from disk
+- [x] Search finds songs by title/author/lyrics
+- [x] Song editor creates new songs
+- [x] Song editor modifies existing songs
+- [x] Section reordering works
+- [x] Insert generates correct slides
+- [x] Recent songs tracking works
+- [ ] Manual testing with real song files
+
+### Next Steps
+- Add more sample songs
+- Consider ChordPro format import
+- Add duplicate song detection
+- Consider song categories/tags
+- Phase 3 Task 3: Slide Transitions
+
+### Commit Information
+Branch: `claude/implement-confidence-monitor-MNvPO`
+Commit: (pending)
+Message: "Implement Phase 3 Task 2: Song lyrics database with library and editor"
+
+---
+
 ## 2026-01-24 - Phase 2 Completion: Confidence Monitor, Timer, Slide Reordering
 
 ### Summary

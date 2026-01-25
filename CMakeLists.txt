@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find Qt6 packages
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql)
 
 # Core library (shared between all modes)
 add_library(ClarityCore STATIC
@@ -24,6 +24,12 @@ add_library(ClarityCore STATIC
     src/Core/IpcClient.cpp
     src/Core/SettingsManager.h
     src/Core/SettingsManager.cpp
+    src/Core/BibleDatabase.h
+    src/Core/BibleDatabase.cpp
+    src/Core/Song.h
+    src/Core/Song.cpp
+    src/Core/SongLibrary.h
+    src/Core/SongLibrary.cpp
 )
 
 target_link_libraries(ClarityCore
@@ -31,6 +37,7 @@ target_link_libraries(ClarityCore
         Qt6::Core
         Qt6::Gui
         Qt6::Network
+        Qt6::Sql
 )
 
 target_include_directories(ClarityCore
@@ -53,6 +60,12 @@ add_executable(Clarity
     src/Control/SettingsDialog.cpp
     src/Control/SlideEditorDialog.h
     src/Control/SlideEditorDialog.cpp
+    src/Control/ScriptureDialog.h
+    src/Control/ScriptureDialog.cpp
+    src/Control/SongLibraryDialog.h
+    src/Control/SongLibraryDialog.cpp
+    src/Control/SongEditorDialog.h
+    src/Control/SongEditorDialog.cpp
 
     # Output display files
     src/Output/OutputMain.h
@@ -86,7 +99,41 @@ if(WIN32)
     )
 endif()
 
+# Copy Bible database to build directory
+set(BIBLE_DB_SOURCE "${CMAKE_SOURCE_DIR}/data/bible.db")
+set(DATA_DEST_DIR "$<TARGET_FILE_DIR:Clarity>/data")
+
+add_custom_command(TARGET Clarity POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${DATA_DEST_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${BIBLE_DB_SOURCE}"
+        "${DATA_DEST_DIR}/bible.db"
+    COMMENT "Copying Bible database to build directory"
+)
+
+# Copy sample songs library to build directory
+set(SONGS_SOURCE "${CMAKE_SOURCE_DIR}/samples/songs.json")
+set(CONFIG_DEST_DIR "$<TARGET_FILE_DIR:Clarity>/config/Clarity")
+
+add_custom_command(TARGET Clarity POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CONFIG_DEST_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${SONGS_SOURCE}"
+        "${CONFIG_DEST_DIR}/songs.json"
+    COMMENT "Copying sample songs library to build directory"
+)
+
 # Install target
 install(TARGETS Clarity
     RUNTIME DESTINATION bin
+)
+
+# Install Bible database
+install(FILES "${BIBLE_DB_SOURCE}"
+    DESTINATION bin/data
+)
+
+# Install sample songs
+install(FILES "${SONGS_SOURCE}"
+    DESTINATION bin/config/Clarity
 )
