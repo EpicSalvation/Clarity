@@ -123,6 +123,8 @@ void OutputDisplay::updateSlide(const Slide& slide)
         bgType = "image";
     } else if (slide.backgroundType() == Slide::Gradient) {
         bgType = "gradient";
+    } else if (slide.backgroundType() == Slide::Video) {
+        bgType = "video";
     }
 
     if (m_backgroundType != bgType) {
@@ -134,6 +136,13 @@ void OutputDisplay::updateSlide(const Slide& slide)
     if (m_backgroundImageData != slide.backgroundImageData()) {
         m_backgroundImageData = slide.backgroundImageData();
         emit backgroundImageDataChanged();
+        changed = true;
+    }
+
+    QUrl nextVideoUrl = QUrl::fromUserInput(slide.backgroundVideoPath());
+    if (m_backgroundVideoUrl != nextVideoUrl) {
+        m_backgroundVideoUrl = nextVideoUrl;
+        emit backgroundVideoUrlChanged();
         changed = true;
     }
 
@@ -172,6 +181,7 @@ void OutputDisplay::clearDisplay()
     m_backgroundColor = QColor("#000000");
     m_backgroundType = "solidColor";
     m_backgroundImageData.clear();
+    m_backgroundVideoUrl = QUrl();
     m_gradientStartColor = QColor("#1e3a8a");
     m_gradientEndColor = QColor("#60a5fa");
     m_gradientAngle = 135;
@@ -181,6 +191,7 @@ void OutputDisplay::clearDisplay()
     emit backgroundColorChanged();
     emit backgroundTypeChanged();
     emit backgroundImageDataChanged();
+    emit backgroundVideoUrlChanged();
     emit gradientStartColorChanged();
     emit gradientEndColorChanged();
     emit gradientAngleChanged();

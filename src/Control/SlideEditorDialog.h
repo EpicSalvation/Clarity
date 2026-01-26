@@ -39,6 +39,7 @@ private slots:
     void onChooseGradientStartColor();
     void onChooseGradientEndColor();
     void onChooseBackgroundImage();
+    void onChooseBackgroundVideo();
 
 private:
     void setupUI();
@@ -67,6 +68,10 @@ private:
     QLineEdit* m_imagePathEdit;
     QPushButton* m_choosImageButton;
     QLabel* m_imagePreviewLabel;
+
+    // Video controls
+    QLineEdit* m_videoPathEdit;
+    QPushButton* m_chooseVideoButton;
 
     // Dialog buttons
     QPushButton* m_okButton;

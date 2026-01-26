@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Window
+import QtMultimedia
 
 /**
  * Output display window - fullscreen presentation view with transitions
@@ -31,6 +32,7 @@ Window {
     property int fontSizeA: 48
     property string backgroundTypeA: "solidColor"
     property string backgroundImageDataBase64A: ""
+    property url backgroundVideoUrlA: ""
     property color gradientStartColorA: "#1e3a8a"
     property color gradientEndColorA: "#60a5fa"
     property int gradientAngleA: 135
@@ -43,6 +45,7 @@ Window {
     property int fontSizeB: 48
     property string backgroundTypeB: "solidColor"
     property string backgroundImageDataBase64B: ""
+    property url backgroundVideoUrlB: ""
     property color gradientStartColorB: "#1e3a8a"
     property color gradientEndColorB: "#60a5fa"
     property int gradientAngleB: 135
@@ -56,6 +59,7 @@ Window {
         fontSizeA = displayController.fontSize
         backgroundTypeA = displayController.backgroundType
         backgroundImageDataBase64A = displayController.backgroundImageDataBase64
+        backgroundVideoUrlA = displayController.backgroundVideoUrl
         gradientStartColorA = displayController.gradientStartColor
         gradientEndColorA = displayController.gradientEndColor
         gradientAngleA = displayController.gradientAngle
@@ -69,6 +73,7 @@ Window {
         fontSizeB = displayController.fontSize
         backgroundTypeB = displayController.backgroundType
         backgroundImageDataBase64B = displayController.backgroundImageDataBase64
+        backgroundVideoUrlB = displayController.backgroundVideoUrl
         gradientStartColorB = displayController.gradientStartColor
         gradientEndColorB = displayController.gradientEndColor
         gradientAngleB = displayController.gradientAngle
@@ -78,6 +83,38 @@ Window {
     Component.onCompleted: {
         copyToContainerA()
         console.log("OutputDisplay QML loaded with transition support")
+    }
+
+    Component {
+        id: videoBackgroundComponent
+
+        Item {
+            id: videoRoot
+            property url videoSource: ""
+
+            MediaPlayer {
+                id: videoPlayer
+                source: videoRoot.videoSource
+                loops: MediaPlayer.Infinite
+            }
+
+            VideoOutput {
+                anchors.fill: parent
+                source: videoPlayer
+                fillMode: VideoOutput.PreserveAspectCrop
+            }
+
+            function updatePlayback() {
+                if (videoSource && videoSource !== "") {
+                    videoPlayer.play()
+                } else {
+                    videoPlayer.stop()
+                }
+            }
+
+            Component.onCompleted: updatePlayback()
+            onVideoSourceChanged: updatePlayback()
+        }
     }
 
     // Listen for signals from C++
@@ -277,6 +314,23 @@ Window {
             smooth: true
         }
 
+        Loader {
+            anchors.fill: parent
+            active: root.backgroundTypeA === "video"
+            sourceComponent: videoBackgroundComponent
+            property url videoSource: root.backgroundVideoUrlA
+
+            onLoaded: {
+                item.videoSource = videoSource
+            }
+
+            onVideoSourceChanged: {
+                if (item) {
+                    item.videoSource = videoSource
+                }
+            }
+        }
+
         // Text content
         Text {
             anchors.centerIn: parent
@@ -338,6 +392,23 @@ Window {
                     ? "data:image/png;base64," + root.backgroundImageDataBase64B : ""
             fillMode: Image.PreserveAspectCrop
             smooth: true
+        }
+
+        Loader {
+            anchors.fill: parent
+            active: root.backgroundTypeB === "video"
+            sourceComponent: videoBackgroundComponent
+            property url videoSource: root.backgroundVideoUrlB
+
+            onLoaded: {
+                item.videoSource = videoSource
+            }
+
+            onVideoSourceChanged: {
+                if (item) {
+                    item.videoSource = videoSource
+                }
+            }
         }
 
         // Text content
