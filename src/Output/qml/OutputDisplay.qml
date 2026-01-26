@@ -86,7 +86,10 @@ Window {
     }
 
     function updateVideoPlayback(player, backgroundType, backgroundVideoUrl) {
-        if (backgroundType === "video" && backgroundVideoUrl !== "") {
+        var hasVideo = backgroundType === "video"
+                && backgroundVideoUrl
+                && backgroundVideoUrl.toString() !== ""
+        if (hasVideo) {
             player.play()
         } else {
             player.stop()
@@ -293,8 +296,16 @@ Window {
         MediaPlayer {
             id: videoPlayerA
             source: root.backgroundVideoUrlA
-            loops: MediaPlayer.Infinite
             onSourceChanged: root.updateVideoPlayback(videoPlayerA, root.backgroundTypeA, root.backgroundVideoUrlA)
+            onMediaStatusChanged: {
+                if (mediaStatus === MediaPlayer.EndOfMedia && root.backgroundTypeA === "video") {
+                    position = 0
+                    play()
+                }
+            }
+            onErrorOccurred: {
+                console.warn("OutputDisplay: Video A error:", errorString)
+            }
         }
 
         VideoOutput {
@@ -371,8 +382,16 @@ Window {
         MediaPlayer {
             id: videoPlayerB
             source: root.backgroundVideoUrlB
-            loops: MediaPlayer.Infinite
             onSourceChanged: root.updateVideoPlayback(videoPlayerB, root.backgroundTypeB, root.backgroundVideoUrlB)
+            onMediaStatusChanged: {
+                if (mediaStatus === MediaPlayer.EndOfMedia && root.backgroundTypeB === "video") {
+                    position = 0
+                    play()
+                }
+            }
+            onErrorOccurred: {
+                console.warn("OutputDisplay: Video B error:", errorString)
+            }
         }
 
         VideoOutput {
