@@ -21,7 +21,8 @@ public:
     enum BackgroundType {
         SolidColor,  ///< Solid color background (default)
         Image,       ///< Image background
-        Gradient     ///< Gradient background (future)
+        Gradient,    ///< Gradient background
+        Video        ///< Video background (MP4 loop)
     };
 
     Slide();
@@ -36,6 +37,7 @@ public:
     BackgroundType backgroundType() const { return m_backgroundType; }
     QString backgroundImagePath() const { return m_backgroundImagePath; }
     QByteArray backgroundImageData() const { return m_backgroundImageData; }
+    QString backgroundVideoPath() const { return m_backgroundVideoPath; }
     QColor gradientStartColor() const { return m_gradientStartColor; }
     QColor gradientEndColor() const { return m_gradientEndColor; }
     int gradientAngle() const { return m_gradientAngle; }
@@ -58,6 +60,7 @@ public:
     void setBackgroundType(BackgroundType type) { m_backgroundType = type; }
     void setBackgroundImagePath(const QString& path) { m_backgroundImagePath = path; }
     void setBackgroundImageData(const QByteArray& data) { m_backgroundImageData = data; }
+    void setBackgroundVideoPath(const QString& path) { m_backgroundVideoPath = path; }
     void setGradientStartColor(const QColor& color) { m_gradientStartColor = color; }
     void setGradientEndColor(const QColor& color) { m_gradientEndColor = color; }
     void setGradientAngle(int angle) { m_gradientAngle = angle; }
@@ -82,6 +85,7 @@ private:
     BackgroundType m_backgroundType;
     QString m_backgroundImagePath;      ///< Original image file path (for reference)
     QByteArray m_backgroundImageData;   ///< Base64-encoded image data for IPC/storage
+    QString m_backgroundVideoPath;      ///< Video file path (MP4)
 
     // Phase 2: Gradient support
     QColor m_gradientStartColor;        ///< Gradient start color

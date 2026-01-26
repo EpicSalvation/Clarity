@@ -65,6 +65,11 @@ private:
     static void drawImage(QPainter& painter, const Slide& slide, const QRect& rect);
 
     /**
+     * @brief Draw video background placeholder
+     */
+    static void drawVideoPlaceholder(QPainter& painter, const Slide& slide, const QRect& rect);
+
+    /**
      * @brief Draw slide text with scaled font
      */
     static void drawText(QPainter& painter, const Slide& slide, const QRect& rect, int scaledFontSize);

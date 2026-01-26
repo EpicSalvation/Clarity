@@ -61,6 +61,7 @@ void SlideEditorDialog::setupUI()
     m_backgroundTypeCombo->addItem("Solid Color", "solidColor");
     m_backgroundTypeCombo->addItem("Gradient", "gradient");
     m_backgroundTypeCombo->addItem("Image", "image");
+    m_backgroundTypeCombo->addItem("Video (MP4)", "video");
     connect(m_backgroundTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &SlideEditorDialog::onBackgroundTypeChanged);
     backgroundLayout->addWidget(m_backgroundTypeCombo);
@@ -120,6 +121,27 @@ void SlideEditorDialog::setupUI()
     imageLayout->addWidget(m_imagePreviewLabel);
 
     m_backgroundStack->addWidget(imagePage);
+
+    // Page 3: Video
+    QWidget* videoPage = new QWidget(this);
+    QVBoxLayout* videoLayout = new QVBoxLayout(videoPage);
+
+    QHBoxLayout* videoPathLayout = new QHBoxLayout();
+    m_videoPathEdit = new QLineEdit(this);
+    m_videoPathEdit->setPlaceholderText("No video selected");
+    m_videoPathEdit->setReadOnly(true);
+    videoPathLayout->addWidget(m_videoPathEdit);
+
+    m_chooseVideoButton = new QPushButton("Browse...", this);
+    connect(m_chooseVideoButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseBackgroundVideo);
+    videoPathLayout->addWidget(m_chooseVideoButton);
+    videoLayout->addLayout(videoPathLayout);
+
+    QLabel* videoHintLabel = new QLabel("MP4 video files will loop during playback.", this);
+    videoHintLabel->setStyleSheet("QLabel { color: #666666; }");
+    videoLayout->addWidget(videoHintLabel);
+
+    m_backgroundStack->addWidget(videoPage);
 
     backgroundLayout->addWidget(m_backgroundStack);
     mainLayout->addWidget(backgroundGroup);
@@ -217,6 +239,10 @@ void SlideEditorDialog::setSlide(const Slide& slide)
                 }
             }
             break;
+        case Slide::Video:
+            m_backgroundTypeCombo->setCurrentIndex(3);
+            m_videoPathEdit->setText(slide.backgroundVideoPath());
+            break;
     }
 
     updateBackgroundControls();
@@ -265,6 +291,9 @@ Slide SlideEditorDialog::slide() const
             break;
         case 2: // Image
             slide.setBackgroundType(Slide::Image);
+            break;
+        case 3: // Video
+            slide.setBackgroundType(Slide::Video);
             break;
     }
 
@@ -362,6 +391,22 @@ void SlideEditorDialog::onChooseBackgroundImage()
         ));
 
         qDebug() << "Loaded background image:" << fileName << "size:" << imageData.size() << "bytes";
+    }
+}
+
+void SlideEditorDialog::onChooseBackgroundVideo()
+{
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        "Choose Background Video",
+        QString(),
+        "Video Files (*.mp4);;All Files (*)"
+    );
+
+    if (!fileName.isEmpty()) {
+        m_slide.setBackgroundVideoPath(fileName);
+        m_videoPathEdit->setText(fileName);
+        qDebug() << "Loaded background video:" << fileName;
     }
 }
 

@@ -41,6 +41,7 @@ public:
     QColor gradientEndColor() const { return m_gradientEndColor; }
     int gradientAngle() const { return m_gradientAngle; }
     QByteArray backgroundImageData() const { return m_backgroundImageData; }
+    QString backgroundVideoPath() const { return m_backgroundVideoPath; }
 
     // Setters
     void setName(const QString& name) { m_name = name; }
@@ -63,6 +64,7 @@ public:
     void setGradientEndColor(const QColor& color) { m_gradientEndColor = color; }
     void setGradientAngle(int angle) { m_gradientAngle = angle; }
     void setBackgroundImageData(const QByteArray& data) { m_backgroundImageData = data; }
+    void setBackgroundVideoPath(const QString& path) { m_backgroundVideoPath = path; }
 
     // Apply theme to a slide
     void applyToSlide(Slide& slide) const;
@@ -98,6 +100,7 @@ private:
     QColor m_gradientEndColor;
     int m_gradientAngle;
     QByteArray m_backgroundImageData;
+    QString m_backgroundVideoPath;
 };
 
 } // namespace Clarity

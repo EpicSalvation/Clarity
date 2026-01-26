@@ -61,6 +61,9 @@ void Theme::applyToSlide(Slide& slide) const
     case Slide::Image:
         slide.setBackgroundImageData(m_backgroundImageData);
         break;
+    case Slide::Video:
+        slide.setBackgroundVideoPath(m_backgroundVideoPath);
+        break;
     }
 }
 
@@ -103,6 +106,9 @@ QJsonObject Theme::toJson() const
     case Slide::Image:
         typeStr = "image";
         break;
+    case Slide::Video:
+        typeStr = "video";
+        break;
     }
     json["backgroundType"] = typeStr;
 
@@ -114,6 +120,10 @@ QJsonObject Theme::toJson() const
     // Image data (only if present)
     if (!m_backgroundImageData.isEmpty()) {
         json["backgroundImageData"] = QString::fromLatin1(m_backgroundImageData.toBase64());
+    }
+
+    if (!m_backgroundVideoPath.isEmpty()) {
+        json["backgroundVideoPath"] = m_backgroundVideoPath;
     }
 
     return json;
@@ -144,6 +154,8 @@ Theme Theme::fromJson(const QJsonObject& json)
         theme.m_backgroundType = Slide::Gradient;
     } else if (typeStr == "image") {
         theme.m_backgroundType = Slide::Image;
+    } else if (typeStr == "video") {
+        theme.m_backgroundType = Slide::Video;
     } else {
         theme.m_backgroundType = Slide::SolidColor;
     }
@@ -158,6 +170,10 @@ Theme Theme::fromJson(const QJsonObject& json)
         theme.m_backgroundImageData = QByteArray::fromBase64(
             json["backgroundImageData"].toString().toLatin1()
         );
+    }
+
+    if (json.contains("backgroundVideoPath")) {
+        theme.m_backgroundVideoPath = json["backgroundVideoPath"].toString();
     }
 
     return theme;

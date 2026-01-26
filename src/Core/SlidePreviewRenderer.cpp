@@ -1,5 +1,6 @@
 #include "SlidePreviewRenderer.h"
 #include <QPainter>
+#include <QPainterPath>
 #include <QLinearGradient>
 #include <QtMath>
 
@@ -24,6 +25,9 @@ QPixmap SlidePreviewRenderer::render(const Slide& slide, const QSize& size,
         break;
     case Slide::Image:
         drawImage(painter, slide, rect);
+        break;
+    case Slide::Video:
+        drawVideoPlaceholder(painter, slide, rect);
         break;
     case Slide::SolidColor:
     default:
@@ -114,6 +118,40 @@ void SlidePreviewRenderer::drawImage(QPainter& painter, const Slide& slide, cons
 
         painter.drawImage(x, y, scaled);
     }
+}
+
+void SlidePreviewRenderer::drawVideoPlaceholder(QPainter& painter, const Slide& slide, const QRect& rect)
+{
+    painter.fillRect(rect, slide.backgroundColor());
+
+    QPen pen(QColor(255, 255, 255, 200));
+    pen.setWidth(3);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+
+    int margin = qMax(8, rect.width() / 12);
+    QRect iconRect = rect.adjusted(margin, margin, -margin, -margin);
+
+    painter.drawRect(iconRect);
+
+    QPointF left(iconRect.left() + iconRect.width() * 0.35, iconRect.top() + iconRect.height() * 0.25);
+    QPointF right(iconRect.left() + iconRect.width() * 0.35, iconRect.bottom() - iconRect.height() * 0.25);
+    QPointF tip(iconRect.right() - iconRect.width() * 0.25, iconRect.center().y());
+
+    QPainterPath triangle;
+    triangle.moveTo(left);
+    triangle.lineTo(right);
+    triangle.lineTo(tip);
+    triangle.closeSubpath();
+
+    painter.fillPath(triangle, QColor(255, 255, 255, 180));
+
+    painter.setPen(QColor(255, 255, 255, 220));
+    QFont font("Arial");
+    font.setBold(true);
+    font.setPixelSize(qMax(12, rect.height() / 12));
+    painter.setFont(font);
+    painter.drawText(rect, Qt::AlignBottom | Qt::AlignHCenter, "VIDEO");
 }
 
 void SlidePreviewRenderer::drawText(QPainter& painter, const Slide& slide, const QRect& rect, int scaledFontSize)

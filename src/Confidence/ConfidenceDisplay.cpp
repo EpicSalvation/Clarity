@@ -37,6 +37,8 @@ QString ConfidenceDisplay::currentBackgroundType() const
             return "image";
         case Slide::Gradient:
             return "gradient";
+        case Slide::Video:
+            return "video";
         default:
             return "solidColor";
     }
@@ -56,6 +58,8 @@ QString ConfidenceDisplay::nextBackgroundType() const
             return "image";
         case Slide::Gradient:
             return "gradient";
+        case Slide::Video:
+            return "video";
         default:
             return "solidColor";
     }

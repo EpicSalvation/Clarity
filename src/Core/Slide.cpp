@@ -50,6 +50,9 @@ QJsonObject Slide::toJson() const
         case Gradient:
             bgTypeString = "gradient";
             break;
+        case Video:
+            bgTypeString = "video";
+            break;
     }
     json["backgroundType"] = bgTypeString;
 
@@ -64,6 +67,11 @@ QJsonObject Slide::toJson() const
         json["gradientStartColor"] = m_gradientStartColor.name();
         json["gradientEndColor"] = m_gradientEndColor.name();
         json["gradientAngle"] = m_gradientAngle;
+    }
+
+    // Include video data if background type is Video
+    if (m_backgroundType == Video) {
+        json["backgroundVideoPath"] = m_backgroundVideoPath;
     }
 
     // Phase 3: Per-slide transition override (only include if set)
@@ -105,6 +113,9 @@ Slide Slide::fromJson(const QJsonObject& json)
         slide.m_gradientStartColor = QColor(json["gradientStartColor"].toString("#1e3a8a"));
         slide.m_gradientEndColor = QColor(json["gradientEndColor"].toString("#60a5fa"));
         slide.m_gradientAngle = json["gradientAngle"].toInt(135);
+    } else if (bgTypeString == "video") {
+        slide.m_backgroundType = Video;
+        slide.m_backgroundVideoPath = json["backgroundVideoPath"].toString();
     } else {
         slide.m_backgroundType = SolidColor;
     }

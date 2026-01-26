@@ -4,6 +4,7 @@
 #include "Core/Slide.h"
 #include <QObject>
 #include <QColor>
+#include <QUrl>
 
 namespace Clarity {
 
@@ -26,6 +27,7 @@ class OutputDisplay : public QObject {
     Q_PROPERTY(QString backgroundType READ backgroundType NOTIFY backgroundTypeChanged)
     Q_PROPERTY(QByteArray backgroundImageData READ backgroundImageData NOTIFY backgroundImageDataChanged)
     Q_PROPERTY(QString backgroundImageDataBase64 READ backgroundImageDataBase64 NOTIFY backgroundImageDataChanged)
+    Q_PROPERTY(QUrl backgroundVideoUrl READ backgroundVideoUrl NOTIFY backgroundVideoUrlChanged)
     Q_PROPERTY(QColor gradientStartColor READ gradientStartColor NOTIFY gradientStartColorChanged)
     Q_PROPERTY(QColor gradientEndColor READ gradientEndColor NOTIFY gradientEndColorChanged)
     Q_PROPERTY(int gradientAngle READ gradientAngle NOTIFY gradientAngleChanged)
@@ -47,6 +49,7 @@ public:
     QString backgroundType() const { return m_backgroundType; }
     QByteArray backgroundImageData() const { return m_backgroundImageData; }
     QString backgroundImageDataBase64() const { return QString(m_backgroundImageData.toBase64()); }
+    QUrl backgroundVideoUrl() const { return m_backgroundVideoUrl; }
     QColor gradientStartColor() const { return m_gradientStartColor; }
     QColor gradientEndColor() const { return m_gradientEndColor; }
     int gradientAngle() const { return m_gradientAngle; }
@@ -67,6 +70,7 @@ signals:
     void isClearedChanged();
     void backgroundTypeChanged();
     void backgroundImageDataChanged();
+    void backgroundVideoUrlChanged();
     void gradientStartColorChanged();
     void gradientEndColorChanged();
     void gradientAngleChanged();
@@ -104,6 +108,7 @@ private:
     bool m_isCleared;
     QString m_backgroundType;
     QByteArray m_backgroundImageData;
+    QUrl m_backgroundVideoUrl;
     QColor m_gradientStartColor;
     QColor m_gradientEndColor;
     int m_gradientAngle;
