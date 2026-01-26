@@ -76,6 +76,9 @@ private:
     QComboBox* m_transitionTypeCombo;
     QComboBox* m_transitionDurationCombo;
 
+    // Presenter notes
+    QTextEdit* m_notesEdit;
+
     // Current slide data
     Slide m_slide;
 };

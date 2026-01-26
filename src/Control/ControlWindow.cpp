@@ -3,6 +3,7 @@
 #include "SlideEditorDialog.h"
 #include "ScriptureDialog.h"
 #include "SongLibraryDialog.h"
+#include "ThemeSelectorDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QToolBar>
@@ -17,6 +18,9 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QFrame>
+#include <QShortcut>
+#include <QInputDialog>
 #include <QDebug>
 
 namespace Clarity {
@@ -24,6 +28,9 @@ namespace Clarity {
 ControlWindow::ControlWindow(QWidget* parent)
     : QMainWindow(parent)
     , m_slideListView(nullptr)
+    , m_slideGridView(nullptr)
+    , m_slideDelegate(nullptr)
+    , m_livePreviewPanel(nullptr)
     , m_prevButton(nullptr)
     , m_nextButton(nullptr)
     , m_clearButton(nullptr)
@@ -45,10 +52,12 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_settingsManager(new SettingsManager(this))
     , m_bibleDatabase(new BibleDatabase(this))
     , m_songLibrary(new SongLibrary(this))
+    , m_themeManager(new ThemeManager(this))
     , m_currentFilePath("")
     , m_isDirty(false)
 {
     setupUI();
+    setupShortcuts();
     createDemoPresentation();
 
     // Initialize Bible database
@@ -75,6 +84,17 @@ ControlWindow::ControlWindow(QWidget* parent)
     // Connect presentation modification signal
     connect(m_presentationModel, &PresentationModel::presentationModified, this, &ControlWindow::onPresentationModified);
 
+    // Invalidate thumbnail cache when model data changes
+    connect(m_presentationModel, &QAbstractItemModel::dataChanged, this, [this](const QModelIndex& topLeft, const QModelIndex& bottomRight) {
+        for (int i = topLeft.row(); i <= bottomRight.row(); i++) {
+            m_slideDelegate->invalidateCacheFor(i);
+        }
+        m_slideGridView->viewport()->update();
+    });
+    connect(m_presentationModel, &QAbstractItemModel::modelReset, this, [this]() {
+        m_slideDelegate->invalidateCache();
+    });
+
     // Broadcast settings changes to confidence monitor
     connect(m_settingsManager, &SettingsManager::confidenceDisplaySettingsChanged, this, [this]() {
         QJsonObject message;
@@ -93,7 +113,7 @@ ControlWindow::~ControlWindow()
 void ControlWindow::setupUI()
 {
     setWindowTitle("Clarity - Control");
-    resize(800, 600);
+    resize(1000, 700);  // Larger default size for new layout
 
     // Menu bar
     QMenuBar* menuBar = new QMenuBar(this);
@@ -114,6 +134,17 @@ void ControlWindow::setupUI()
     slideMenu->addSeparator();
     slideMenu->addAction("Insert &Scripture...", QKeySequence("Ctrl+B"), this, &ControlWindow::onInsertScripture);
     slideMenu->addAction("Insert S&ong...", QKeySequence("Ctrl+L"), this, &ControlWindow::onInsertSong);
+    slideMenu->addSeparator();
+    slideMenu->addAction("Apply &Theme...", QKeySequence("Ctrl+T"), this, &ControlWindow::onApplyTheme);
+    slideMenu->addAction("Apply Theme to Current Slide...", this, &ControlWindow::onApplyThemeToSlide);
+
+    // Format menu (for theme management)
+    QMenu* formatMenu = menuBar->addMenu("F&ormat");
+    formatMenu->addAction("&Manage Themes...", this, &ControlWindow::onManageThemes);
+
+    // Help menu
+    QMenu* helpMenu = menuBar->addMenu("&Help");
+    helpMenu->addAction("&Keyboard Shortcuts...", QKeySequence("F1"), this, &ControlWindow::showKeyboardShortcuts);
 
     setMenuBar(menuBar);
 
@@ -121,22 +152,58 @@ void ControlWindow::setupUI()
     QWidget* centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
 
-    // Main layout
+    // Main layout - vertical with content area on top and buttons at bottom
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
 
-    // Slide list view
+    // Content area: horizontal layout with list on left, grid in center, preview on right
+    QHBoxLayout* contentLayout = new QHBoxLayout();
+
+    // Left panel: Slide list (playlist view)
     m_slideListView = new QListView(this);
     m_slideListView->setModel(m_presentationModel);
+    m_slideListView->setFixedWidth(180);
+    m_slideListView->setSelectionMode(QAbstractItemView::SingleSelection);
     connect(m_slideListView, &QListView::clicked, this, &ControlWindow::onSlideClicked);
     connect(m_slideListView, &QListView::doubleClicked, this, &ControlWindow::onSlideDoubleClicked);
-    mainLayout->addWidget(m_slideListView);
+    contentLayout->addWidget(m_slideListView);
+
+    // Center panel: Slide grid view
+    m_slideGridView = new QListView(this);
+    m_slideGridView->setModel(m_presentationModel);
+
+    // Configure for grid/icon mode
+    m_slideGridView->setViewMode(QListView::IconMode);
+    m_slideGridView->setGridSize(QSize(180, 120));  // Thumbnail size + spacing
+    m_slideGridView->setResizeMode(QListView::Adjust);
+    m_slideGridView->setWrapping(true);
+    m_slideGridView->setFlow(QListView::LeftToRight);
+    m_slideGridView->setSpacing(10);
+    m_slideGridView->setUniformItemSizes(true);
+    m_slideGridView->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_slideGridView->setDragEnabled(false);  // Disable drag for now
+
+    // Create and set the custom delegate for grid thumbnails
+    m_slideDelegate = new SlideGridDelegate(this);
+    m_slideGridView->setItemDelegate(m_slideDelegate);
+
+    connect(m_slideGridView, &QListView::clicked, this, &ControlWindow::onSlideClicked);
+    connect(m_slideGridView, &QListView::doubleClicked, this, &ControlWindow::onSlideDoubleClicked);
+
+    contentLayout->addWidget(m_slideGridView, 1);  // Grid takes remaining space
+
+    // Right panel: Live preview
+    m_livePreviewPanel = new LivePreviewPanel(this);
+    m_livePreviewPanel->setSettingsManager(m_settingsManager);
+    contentLayout->addWidget(m_livePreviewPanel);
+
+    mainLayout->addLayout(contentLayout, 1);  // Content area stretches
 
     // Slide editing buttons
     QHBoxLayout* editLayout = new QHBoxLayout();
 
-    m_addSlideButton = new QPushButton("Add Slide", this);
-    m_editSlideButton = new QPushButton("Edit Slide", this);
-    m_deleteSlideButton = new QPushButton("Delete Slide", this);
+    m_addSlideButton = new QPushButton("Add", this);
+    m_editSlideButton = new QPushButton("Edit", this);
+    m_deleteSlideButton = new QPushButton("Delete", this);
     m_moveUpButton = new QPushButton("Move Up", this);
     m_moveDownButton = new QPushButton("Move Down", this);
 
@@ -158,9 +225,9 @@ void ControlWindow::setupUI()
     // Control buttons
     QHBoxLayout* buttonLayout = new QHBoxLayout();
 
-    m_prevButton = new QPushButton("Previous", this);
+    m_prevButton = new QPushButton("Prev", this);
     m_nextButton = new QPushButton("Next", this);
-    m_clearButton = new QPushButton("Clear Output", this);
+    m_clearButton = new QPushButton("Clear", this);
 
     connect(m_prevButton, &QPushButton::clicked, this, &ControlWindow::onPrevSlide);
     connect(m_nextButton, &QPushButton::clicked, this, &ControlWindow::onNextSlide);
@@ -169,12 +236,17 @@ void ControlWindow::setupUI()
     buttonLayout->addWidget(m_prevButton);
     buttonLayout->addWidget(m_nextButton);
     buttonLayout->addWidget(m_clearButton);
-    buttonLayout->addStretch();
+
+    // Separator
+    QFrame* separator = new QFrame(this);
+    separator->setFrameShape(QFrame::VLine);
+    separator->setFrameShadow(QFrame::Sunken);
+    buttonLayout->addWidget(separator);
 
     // Timer control buttons
-    m_timerStartButton = new QPushButton("Start Timer", this);
-    m_timerPauseButton = new QPushButton("Pause Timer", this);
-    m_timerResetButton = new QPushButton("Reset Timer", this);
+    m_timerStartButton = new QPushButton("Start", this);
+    m_timerPauseButton = new QPushButton("Pause", this);
+    m_timerResetButton = new QPushButton("Reset", this);
 
     connect(m_timerStartButton, &QPushButton::clicked, this, &ControlWindow::onStartTimer);
     connect(m_timerPauseButton, &QPushButton::clicked, this, &ControlWindow::onPauseTimer);
@@ -183,14 +255,15 @@ void ControlWindow::setupUI()
     buttonLayout->addWidget(m_timerStartButton);
     buttonLayout->addWidget(m_timerPauseButton);
     buttonLayout->addWidget(m_timerResetButton);
+    buttonLayout->addStretch();
 
     mainLayout->addLayout(buttonLayout);
 
     // Process management buttons
     QHBoxLayout* processLayout = new QHBoxLayout();
 
-    m_launchOutputButton = new QPushButton("Launch Output Display", this);
-    m_launchConfidenceButton = new QPushButton("Launch Confidence Monitor", this);
+    m_launchOutputButton = new QPushButton("Launch Output", this);
+    m_launchConfidenceButton = new QPushButton("Launch Confidence", this);
     m_settingsButton = new QPushButton("Settings", this);
 
     connect(m_launchOutputButton, &QPushButton::clicked, this, &ControlWindow::onLaunchOutput);
@@ -232,11 +305,16 @@ void ControlWindow::updateUI()
     m_prevButton->setEnabled(currentIndex > 0);
     m_nextButton->setEnabled(currentIndex < slideCount - 1);
 
-    // Update list selection
+    // Update selection in both list and grid views
     if (slideCount > 0) {
         QModelIndex index = m_presentationModel->index(currentIndex);
         m_slideListView->setCurrentIndex(index);
+        m_slideGridView->setCurrentIndex(index);
     }
+
+    // Update the delegate to show "live" indicator on current slide
+    m_slideDelegate->setCurrentSlideIndex(currentIndex);
+    m_slideGridView->viewport()->update();  // Force repaint
 }
 
 void ControlWindow::broadcastCurrentSlide()
@@ -248,6 +326,16 @@ void ControlWindow::broadcastCurrentSlide()
 
     Slide currentSlide = presentation.currentSlide();
     int currentIndex = presentation.currentSlideIndex();
+    int totalSlides = presentation.slideCount();
+
+    // Get next slide if available
+    Slide nextSlide;
+    if (currentIndex < totalSlides - 1) {
+        nextSlide = presentation.getSlide(currentIndex + 1);
+    }
+
+    // Update live preview panel with current and next slides
+    m_livePreviewPanel->setSlides(currentSlide, nextSlide, currentIndex, totalSlides);
 
     // Send standard slideData message to output displays
     QJsonObject outputMessage;
@@ -311,6 +399,10 @@ void ControlWindow::onNextSlide()
 
 void ControlWindow::onClearOutput()
 {
+    // Clear the live preview panel
+    m_livePreviewPanel->clearAll();
+
+    // Send clear command to displays
     QJsonObject message;
     message["type"] = "clearOutput";
     m_ipcServer->sendToAll(message);
@@ -450,7 +542,7 @@ void ControlWindow::onAddSlide()
 
         // Select the new slide
         int newIndex = m_presentationModel->rowCount() - 1;
-        m_slideListView->setCurrentIndex(m_presentationModel->index(newIndex, 0));
+        m_slideGridView->setCurrentIndex(m_presentationModel->index(newIndex, 0));
         m_presentationModel->setCurrentSlideIndex(newIndex);
         broadcastCurrentSlide();
     }
@@ -458,7 +550,7 @@ void ControlWindow::onAddSlide()
 
 void ControlWindow::onEditSlide()
 {
-    QModelIndex currentIndex = m_slideListView->currentIndex();
+    QModelIndex currentIndex = m_slideGridView->currentIndex();
     if (!currentIndex.isValid()) {
         QMessageBox::information(this, "No Slide Selected", "Please select a slide to edit.");
         return;
@@ -484,7 +576,7 @@ void ControlWindow::onEditSlide()
 
 void ControlWindow::onDeleteSlide()
 {
-    QModelIndex currentIndex = m_slideListView->currentIndex();
+    QModelIndex currentIndex = m_slideGridView->currentIndex();
     if (!currentIndex.isValid()) {
         QMessageBox::information(this, "No Slide Selected", "Please select a slide to delete.");
         return;
@@ -506,7 +598,7 @@ void ControlWindow::onDeleteSlide()
         // Update UI to select next available slide
         if (m_presentationModel->rowCount() > 0) {
             int newIndex = qMin(index, m_presentationModel->rowCount() - 1);
-            m_slideListView->setCurrentIndex(m_presentationModel->index(newIndex, 0));
+            m_slideGridView->setCurrentIndex(m_presentationModel->index(newIndex, 0));
             m_presentationModel->setCurrentSlideIndex(newIndex);
             broadcastCurrentSlide();
         } else {
@@ -520,7 +612,7 @@ void ControlWindow::onDeleteSlide()
 
 void ControlWindow::onMoveSlideUp()
 {
-    QModelIndex currentIndex = m_slideListView->currentIndex();
+    QModelIndex currentIndex = m_slideGridView->currentIndex();
     if (!currentIndex.isValid()) {
         return;
     }
@@ -539,7 +631,7 @@ void ControlWindow::onMoveSlideUp()
     updateUI();
 
     // Set selection AFTER updateUI so the moved slide stays selected
-    m_slideListView->setCurrentIndex(m_presentationModel->index(index - 1, 0));
+    m_slideGridView->setCurrentIndex(m_presentationModel->index(index - 1, 0));
 
     // Broadcast updated slide to output and confidence monitor
     broadcastCurrentSlide();
@@ -547,7 +639,7 @@ void ControlWindow::onMoveSlideUp()
 
 void ControlWindow::onMoveSlideDown()
 {
-    QModelIndex currentIndex = m_slideListView->currentIndex();
+    QModelIndex currentIndex = m_slideGridView->currentIndex();
     if (!currentIndex.isValid()) {
         return;
     }
@@ -566,7 +658,7 @@ void ControlWindow::onMoveSlideDown()
     updateUI();
 
     // Set selection AFTER updateUI so the moved slide stays selected
-    m_slideListView->setCurrentIndex(m_presentationModel->index(index + 1, 0));
+    m_slideGridView->setCurrentIndex(m_presentationModel->index(index + 1, 0));
 
     // Broadcast updated slide to output and confidence monitor
     broadcastCurrentSlide();
@@ -824,7 +916,7 @@ void ControlWindow::onInsertScripture()
 
         // Select the first inserted slide
         int firstInsertedIndex = m_presentationModel->currentSlideIndex() + 1;
-        m_slideListView->setCurrentIndex(m_presentationModel->index(firstInsertedIndex, 0));
+        m_slideGridView->setCurrentIndex(m_presentationModel->index(firstInsertedIndex, 0));
         m_presentationModel->setCurrentSlideIndex(firstInsertedIndex);
         broadcastCurrentSlide();
         updateUI();
@@ -873,13 +965,347 @@ void ControlWindow::onInsertSong()
 
         // Select the first inserted slide
         int firstInsertedIndex = m_presentationModel->currentSlideIndex() + 1;
-        m_slideListView->setCurrentIndex(m_presentationModel->index(firstInsertedIndex, 0));
+        m_slideGridView->setCurrentIndex(m_presentationModel->index(firstInsertedIndex, 0));
         m_presentationModel->setCurrentSlideIndex(firstInsertedIndex);
         broadcastCurrentSlide();
         updateUI();
 
         qDebug() << "Inserted" << slides.count() << "song slide(s)";
     }
+}
+
+void ControlWindow::onApplyTheme()
+{
+    ThemeSelectorDialog dialog(m_themeManager, m_settingsManager, this);
+
+    if (dialog.exec() == QDialog::Accepted && dialog.hasSelection()) {
+        Theme theme = dialog.selectedTheme();
+        bool applyToAll = dialog.applyToAllSlides();
+
+        if (applyToAll) {
+            // Apply theme to all slides
+            Presentation presentation = m_presentationModel->presentation();
+            int slideCount = presentation.slideCount();
+
+            for (int i = 0; i < slideCount; i++) {
+                Slide slide = presentation.getSlide(i);
+                theme.applyToSlide(slide);
+                presentation.updateSlide(i, slide);
+            }
+
+            m_presentationModel->setPresentation(presentation);
+            broadcastCurrentSlide();
+            markDirty();
+
+            qDebug() << "Applied theme" << theme.name() << "to all" << slideCount << "slides";
+        } else {
+            // Apply to current slide only
+            QModelIndex currentIndex = m_slideGridView->currentIndex();
+            if (currentIndex.isValid()) {
+                int index = currentIndex.row();
+                Slide slide = m_presentationModel->getSlide(index);
+                theme.applyToSlide(slide);
+                m_presentationModel->updateSlide(index, slide);
+
+                if (index == m_presentationModel->currentSlideIndex()) {
+                    broadcastCurrentSlide();
+                }
+
+                qDebug() << "Applied theme" << theme.name() << "to slide" << index;
+            }
+        }
+    }
+}
+
+void ControlWindow::onApplyThemeToSlide()
+{
+    QModelIndex currentIndex = m_slideGridView->currentIndex();
+    if (!currentIndex.isValid()) {
+        QMessageBox::information(this, "No Slide Selected", "Please select a slide to apply a theme to.");
+        return;
+    }
+
+    ThemeSelectorDialog dialog(m_themeManager, m_settingsManager, this);
+
+    // Hide the "apply to all" checkbox for single-slide operation
+    // The dialog will only apply to the current slide
+
+    if (dialog.exec() == QDialog::Accepted && dialog.hasSelection()) {
+        Theme theme = dialog.selectedTheme();
+
+        int index = currentIndex.row();
+        Slide slide = m_presentationModel->getSlide(index);
+        theme.applyToSlide(slide);
+        m_presentationModel->updateSlide(index, slide);
+
+        if (index == m_presentationModel->currentSlideIndex()) {
+            broadcastCurrentSlide();
+        }
+
+        qDebug() << "Applied theme" << theme.name() << "to slide" << index;
+    }
+}
+
+void ControlWindow::onManageThemes()
+{
+    // Open the theme selector dialog in management mode
+    // User can create, edit, duplicate, and delete custom themes
+    ThemeSelectorDialog dialog(m_themeManager, m_settingsManager, this);
+    dialog.setWindowTitle("Manage Themes");
+    dialog.exec();
+
+    // No need to apply - this is just for theme management
+}
+
+void ControlWindow::setupShortcuts()
+{
+    // Navigation shortcuts - arrows, page up/down, space
+    // Right Arrow, Page Down, Space = Next slide
+    new QShortcut(QKeySequence(Qt::Key_Right), this, SLOT(onNextSlide()));
+    new QShortcut(QKeySequence(Qt::Key_PageDown), this, SLOT(onNextSlide()));
+    new QShortcut(QKeySequence(Qt::Key_Space), this, SLOT(onNextSlide()));
+
+    // Left Arrow, Page Up = Previous slide
+    new QShortcut(QKeySequence(Qt::Key_Left), this, SLOT(onPrevSlide()));
+    new QShortcut(QKeySequence(Qt::Key_PageUp), this, SLOT(onPrevSlide()));
+
+    // Home = First slide, End = Last slide
+    new QShortcut(QKeySequence(Qt::Key_Home), this, SLOT(gotoFirstSlide()));
+    new QShortcut(QKeySequence(Qt::Key_End), this, SLOT(gotoLastSlide()));
+
+    // G = Go to slide (prompt for number)
+    new QShortcut(QKeySequence(Qt::Key_G), this, SLOT(promptGotoSlide()));
+
+    // Display control shortcuts
+    // B = Black screen (clear output)
+    new QShortcut(QKeySequence(Qt::Key_B), this, SLOT(blackScreen()));
+
+    // W = White screen
+    new QShortcut(QKeySequence(Qt::Key_W), this, SLOT(whiteScreen()));
+
+    // Escape = Clear output
+    new QShortcut(QKeySequence(Qt::Key_Escape), this, SLOT(onClearOutput()));
+
+    // O = Toggle output display visibility
+    new QShortcut(QKeySequence(Qt::Key_O), this, SLOT(toggleOutputDisplay()));
+
+    // F = Toggle output fullscreen
+    new QShortcut(QKeySequence(Qt::Key_F), this, SLOT(toggleOutputFullscreen()));
+
+    // C = Toggle confidence monitor
+    new QShortcut(QKeySequence(Qt::Key_C), this, SLOT(toggleConfidenceMonitor()));
+
+    // Slide management shortcuts
+    // Ctrl+Up = Move slide up
+    new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Up), this, SLOT(onMoveSlideUp()));
+
+    // Ctrl+Down = Move slide down
+    new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Down), this, SLOT(onMoveSlideDown()));
+
+    // Number keys 1-9 for quick navigation to slides 1-9
+    for (int i = 1; i <= 9; i++) {
+        QShortcut* shortcut = new QShortcut(QKeySequence(Qt::Key_0 + i), this);
+        connect(shortcut, &QShortcut::activated, this, [this, i]() {
+            gotoSlide(i - 1);  // Convert to 0-indexed
+        });
+    }
+}
+
+void ControlWindow::gotoFirstSlide()
+{
+    if (m_presentationModel->rowCount() == 0) {
+        return;
+    }
+
+    Presentation presentation = m_presentationModel->presentation();
+    if (presentation.gotoSlide(0)) {
+        m_presentationModel->setPresentation(presentation);
+        updateUI();
+        broadcastCurrentSlide();
+    }
+}
+
+void ControlWindow::gotoLastSlide()
+{
+    int lastIndex = m_presentationModel->rowCount() - 1;
+    if (lastIndex < 0) {
+        return;
+    }
+
+    Presentation presentation = m_presentationModel->presentation();
+    if (presentation.gotoSlide(lastIndex)) {
+        m_presentationModel->setPresentation(presentation);
+        updateUI();
+        broadcastCurrentSlide();
+    }
+}
+
+void ControlWindow::gotoSlide(int index)
+{
+    if (index < 0 || index >= m_presentationModel->rowCount()) {
+        return;
+    }
+
+    Presentation presentation = m_presentationModel->presentation();
+    if (presentation.gotoSlide(index)) {
+        m_presentationModel->setPresentation(presentation);
+        updateUI();
+        broadcastCurrentSlide();
+    }
+}
+
+void ControlWindow::promptGotoSlide()
+{
+    int slideCount = m_presentationModel->rowCount();
+    if (slideCount == 0) {
+        return;
+    }
+
+    bool ok;
+    int slideNumber = QInputDialog::getInt(
+        this,
+        "Go to Slide",
+        QString("Enter slide number (1-%1):").arg(slideCount),
+        m_presentationModel->currentSlideIndex() + 1,  // Default to current slide (1-indexed)
+        1,         // Minimum
+        slideCount, // Maximum
+        1,         // Step
+        &ok
+    );
+
+    if (ok) {
+        gotoSlide(slideNumber - 1);  // Convert to 0-indexed
+    }
+}
+
+void ControlWindow::blackScreen()
+{
+    // Clear output (same as Clear button) - shows black screen
+    onClearOutput();
+}
+
+void ControlWindow::whiteScreen()
+{
+    // Send a white screen command to displays
+    // We'll create a temporary white slide to display
+    QJsonObject message;
+    message["type"] = "slideData";
+    message["index"] = -1;  // Special index indicating temporary slide
+
+    QJsonObject slideJson;
+    slideJson["text"] = "";
+    slideJson["backgroundColor"] = "#ffffff";
+    slideJson["textColor"] = "#000000";
+    slideJson["fontFamily"] = "Arial";
+    slideJson["fontSize"] = 48;
+
+    message["slide"] = slideJson;
+    message["transitionType"] = "cut";  // Instant switch to white
+    message["transitionDuration"] = 0;
+
+    m_ipcServer->sendToClientType("output", message);
+
+    // Update live preview to show white screen
+    Slide whiteSlide;
+    whiteSlide.setText("");
+    whiteSlide.setBackgroundColor(QColor("#ffffff"));
+    whiteSlide.setTextColor(QColor("#000000"));
+    m_livePreviewPanel->setOutputSlide(whiteSlide);
+}
+
+void ControlWindow::toggleOutputDisplay()
+{
+    // Toggle output display visibility
+    // Send toggle visibility command to any connected output clients
+    QJsonObject message;
+    message["type"] = "toggleVisibility";
+
+    // Check if we have any output clients connected
+    // If the message isn't sent to anyone, launch the output display
+    if (!m_ipcServer->sendToClientType("output", message)) {
+        // No output clients connected, launch one
+        m_processManager->launchOutput();
+    }
+}
+
+void ControlWindow::toggleOutputFullscreen()
+{
+    // Send fullscreen toggle command to output display
+    QJsonObject message;
+    message["type"] = "toggleFullscreen";
+    m_ipcServer->sendToClientType("output", message);
+}
+
+void ControlWindow::toggleConfidenceMonitor()
+{
+    // Toggle confidence monitor visibility
+    // Send toggle visibility command to any connected confidence clients
+    QJsonObject message;
+    message["type"] = "toggleVisibility";
+
+    // Check if we have any confidence clients connected
+    // If the message isn't sent to anyone, launch the confidence monitor
+    if (!m_ipcServer->sendToClientType("confidence", message)) {
+        // No confidence clients connected, launch one
+        m_processManager->launchConfidence();
+    }
+}
+
+void ControlWindow::showKeyboardShortcuts()
+{
+    QString shortcuts = R"(
+<h2>Keyboard Shortcuts</h2>
+
+<h3>Navigation</h3>
+<table>
+<tr><td><b>Right Arrow / Page Down / Space</b></td><td>Next slide</td></tr>
+<tr><td><b>Left Arrow / Page Up</b></td><td>Previous slide</td></tr>
+<tr><td><b>Home</b></td><td>First slide</td></tr>
+<tr><td><b>End</b></td><td>Last slide</td></tr>
+<tr><td><b>1-9</b></td><td>Go to slide 1-9</td></tr>
+<tr><td><b>G</b></td><td>Go to slide (prompt for number)</td></tr>
+</table>
+
+<h3>Display Control</h3>
+<table>
+<tr><td><b>B</b></td><td>Black screen (clear output)</td></tr>
+<tr><td><b>W</b></td><td>White screen</td></tr>
+<tr><td><b>Escape</b></td><td>Clear output</td></tr>
+<tr><td><b>O</b></td><td>Toggle output display</td></tr>
+<tr><td><b>F</b></td><td>Toggle output fullscreen</td></tr>
+<tr><td><b>C</b></td><td>Toggle confidence monitor</td></tr>
+</table>
+
+<h3>Slide Management</h3>
+<table>
+<tr><td><b>Ctrl+Shift+N</b></td><td>New slide</td></tr>
+<tr><td><b>Ctrl+E</b></td><td>Edit current slide</td></tr>
+<tr><td><b>Delete</b></td><td>Delete selected slide</td></tr>
+<tr><td><b>Ctrl+Up</b></td><td>Move slide up</td></tr>
+<tr><td><b>Ctrl+Down</b></td><td>Move slide down</td></tr>
+</table>
+
+<h3>File</h3>
+<table>
+<tr><td><b>Ctrl+N</b></td><td>New presentation</td></tr>
+<tr><td><b>Ctrl+O</b></td><td>Open presentation</td></tr>
+<tr><td><b>Ctrl+S</b></td><td>Save presentation</td></tr>
+</table>
+
+<h3>Content</h3>
+<table>
+<tr><td><b>Ctrl+B</b></td><td>Insert Bible verse</td></tr>
+<tr><td><b>Ctrl+L</b></td><td>Insert song lyrics</td></tr>
+<tr><td><b>Ctrl+T</b></td><td>Apply theme</td></tr>
+</table>
+)";
+
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle("Keyboard Shortcuts");
+    msgBox.setTextFormat(Qt::RichText);
+    msgBox.setText(shortcuts);
+    msgBox.setIcon(QMessageBox::Information);
+    msgBox.exec();
 }
 
 } // namespace Clarity

@@ -20,7 +20,8 @@ public:
         BackgroundColorRole,
         TextColorRole,
         FontFamilyRole,
-        FontSizeRole
+        FontSizeRole,
+        SlideObjectRole  ///< Returns the full Slide object as QVariant
     };
 
     explicit PresentationModel(QObject* parent = nullptr);

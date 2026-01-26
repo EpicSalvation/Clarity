@@ -4,6 +4,171 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-25 - Phase 3 Task 6: Keyboard Shortcuts (Complete)
+
+### Summary
+Implemented comprehensive keyboard shortcuts for efficient presentation control without mouse interaction. Added navigation shortcuts, display control shortcuts, and a keyboard shortcuts reference dialog accessible via F1.
+
+### Work Completed
+
+#### Navigation Shortcuts
+- **Right Arrow / Page Down / Space**: Next slide
+- **Left Arrow / Page Up**: Previous slide
+- **Home**: Go to first slide
+- **End**: Go to last slide
+- **1-9**: Quick jump to slides 1-9
+- **G**: Prompt to go to specific slide number
+
+#### Display Control Shortcuts
+- **B**: Black screen (clear output)
+- **W**: White screen (blank white slide)
+- **Escape**: Clear output
+- **O**: Toggle output display visibility (launches if not running)
+- **F**: Toggle output fullscreen mode
+- **C**: Toggle confidence monitor visibility (launches if not running)
+
+#### Slide Management Shortcuts (menu-based, already existed)
+- **Ctrl+Shift+N**: New slide
+- **Ctrl+E**: Edit current slide
+- **Delete**: Delete selected slide
+- **Ctrl+Up**: Move slide up
+- **Ctrl+Down**: Move slide down
+
+#### Implementation Details
+- Created `setupShortcuts()` method in ControlWindow for centralized shortcut registration
+- Added new slots: `gotoFirstSlide()`, `gotoLastSlide()`, `gotoSlide(int)`, `promptGotoSlide()`, `blackScreen()`, `whiteScreen()`, `toggleOutputDisplay()`, `toggleOutputFullscreen()`, `toggleConfidenceMonitor()`
+- Added keyboard shortcuts reference dialog accessible via Help > Keyboard Shortcuts (F1)
+
+#### IPC Server Enhancement
+- Modified `sendToClientType()` to return `bool` indicating if message was sent to any clients
+- Added `hasClientType()` method for checking client connections
+- Enables toggle shortcuts to launch processes when no clients are connected
+
+#### Output Display Updates
+- Added `toggleFullscreen` signal for fullscreen toggle (F key)
+- Added `toggleVisibility` signal for visibility toggle (O key)
+- Added `cutTransition` signal for immediate updates on cut transitions
+- Fixed white screen not appearing on output display (now uses cutTransition signal)
+
+#### Confidence Display Updates
+- Added `toggleVisibility` signal for visibility toggle (C key)
+
+#### QML Updates
+- OutputDisplay.qml: Added handlers for `onToggleFullscreen`, `onToggleVisibility`, `onCutTransition`
+- ConfidenceMonitor.qml: Added handler for `onToggleVisibility`
+
+### Technical Decisions
+- **Shortcut registration via QShortcut**: More flexible than menu-only shortcuts
+- **Toggle shortcuts launch process if not running**: Convenient for quickly showing output/confidence displays
+- **Separate signals for each display command**: Clean separation between C++ logic and QML behavior
+- **Cut transition signal**: Ensures immediate updates without relying on property change detection
+
+### Testing Checklist
+- [x] Navigation shortcuts (arrows, page keys) work
+- [x] Home/End go to first/last slide
+- [x] Number keys 1-9 go to correct slides
+- [x] G prompts for slide number and navigates correctly
+- [x] B key clears output (black screen)
+- [x] W key shows white screen
+- [x] Escape clears output
+- [x] O key toggles output visibility or launches if not running
+- [x] F key toggles output fullscreen
+- [x] C key toggles confidence monitor or launches if not running
+- [x] F1 shows keyboard shortcuts reference
+- [x] Ctrl+Up/Down move slides
+
+### Next Steps
+- Task 5: Presenter Notes (already implemented in previous work)
+- Continue with remaining Phase 3 tasks
+
+---
+
+## 2026-01-25 - Phase 3 Task 4: Themes and Templates (Complete)
+
+### Summary
+Implemented a theme system that allows users to apply consistent visual styles to slides. Includes 8 built-in themes covering common church presentation needs, plus the ability to create, edit, duplicate, and delete custom themes. Themes can be applied to individual slides or entire presentations.
+
+### Work Completed
+
+#### Theme Class (src/Core/Theme.h/.cpp)
+- Created Theme data model with comprehensive styling properties:
+  - **Basic info**: name, description, isBuiltIn flag
+  - **Colors**: backgroundColor, textColor, accentColor
+  - **Typography**: fontFamily, titleFontSize, bodyFontSize
+  - **Background**: backgroundType (SolidColor, Gradient), gradient colors and angle
+- `applyToSlide(Slide&)` method to apply theme styling to an existing slide
+- `createSlide(QString text)` method to create a new slide with theme styling
+- Full JSON serialization/deserialization for persistence
+
+#### ThemeManager Class (src/Core/ThemeManager.h/.cpp)
+- Manages collections of built-in and custom themes
+- **8 Built-in themes**:
+  1. Classic Blue - Traditional dark blue with white text (default Clarity style)
+  2. Modern Dark - Near-black background with clean white text
+  3. Warm Earth - Brown gradient with cream text
+  4. Ocean - Blue gradient with white text
+  5. Sunrise - Orange/yellow gradient (bright theme for daylight)
+  6. Forest - Natural green gradient
+  7. Royal Purple - Elegant purple gradient with gold accents
+  8. Clean White - White background with dark text (for bright rooms)
+- Custom theme CRUD operations with validation
+- Persistence to `~/.config/Clarity/themes.json`
+- Signals for theme changes (added, updated, removed)
+
+#### ThemeEditorDialog (src/Control/ThemeEditorDialog.h/.cpp)
+- Full-featured dialog for creating and editing themes
+- Sections for: Theme Info, Colors, Typography, Background
+- Background type switcher with stacked widget (solid vs gradient controls)
+- Color picker buttons showing current color with appropriate text contrast
+- Live preview panel showing sample slide with current settings
+- Validation before saving (name required, no duplicates)
+
+#### ThemeSelectorDialog (src/Control/ThemeSelectorDialog.h/.cpp)
+- Theme browser with list of built-in and custom themes
+- Live preview panel showing selected theme
+- Theme management buttons: New, Edit, Duplicate, Delete
+- Built-in themes protected (cannot edit/delete, but can duplicate)
+- "Apply to all slides" checkbox for batch application
+- Double-click to quickly apply a theme
+
+#### ControlWindow Integration
+- Added ThemeManager member initialization
+- New menu items:
+  - Slide > Apply Theme... (Ctrl+T) - Apply theme to current or all slides
+  - Slide > Apply Theme to Current Slide... - Apply to selected slide only
+  - Format > Manage Themes... - Open theme management dialog
+- `onApplyTheme()`: Opens selector with option to apply to all slides
+- `onApplyThemeToSlide()`: Opens selector for single-slide application
+- `onManageThemes()`: Opens selector in management-only mode
+
+#### CMakeLists.txt Updates
+- Added Theme.h/.cpp and ThemeManager.h/.cpp to ClarityCore library
+- Added ThemeEditorDialog and ThemeSelectorDialog to Clarity executable
+
+### Technical Decisions
+- **Built-in themes cannot be modified**: Ensures users always have reliable defaults; use Duplicate to customize
+- **Themes stored separately from presentations**: Allows themes to be reused across multiple presentations
+- **applyToSlide() modifies existing slide**: Preserves slide text and transition settings while changing visual style
+- **No theme reference in Slide**: Themes are applied immediately, storing actual values rather than theme reference. This ensures slides render correctly even if themes change later.
+
+### Testing Checklist
+- [x] Built-in themes load correctly
+- [x] Apply theme to single slide
+- [x] Apply theme to all slides
+- [x] Create custom theme
+- [x] Edit custom theme
+- [x] Delete custom theme (not built-in)
+- [x] Duplicate theme (including built-in)
+- [x] Custom themes persist between sessions
+- [x] Preview updates live in editor
+- [x] Theme selector layout displays correctly
+
+### Next Steps
+- Task 5: Presenter Notes
+- Task 6: Keyboard Shortcuts
+
+---
+
 ## 2026-01-25 - Phase 3 Task 3: Slide Transitions (Complete)
 
 ### Summary

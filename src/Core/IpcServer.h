@@ -28,7 +28,21 @@ public:
     // Send messages to clients
     void sendToAll(const QJsonObject& message);
     void sendToClient(QLocalSocket* client, const QJsonObject& message);
-    void sendToClientType(const QString& clientType, const QJsonObject& message);
+
+    /**
+     * @brief Send a message to all clients of a specific type
+     * @param clientType The type of client ("output" or "confidence")
+     * @param message The message to send
+     * @return true if at least one client received the message, false if no clients of this type are connected
+     */
+    bool sendToClientType(const QString& clientType, const QJsonObject& message);
+
+    /**
+     * @brief Check if any clients of a specific type are connected
+     * @param clientType The type of client to check for
+     * @return true if at least one client of this type is connected
+     */
+    bool hasClientType(const QString& clientType) const;
 
 signals:
     void clientConnected(QLocalSocket* client);

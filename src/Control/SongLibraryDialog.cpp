@@ -482,9 +482,10 @@ QList<Slide> SongLibraryDialog::getSlides() const
 QList<Slide> SongLibraryDialog::createSlidesFromSong(const Song& song) const
 {
     SlideStyle style(m_backgroundColor, m_textColor, m_fontFamily, m_fontSizeSpinBox->value());
+    bool includeTitleSlide = true;  // Always include a title slide at the start
     bool includeLabels = m_includeLabelCheck->isChecked();
     int maxLines = m_maxLinesSpinBox->value();
-    return song.toSlides(style, includeLabels, maxLines);
+    return song.toSlides(style, includeTitleSlide, includeLabels, maxLines);
 }
 
 } // namespace Clarity

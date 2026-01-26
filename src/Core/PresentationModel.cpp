@@ -34,6 +34,9 @@ QVariant PresentationModel::data(const QModelIndex& index, int role) const
         return slide.fontFamily();
     case FontSizeRole:
         return slide.fontSize();
+    case SlideObjectRole:
+        // Return the full Slide object for custom delegates
+        return QVariant::fromValue(slide);
     case Qt::DisplayRole:
         // For default list view display, show truncated text
         return slide.text().left(50) + (slide.text().length() > 50 ? "..." : "");

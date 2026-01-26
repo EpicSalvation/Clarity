@@ -43,9 +43,20 @@ QString Song::allLyrics() const
     return lyrics.join("\n");
 }
 
-QList<Slide> Song::toSlides(const SlideStyle& style, bool includeSectionLabels, int maxLinesPerSlide) const
+QList<Slide> Song::toSlides(const SlideStyle& style, bool includeTitleSlide, bool includeSectionLabels, int maxLinesPerSlide) const
 {
     QList<Slide> slides;
+
+    // Add title slide at the beginning if requested
+    if (includeTitleSlide && !m_title.isEmpty()) {
+        Slide titleSlide;
+        titleSlide.setText(m_title);
+        titleSlide.setBackgroundColor(style.backgroundColor);
+        titleSlide.setTextColor(style.textColor);
+        titleSlide.setFontFamily(style.fontFamily);
+        titleSlide.setFontSize(style.fontSize);
+        slides.append(titleSlide);
+    }
 
     for (const SongSection& section : m_sections) {
         QString sectionText = section.text;

@@ -6,11 +6,15 @@
 #include "Core/SettingsManager.h"
 #include "Core/BibleDatabase.h"
 #include "Core/SongLibrary.h"
+#include "Core/ThemeManager.h"
 #include "ProcessManager.h"
+#include "SlideGridDelegate.h"
+#include "LivePreviewPanel.h"
 #include <QMainWindow>
 #include <QListView>
 #include <QPushButton>
 #include <QLabel>
+#include <QShortcut>
 
 namespace Clarity {
 
@@ -61,6 +65,27 @@ private slots:
     void onInsertScripture();
     void onInsertSong();
 
+    // Navigation shortcuts
+    void gotoFirstSlide();
+    void gotoLastSlide();
+    void gotoSlide(int index);
+    void promptGotoSlide();
+
+    // Display control shortcuts
+    void blackScreen();
+    void whiteScreen();
+    void toggleOutputDisplay();
+    void toggleOutputFullscreen();
+    void toggleConfidenceMonitor();
+
+    // Help
+    void showKeyboardShortcuts();
+
+    // Theme operations
+    void onApplyTheme();
+    void onApplyThemeToSlide();
+    void onManageThemes();
+
     // Timer controls
     void onStartTimer();
     void onPauseTimer();
@@ -73,6 +98,7 @@ private slots:
 
 private:
     void setupUI();
+    void setupShortcuts();
     void createDemoPresentation();
     void initializeBibleDatabase();
     void updateUI();
@@ -83,7 +109,10 @@ private:
     void markClean();
 
     // UI components
-    QListView* m_slideListView;
+    QListView* m_slideListView;              ///< Left panel list view (playlist)
+    QListView* m_slideGridView;              ///< Center grid view for slide thumbnails
+    SlideGridDelegate* m_slideDelegate;      ///< Custom delegate for grid rendering
+    LivePreviewPanel* m_livePreviewPanel;    ///< Right panel live preview
     QPushButton* m_prevButton;
     QPushButton* m_nextButton;
     QPushButton* m_clearButton;
@@ -107,6 +136,7 @@ private:
     SettingsManager* m_settingsManager;
     BibleDatabase* m_bibleDatabase;
     SongLibrary* m_songLibrary;
+    ThemeManager* m_themeManager;
 
     // File management
     QString m_currentFilePath;

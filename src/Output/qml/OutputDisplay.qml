@@ -80,7 +80,7 @@ Window {
         console.log("OutputDisplay QML loaded with transition support")
     }
 
-    // Listen for transition start signal from C++
+    // Listen for signals from C++
     Connections {
         target: displayController
 
@@ -90,14 +90,34 @@ Window {
             }
         }
 
-        // When slide data changes and we're not transitioning, update immediately
-        function onSlideTextChanged() {
-            if (!root.transitioning && displayController.transitionType === "cut") {
-                if (root.showingA) {
-                    root.copyToContainerA()
-                } else {
-                    root.copyToContainerB()
-                }
+        // Toggle fullscreen mode when F key is pressed
+        function onToggleFullscreen() {
+            if (root.visibility === Window.FullScreen) {
+                root.visibility = Window.Windowed
+                console.log("OutputDisplay: Switched to windowed mode")
+            } else {
+                root.visibility = Window.FullScreen
+                console.log("OutputDisplay: Switched to fullscreen mode")
+            }
+        }
+
+        // Toggle visibility when O key is pressed
+        function onToggleVisibility() {
+            if (root.visible) {
+                root.visible = false
+                console.log("OutputDisplay: Hidden")
+            } else {
+                root.visible = true
+                console.log("OutputDisplay: Shown")
+            }
+        }
+
+        // Handle cut transitions - immediate update without animation
+        function onCutTransition() {
+            if (root.showingA) {
+                root.copyToContainerA()
+            } else {
+                root.copyToContainerB()
             }
         }
 
@@ -134,10 +154,21 @@ Window {
         outX.to = getOutgoingX()
         outY.to = getOutgoingY()
 
+        // For crossfade, we need the incoming slide to render ON TOP of the outgoing slide
+        // So we need to manage z-order
+        var isFade = (displayController.transitionType === "fade")
+
         if (root.showingA) {
             // A is current (outgoing), B is next (incoming)
             copyToContainerB()
             slideB.prepareForTransitionIn()
+
+            // For crossfade: incoming (B) must be on top, outgoing (A) stays fully visible
+            if (isFade) {
+                slideB.z = 1
+                slideA.z = 0
+            }
+
             // Set animation targets explicitly
             outOpacity.target = slideA
             outX.target = slideA
@@ -145,10 +176,20 @@ Window {
             inOpacity.target = slideB
             inX.target = slideB
             inY.target = slideB
+
+            // For crossfade: outgoing stays at full opacity
+            outOpacity.to = isFade ? 1 : 0
         } else {
             // B is current (outgoing), A is next (incoming)
             copyToContainerA()
             slideA.prepareForTransitionIn()
+
+            // For crossfade: incoming (A) must be on top, outgoing (B) stays fully visible
+            if (isFade) {
+                slideA.z = 1
+                slideB.z = 0
+            }
+
             // Set animation targets explicitly
             outOpacity.target = slideB
             outX.target = slideB
@@ -156,6 +197,9 @@ Window {
             inOpacity.target = slideA
             inX.target = slideA
             inY.target = slideA
+
+            // For crossfade: outgoing stays at full opacity
+            outOpacity.to = isFade ? 1 : 0
         }
 
         // Start the animations
@@ -174,7 +218,11 @@ Window {
         slideB.x = 0
         slideB.y = 0
 
-        // Update opacities
+        // Reset z-order (both at same level)
+        slideA.z = 0
+        slideB.z = 0
+
+        // Update opacities - the new current slide is fully visible, the other is hidden
         slideA.opacity = root.showingA ? 1 : 0
         slideB.opacity = root.showingA ? 0 : 1
 

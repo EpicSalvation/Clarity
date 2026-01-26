@@ -1024,6 +1024,7 @@ Add comprehensive keyboard shortcuts for efficient presentation control without 
 | B | Black screen (clear output) |
 | W | White screen |
 | Escape | Clear output / Exit fullscreen |
+| O | Toggle output display |
 | F | Toggle output fullscreen |
 | C | Toggle confidence monitor |
 
@@ -1547,10 +1548,34 @@ Features to consider for Phase 4:
   - OAuth authentication with SongSelect API
   - Cache downloaded songs in local library
 
+### Presentation Structure Refactor (Playlist Model)
+- **Problem**: Currently presentations are flat lists of slides. This makes it difficult to:
+  - Apply a theme to "all slides in this song" or "all slides in this scripture passage"
+  - Reorder entire songs/scripture blocks as units
+  - Track which slides belong together logically
+  - Show song/scripture metadata in confidence monitor
+
+- **Proposed Solution**: Restructure Presentation to be a playlist of "items"
+  - **PresentationItem** base class with derived types:
+    - `SongItem` - references a Song from the library, generates slides on demand
+    - `ScriptureItem` - references a scripture passage, generates slides on demand
+    - `CustomSlideItem` - standalone slides (announcements, images, etc.)
+    - `SlideGroupItem` - arbitrary group of slides that belong together
+  - Each item can have its own theme/style settings
+  - Items track their source (song ID, scripture reference) for updates
+  - "Apply theme to item" applies to all slides in that item
+  - Drag-and-drop reorders entire items, not individual slides
+  - Confidence monitor can show "Now playing: Amazing Grace (Verse 2 of 4)"
+
+- **Migration path**:
+  - Existing .cly files load as a single SlideGroupItem
+  - New presentations use item-based structure
+  - Version field in JSON handles format detection
+
 ### Other Potential Features
 - Radial gradients
 - Multi-stop gradients
-- Drag-and-drop slide reordering
+- Drag-and-drop slide reordering (item-level and slide-level)
 - Undo/redo for edits
 - Cloud sync for presentations
 - Presentation templates marketplace

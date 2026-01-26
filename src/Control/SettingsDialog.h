@@ -8,6 +8,7 @@
 #include <QPushButton>
 #include <QFontComboBox>
 #include <QSpinBox>
+#include <QCheckBox>
 
 namespace Clarity {
 
@@ -35,6 +36,7 @@ private slots:
 
 private:
     void setupUI();
+    void createGeneralPage();
     void createDisplayPage();
     void loadSettings();
     void saveSettings();
@@ -59,6 +61,9 @@ private:
     // Transition settings
     QComboBox* m_transitionTypeComboBox;
     QComboBox* m_transitionDurationComboBox;
+
+    // UI behavior settings
+    QCheckBox* m_scrollWheelChangesInputsCheckBox;
 
     // Settings manager
     SettingsManager* m_settingsManager;

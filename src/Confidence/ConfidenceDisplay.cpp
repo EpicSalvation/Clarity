@@ -139,6 +139,8 @@ void ConfidenceDisplay::onMessageReceived(const QJsonObject& message)
         // Settings were changed in Control app, notify QML to re-read them
         emit settingsChanged();
         qDebug() << "ConfidenceDisplay: Settings refreshed";
+    } else if (type == "toggleVisibility") {
+        emit toggleVisibility();
     } else {
         qDebug() << "ConfidenceDisplay: Unknown message type:" << type;
     }

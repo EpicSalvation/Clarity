@@ -76,6 +76,15 @@ signals:
     // Signal to trigger transition in QML
     void startTransition();
 
+    // Signal for immediate update (cut transition)
+    void cutTransition();
+
+    // Signal to toggle fullscreen mode
+    void toggleFullscreen();
+
+    // Signal to toggle visibility
+    void toggleVisibility();
+
 private slots:
     void onConnected();
     void onDisconnected();

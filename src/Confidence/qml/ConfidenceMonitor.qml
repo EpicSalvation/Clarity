@@ -77,7 +77,7 @@ Window {
         Row {
             anchors.fill: parent
             anchors.margins: 20
-            anchors.bottomMargin: 80  // Leave room for timer bar
+            anchors.bottomMargin: confidenceDisplay.currentNotes ? 140 : 80  // Extra room for notes if present
             spacing: 20
             visible: !confidenceDisplay.isCleared
 
@@ -185,8 +185,51 @@ Window {
             }
         }
 
+        // Presenter notes panel - visible when notes exist
+        Rectangle {
+            anchors.bottom: timerBar.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.margins: 20
+            anchors.bottomMargin: 10
+            height: 50
+            color: "#2a2a2a"
+            border.color: "#4a90d9"
+            border.width: 1
+            radius: 5
+            visible: !confidenceDisplay.isCleared && confidenceDisplay.currentNotes
+
+            Row {
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 10
+
+                // Notes icon/label
+                Text {
+                    text: "NOTES:"
+                    color: "#4a90d9"
+                    font.pixelSize: 14
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // Notes content
+                Text {
+                    width: parent.width - 80
+                    text: confidenceDisplay.currentNotes
+                    color: "#ffffff"
+                    font.pixelSize: 16
+                    wrapMode: Text.WordWrap
+                    elide: Text.ElideRight
+                    maximumLineCount: 2
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+        }
+
         // Timer and clock bar at bottom - visible when content is showing
         Rectangle {
+            id: timerBar
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.right: parent.right
@@ -214,6 +257,22 @@ Window {
                 color: "#ffffff"
                 font.pixelSize: 36
                 font.family: "Consolas"
+            }
+        }
+    }
+
+    // Listen for signals from C++
+    Connections {
+        target: confidenceDisplay
+
+        // Toggle visibility when C key is pressed
+        function onToggleVisibility() {
+            if (root.visible) {
+                root.visible = false
+                console.log("ConfidenceMonitor: Hidden")
+            } else {
+                root.visible = true
+                console.log("ConfidenceMonitor: Shown")
             }
         }
     }
