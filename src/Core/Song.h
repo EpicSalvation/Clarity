@@ -96,11 +96,12 @@ public:
     /**
      * @brief Convert song to presentation slides
      * @param style Visual style for the slides
+     * @param includeTitleSlide If true, add a title slide at the beginning with the song title
      * @param includeSectionLabels If true, prepend section labels to slides
      * @param maxLinesPerSlide If > 0, split sections with more lines into multiple slides
      * @return List of Slide objects
      */
-    QList<Slide> toSlides(const SlideStyle& style, bool includeSectionLabels = false, int maxLinesPerSlide = 0) const;
+    QList<Slide> toSlides(const SlideStyle& style, bool includeTitleSlide = true, bool includeSectionLabels = false, int maxLinesPerSlide = 0) const;
 
     // JSON serialization
     QJsonObject toJson() const;

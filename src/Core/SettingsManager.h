@@ -47,6 +47,10 @@ public:
     int transitionDuration() const;  // milliseconds
     void setTransitionDuration(int ms);
 
+    // UI behavior settings
+    bool scrollWheelChangesInputs() const;  // Whether mouse wheel changes combo boxes/spin boxes without focus
+    void setScrollWheelChangesInputs(bool enabled);
+
     // Reset all settings to defaults
     void resetToDefaults();
 

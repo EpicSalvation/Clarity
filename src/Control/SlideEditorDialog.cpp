@@ -15,7 +15,7 @@ SlideEditorDialog::SlideEditorDialog(QWidget* parent)
 {
     setupUI();
     setWindowTitle("Edit Slide");
-    resize(600, 500);
+    resize(600, 600);  // Taller to accommodate notes section
 }
 
 void SlideEditorDialog::setupUI()
@@ -151,6 +151,17 @@ void SlideEditorDialog::setupUI()
 
     mainLayout->addWidget(transitionGroup);
 
+    // Presenter notes section
+    QGroupBox* notesGroup = new QGroupBox("Presenter Notes", this);
+    QVBoxLayout* notesLayout = new QVBoxLayout(notesGroup);
+
+    m_notesEdit = new QTextEdit(this);
+    m_notesEdit->setPlaceholderText("Notes for the presenter (shown only on confidence monitor, not on output display)...");
+    m_notesEdit->setMaximumHeight(80);
+    notesLayout->addWidget(m_notesEdit);
+
+    mainLayout->addWidget(notesGroup);
+
     // Dialog buttons
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->addStretch();
@@ -228,6 +239,9 @@ void SlideEditorDialog::setSlide(const Slide& slide)
     } else {
         m_transitionDurationCombo->setCurrentIndex(0);  // Default to "Use Default"
     }
+
+    // Load presenter notes
+    m_notesEdit->setPlainText(slide.notes());
 }
 
 Slide SlideEditorDialog::slide() const
@@ -260,6 +274,9 @@ Slide SlideEditorDialog::slide() const
 
     slide.setTransitionType(transitionType);
     slide.setTransitionDuration(transitionDuration);
+
+    // Presenter notes
+    slide.setNotes(m_notesEdit->toPlainText());
 
     return slide;
 }

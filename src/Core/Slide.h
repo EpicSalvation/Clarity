@@ -45,6 +45,10 @@ public:
     int transitionDuration() const { return m_transitionDuration; }
     bool hasTransitionOverride() const { return !m_transitionType.isEmpty() || m_transitionDuration >= 0; }
 
+    // Presenter notes (shown on confidence monitor, not on output)
+    QString notes() const { return m_notes; }
+    void setNotes(const QString& notes) { m_notes = notes; }
+
     // Setters
     void setText(const QString& text) { m_text = text; }
     void setBackgroundColor(const QColor& color) { m_backgroundColor = color; }
@@ -87,6 +91,12 @@ private:
     // Phase 3: Per-slide transition override
     QString m_transitionType;           ///< Override transition type (empty = use default)
     int m_transitionDuration;           ///< Override transition duration in ms (-1 = use default)
+
+    // Phase 3: Presenter notes
+    QString m_notes;                    ///< Presenter notes (shown only on confidence monitor)
 };
 
 } // namespace Clarity
+
+// Register Slide with Qt's meta-type system for use in QVariant
+Q_DECLARE_METATYPE(Clarity::Slide)

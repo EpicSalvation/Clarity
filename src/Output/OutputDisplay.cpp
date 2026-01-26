@@ -64,6 +64,7 @@ void OutputDisplay::onMessageReceived(const QJsonObject& message)
         // For "cut" transition or first slide, update immediately
         if (m_transitionType == "cut" || m_isCleared) {
             updateSlide(slide);
+            emit cutTransition();  // Tell QML to update the current container
         } else {
             // Update the display controller properties with the NEW slide data
             // QML will copy this to the incoming container before animating
@@ -73,6 +74,10 @@ void OutputDisplay::onMessageReceived(const QJsonObject& message)
         }
     } else if (type == "clearOutput") {
         clearDisplay();
+    } else if (type == "toggleFullscreen") {
+        emit toggleFullscreen();
+    } else if (type == "toggleVisibility") {
+        emit toggleVisibility();
     } else {
         qDebug() << "OutputDisplay: Unknown message type:" << type;
     }

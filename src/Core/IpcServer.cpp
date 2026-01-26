@@ -80,17 +80,30 @@ void IpcServer::sendToClient(QLocalSocket* client, const QJsonObject& message)
     client->flush();
 }
 
-void IpcServer::sendToClientType(const QString& clientType, const QJsonObject& message)
+bool IpcServer::sendToClientType(const QString& clientType, const QJsonObject& message)
 {
     QJsonDocument doc(message);
     QByteArray data = doc.toJson(QJsonDocument::Compact) + "\n";
 
+    bool sentToAny = false;
     for (auto it = m_clients.constBegin(); it != m_clients.constEnd(); ++it) {
         if (it.value() == clientType) {
             it.key()->write(data);
             it.key()->flush();
+            sentToAny = true;
         }
     }
+    return sentToAny;
+}
+
+bool IpcServer::hasClientType(const QString& clientType) const
+{
+    for (auto it = m_clients.constBegin(); it != m_clients.constEnd(); ++it) {
+        if (it.value() == clientType) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void IpcServer::onNewConnection()

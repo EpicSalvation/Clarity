@@ -30,12 +30,21 @@ add_library(ClarityCore STATIC
     src/Core/Song.cpp
     src/Core/SongLibrary.h
     src/Core/SongLibrary.cpp
+    src/Core/Theme.h
+    src/Core/Theme.cpp
+    src/Core/ThemeManager.h
+    src/Core/ThemeManager.cpp
+    src/Core/WheelEventFilter.h
+    src/Core/WheelEventFilter.cpp
+    src/Core/SlidePreviewRenderer.h
+    src/Core/SlidePreviewRenderer.cpp
 )
 
 target_link_libraries(ClarityCore
     PUBLIC
         Qt6::Core
         Qt6::Gui
+        Qt6::Widgets
         Qt6::Network
         Qt6::Sql
 )
@@ -66,6 +75,18 @@ add_executable(Clarity
     src/Control/SongLibraryDialog.cpp
     src/Control/SongEditorDialog.h
     src/Control/SongEditorDialog.cpp
+    src/Control/ThemeEditorDialog.h
+    src/Control/ThemeEditorDialog.cpp
+    src/Control/ThemeSelectorDialog.h
+    src/Control/ThemeSelectorDialog.cpp
+    src/Control/SlideGridDelegate.h
+    src/Control/SlideGridDelegate.cpp
+    src/Control/LivePreviewWidget.h
+    src/Control/LivePreviewWidget.cpp
+    src/Control/LivePreviewPanel.h
+    src/Control/LivePreviewPanel.cpp
+    src/Control/ConfidencePreviewWidget.h
+    src/Control/ConfidencePreviewWidget.cpp
 
     # Output display files
     src/Output/OutputMain.h

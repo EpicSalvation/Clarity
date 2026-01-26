@@ -166,6 +166,21 @@ void SettingsManager::setTransitionDuration(int ms)
     }
 }
 
+bool SettingsManager::scrollWheelChangesInputs() const
+{
+    // Default is false - require click/focus before scroll wheel changes values
+    return m_settings->value("UI/ScrollWheelChangesInputs", false).toBool();
+}
+
+void SettingsManager::setScrollWheelChangesInputs(bool enabled)
+{
+    if (scrollWheelChangesInputs() != enabled) {
+        m_settings->setValue("UI/ScrollWheelChangesInputs", enabled);
+        m_settings->sync();
+        qDebug() << "SettingsManager: Scroll wheel changes inputs set to" << enabled;
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";

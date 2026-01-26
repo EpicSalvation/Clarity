@@ -27,6 +27,7 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_confidenceBackgroundColor("#2a2a2a")
     , m_transitionTypeComboBox(nullptr)
     , m_transitionDurationComboBox(nullptr)
+    , m_scrollWheelChangesInputsCheckBox(nullptr)
     , m_settingsManager(settingsManager)
 {
     setupUI();
@@ -54,8 +55,8 @@ void SettingsDialog::setupUI()
     m_categoryList->setMinimumWidth(150);
 
     // Add categories
+    m_categoryList->addItem("General");
     m_categoryList->addItem("Display");
-    // Future categories can be added here (e.g., "General", "Network", etc.)
 
     connect(m_categoryList, &QListWidget::currentRowChanged,
             this, &SettingsDialog::onCategoryChanged);
@@ -66,7 +67,8 @@ void SettingsDialog::setupUI()
     m_pageStack = new QStackedWidget(this);
     contentLayout->addWidget(m_pageStack, 1); // Stretch factor 1 to take remaining space
 
-    // Create settings pages
+    // Create settings pages (order must match category list order)
+    createGeneralPage();
     createDisplayPage();
 
     // Set initial selection
@@ -83,6 +85,35 @@ void SettingsDialog::setupUI()
     connect(buttonBox, &QDialogButtonBox::rejected, this, &SettingsDialog::onCancelClicked);
 
     outerLayout->addWidget(buttonBox);
+}
+
+void SettingsDialog::createGeneralPage()
+{
+    QWidget* generalPage = new QWidget(this);
+    QVBoxLayout* pageLayout = new QVBoxLayout(generalPage);
+
+    // UI Behavior Settings group
+    QGroupBox* uiBehaviorGroup = new QGroupBox("UI Behavior", generalPage);
+    QVBoxLayout* uiBehaviorLayout = new QVBoxLayout(uiBehaviorGroup);
+
+    m_scrollWheelChangesInputsCheckBox = new QCheckBox(
+        "Scroll wheel changes dropdown and number inputs without clicking", uiBehaviorGroup);
+    uiBehaviorLayout->addWidget(m_scrollWheelChangesInputsCheckBox);
+
+    QLabel* uiBehaviorHelpLabel = new QLabel(
+        "When disabled (default), you must click on dropdowns and number inputs "
+        "before the scroll wheel will change their values. This prevents accidental changes "
+        "when scrolling through dialogs.",
+        uiBehaviorGroup);
+    uiBehaviorHelpLabel->setWordWrap(true);
+    uiBehaviorHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    uiBehaviorLayout->addWidget(uiBehaviorHelpLabel);
+
+    pageLayout->addWidget(uiBehaviorGroup);
+
+    pageLayout->addStretch(); // Push content to top
+
+    m_pageStack->addWidget(generalPage);
 }
 
 void SettingsDialog::createDisplayPage()
@@ -335,6 +366,9 @@ void SettingsDialog::loadSettings()
         }
     }
     m_transitionDurationComboBox->setCurrentIndex(closestIndex);
+
+    // Load UI behavior settings
+    m_scrollWheelChangesInputsCheckBox->setChecked(m_settingsManager->scrollWheelChangesInputs());
 }
 
 void SettingsDialog::saveSettings()
@@ -364,6 +398,9 @@ void SettingsDialog::saveSettings()
 
     int transitionDuration = m_transitionDurationComboBox->currentData().toInt();
     m_settingsManager->setTransitionDuration(transitionDuration);
+
+    // Save UI behavior settings
+    m_settingsManager->setScrollWheelChangesInputs(m_scrollWheelChangesInputsCheckBox->isChecked());
 }
 
 void SettingsDialog::onOkClicked()

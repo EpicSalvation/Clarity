@@ -55,6 +55,9 @@ class ConfidenceDisplay : public QObject {
     Q_PROPERTY(int currentSlideIndex READ currentSlideIndex NOTIFY currentSlideIndexChanged)
     Q_PROPERTY(int totalSlides READ totalSlides NOTIFY totalSlidesChanged)
 
+    // Presenter notes (shown only on confidence monitor)
+    Q_PROPERTY(QString currentNotes READ currentNotes NOTIFY currentSlideChanged)
+
     // Timer and clock properties
     Q_PROPERTY(QString elapsedTime READ elapsedTime NOTIFY elapsedTimeChanged)
     Q_PROPERTY(QString currentTime READ currentTime NOTIFY currentTimeChanged)
@@ -99,6 +102,9 @@ public:
     int currentSlideIndex() const { return m_currentSlideIndex; }
     int totalSlides() const { return m_totalSlides; }
 
+    // Presenter notes getter
+    QString currentNotes() const { return m_currentSlide.notes(); }
+
     // Timer and clock getters
     QString elapsedTime() const;
     QString currentTime() const;
@@ -125,6 +131,9 @@ signals:
     void currentTimeChanged();
     void timerRunningChanged();
     void settingsChanged();
+
+    // Signal to toggle visibility of the window
+    void toggleVisibility();
 
 private slots:
     void onConnected();

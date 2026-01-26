@@ -74,6 +74,11 @@ QJsonObject Slide::toJson() const
         json["transitionDuration"] = m_transitionDuration;
     }
 
+    // Phase 3: Presenter notes (only include if not empty)
+    if (!m_notes.isEmpty()) {
+        json["notes"] = m_notes;
+    }
+
     return json;
 }
 
@@ -110,6 +115,11 @@ Slide Slide::fromJson(const QJsonObject& json)
     }
     if (json.contains("transitionDuration")) {
         slide.m_transitionDuration = json["transitionDuration"].toInt();
+    }
+
+    // Phase 3: Presenter notes
+    if (json.contains("notes")) {
+        slide.m_notes = json["notes"].toString();
     }
 
     return slide;
