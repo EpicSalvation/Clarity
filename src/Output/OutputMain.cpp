@@ -8,6 +8,7 @@
 #include <QWindow>
 #include <QDebug>
 #include <QUrl>
+#include <memory>
 
 namespace Clarity {
 
@@ -40,23 +41,39 @@ int OutputMain::run(int argc, char* argv[])
     // Get screen index from command line
     int screenIndex = parser.value(screenOption).toInt();
 
-    QQmlApplicationEngine engine;
+    auto engine = std::make_unique<QQmlApplicationEngine>();
 
     // Create display controller
     OutputDisplay displayController;
 
     // Expose to QML
-    engine.rootContext()->setContextProperty("displayController", &displayController);
+    engine->rootContext()->setContextProperty("displayController", &displayController);
 
     // Load QML (but don't show window yet)
-    engine.load(QUrl("qrc:/qml/OutputDisplay.qml"));
+    engine->load(QUrl("qrc:/qml/OutputDisplay.qml"));
 
-    if (engine.rootObjects().isEmpty()) {
-        return -1;
+    if (engine->rootObjects().isEmpty()) {
+        const auto errors = engine->errors();
+        for (const auto& error : errors) {
+            qWarning() << "OutputMain: QML load error:" << error.toString();
+        }
+
+        qWarning() << "OutputMain: Falling back to non-video output display";
+        engine = std::make_unique<QQmlApplicationEngine>();
+        engine->rootContext()->setContextProperty("displayController", &displayController);
+        engine->load(QUrl("qrc:/qml/OutputDisplayNoVideo.qml"));
+
+        if (engine->rootObjects().isEmpty()) {
+            const auto fallbackErrors = engine->errors();
+            for (const auto& error : fallbackErrors) {
+                qWarning() << "OutputMain: Fallback QML load error:" << error.toString();
+            }
+            return -1;
+        }
     }
 
     // Get the window object
-    QWindow* window = qobject_cast<QWindow*>(engine.rootObjects().first());
+    QWindow* window = qobject_cast<QWindow*>(engine->rootObjects().first());
     if (!window) {
         qWarning() << "OutputMain: Failed to get window object";
         return -1;
