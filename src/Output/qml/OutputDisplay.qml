@@ -85,35 +85,11 @@ Window {
         console.log("OutputDisplay QML loaded with transition support")
     }
 
-    Component {
-        id: videoBackgroundComponent
-
-        Item {
-            id: videoRoot
-            property url videoSource: ""
-
-            MediaPlayer {
-                id: videoPlayer
-                source: videoRoot.videoSource
-                loops: MediaPlayer.Infinite
-            }
-
-            VideoOutput {
-                anchors.fill: parent
-                source: videoPlayer
-                fillMode: VideoOutput.PreserveAspectCrop
-            }
-
-            function updatePlayback() {
-                if (videoSource && videoSource !== "") {
-                    videoPlayer.play()
-                } else {
-                    videoPlayer.stop()
-                }
-            }
-
-            Component.onCompleted: updatePlayback()
-            onVideoSourceChanged: updatePlayback()
+    function updateVideoPlayback(player, backgroundType, backgroundVideoUrl) {
+        if (backgroundType === "video" && backgroundVideoUrl !== "") {
+            player.play()
+        } else {
+            player.stop()
         }
     }
 
@@ -314,21 +290,19 @@ Window {
             smooth: true
         }
 
-        Loader {
+        MediaPlayer {
+            id: videoPlayerA
+            source: root.backgroundVideoUrlA
+            loops: MediaPlayer.Infinite
+            onSourceChanged: root.updateVideoPlayback(videoPlayerA, root.backgroundTypeA, root.backgroundVideoUrlA)
+        }
+
+        VideoOutput {
             anchors.fill: parent
-            active: root.backgroundTypeA === "video"
-            sourceComponent: videoBackgroundComponent
-            property url videoSource: root.backgroundVideoUrlA
-
-            onLoaded: {
-                item.videoSource = videoSource
-            }
-
-            onVideoSourceChanged: {
-                if (item) {
-                    item.videoSource = videoSource
-                }
-            }
+            source: videoPlayerA
+            visible: root.backgroundTypeA === "video"
+            fillMode: VideoOutput.PreserveAspectCrop
+            onVisibleChanged: root.updateVideoPlayback(videoPlayerA, root.backgroundTypeA, root.backgroundVideoUrlA)
         }
 
         // Text content
@@ -394,21 +368,19 @@ Window {
             smooth: true
         }
 
-        Loader {
+        MediaPlayer {
+            id: videoPlayerB
+            source: root.backgroundVideoUrlB
+            loops: MediaPlayer.Infinite
+            onSourceChanged: root.updateVideoPlayback(videoPlayerB, root.backgroundTypeB, root.backgroundVideoUrlB)
+        }
+
+        VideoOutput {
             anchors.fill: parent
-            active: root.backgroundTypeB === "video"
-            sourceComponent: videoBackgroundComponent
-            property url videoSource: root.backgroundVideoUrlB
-
-            onLoaded: {
-                item.videoSource = videoSource
-            }
-
-            onVideoSourceChanged: {
-                if (item) {
-                    item.videoSource = videoSource
-                }
-            }
+            source: videoPlayerB
+            visible: root.backgroundTypeB === "video"
+            fillMode: VideoOutput.PreserveAspectCrop
+            onVisibleChanged: root.updateVideoPlayback(videoPlayerB, root.backgroundTypeB, root.backgroundVideoUrlB)
         }
 
         // Text content
