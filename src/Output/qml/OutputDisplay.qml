@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Window
+import QtMultimedia
 
 /**
  * Output display window - fullscreen presentation view with transitions
@@ -31,6 +32,7 @@ Window {
     property int fontSizeA: 48
     property string backgroundTypeA: "solidColor"
     property string backgroundImageDataBase64A: ""
+    property url backgroundVideoUrlA: ""
     property color gradientStartColorA: "#1e3a8a"
     property color gradientEndColorA: "#60a5fa"
     property int gradientAngleA: 135
@@ -43,6 +45,7 @@ Window {
     property int fontSizeB: 48
     property string backgroundTypeB: "solidColor"
     property string backgroundImageDataBase64B: ""
+    property url backgroundVideoUrlB: ""
     property color gradientStartColorB: "#1e3a8a"
     property color gradientEndColorB: "#60a5fa"
     property int gradientAngleB: 135
@@ -56,6 +59,7 @@ Window {
         fontSizeA = displayController.fontSize
         backgroundTypeA = displayController.backgroundType
         backgroundImageDataBase64A = displayController.backgroundImageDataBase64
+        backgroundVideoUrlA = displayController.backgroundVideoUrl
         gradientStartColorA = displayController.gradientStartColor
         gradientEndColorA = displayController.gradientEndColor
         gradientAngleA = displayController.gradientAngle
@@ -69,6 +73,7 @@ Window {
         fontSizeB = displayController.fontSize
         backgroundTypeB = displayController.backgroundType
         backgroundImageDataBase64B = displayController.backgroundImageDataBase64
+        backgroundVideoUrlB = displayController.backgroundVideoUrl
         gradientStartColorB = displayController.gradientStartColor
         gradientEndColorB = displayController.gradientEndColor
         gradientAngleB = displayController.gradientAngle
@@ -78,6 +83,14 @@ Window {
     Component.onCompleted: {
         copyToContainerA()
         console.log("OutputDisplay QML loaded with transition support")
+    }
+
+    function updateVideoPlayback(player, backgroundType, backgroundVideoUrl) {
+        if (backgroundType === "video" && backgroundVideoUrl !== "") {
+            player.play()
+        } else {
+            player.stop()
+        }
     }
 
     // Listen for signals from C++
@@ -277,6 +290,21 @@ Window {
             smooth: true
         }
 
+        MediaPlayer {
+            id: videoPlayerA
+            source: root.backgroundVideoUrlA
+            loops: MediaPlayer.Infinite
+            onSourceChanged: root.updateVideoPlayback(videoPlayerA, root.backgroundTypeA, root.backgroundVideoUrlA)
+        }
+
+        VideoOutput {
+            anchors.fill: parent
+            source: videoPlayerA
+            visible: root.backgroundTypeA === "video"
+            fillMode: VideoOutput.PreserveAspectCrop
+            onVisibleChanged: root.updateVideoPlayback(videoPlayerA, root.backgroundTypeA, root.backgroundVideoUrlA)
+        }
+
         // Text content
         Text {
             anchors.centerIn: parent
@@ -338,6 +366,21 @@ Window {
                     ? "data:image/png;base64," + root.backgroundImageDataBase64B : ""
             fillMode: Image.PreserveAspectCrop
             smooth: true
+        }
+
+        MediaPlayer {
+            id: videoPlayerB
+            source: root.backgroundVideoUrlB
+            loops: MediaPlayer.Infinite
+            onSourceChanged: root.updateVideoPlayback(videoPlayerB, root.backgroundTypeB, root.backgroundVideoUrlB)
+        }
+
+        VideoOutput {
+            anchors.fill: parent
+            source: videoPlayerB
+            visible: root.backgroundTypeB === "video"
+            fillMode: VideoOutput.PreserveAspectCrop
+            onVisibleChanged: root.updateVideoPlayback(videoPlayerB, root.backgroundTypeB, root.backgroundVideoUrlB)
         }
 
         // Text content
