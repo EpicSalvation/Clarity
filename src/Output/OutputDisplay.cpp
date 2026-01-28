@@ -1,5 +1,7 @@
 #include "OutputDisplay.h"
 #include <QDebug>
+#include <QFileInfo>
+#include <QUrl>
 
 namespace Clarity {
 
@@ -15,6 +17,23 @@ OutputDisplay::OutputDisplay(QObject* parent)
     , m_gradientStartColor("#1e3a8a")
     , m_gradientEndColor("#60a5fa")
     , m_gradientAngle(135)
+    , m_videoLoop(true)
+    , m_dropShadowEnabled(true)
+    , m_dropShadowColor("#000000")
+    , m_dropShadowOffsetX(2)
+    , m_dropShadowOffsetY(2)
+    , m_dropShadowBlur(4)
+    , m_overlayEnabled(false)
+    , m_overlayColor("#80000000")
+    , m_overlayBlur(0)
+    , m_textContainerEnabled(false)
+    , m_textContainerColor("#80000000")
+    , m_textContainerPadding(20)
+    , m_textContainerRadius(8)
+    , m_textContainerBlur(0)
+    , m_textBandEnabled(false)
+    , m_textBandColor("#80000000")
+    , m_textBandBlur(0)
     , m_transitionType("fade")
     , m_transitionDuration(500)
 {
@@ -123,6 +142,8 @@ void OutputDisplay::updateSlide(const Slide& slide)
         bgType = "image";
     } else if (slide.backgroundType() == Slide::Gradient) {
         bgType = "gradient";
+    } else if (slide.backgroundType() == Slide::Video) {
+        bgType = "video";
     }
 
     if (m_backgroundType != bgType) {
@@ -156,6 +177,119 @@ void OutputDisplay::updateSlide(const Slide& slide)
         changed = true;
     }
 
+    // Handle video background
+    QString videoSource;
+    if (slide.backgroundType() == Slide::Video && !slide.backgroundVideoPath().isEmpty()) {
+        // Check if video file exists
+        QFileInfo fileInfo(slide.backgroundVideoPath());
+        if (fileInfo.exists()) {
+            // Convert file path to URL format for QML MediaPlayer
+            videoSource = QUrl::fromLocalFile(slide.backgroundVideoPath()).toString();
+        } else {
+            qWarning() << "Video file not found:" << slide.backgroundVideoPath();
+        }
+    }
+
+    if (m_backgroundVideoSource != videoSource) {
+        m_backgroundVideoSource = videoSource;
+        emit backgroundVideoSourceChanged();
+        changed = true;
+    }
+
+    if (m_videoLoop != slide.videoLoop()) {
+        m_videoLoop = slide.videoLoop();
+        emit videoLoopChanged();
+        changed = true;
+    }
+
+    // Handle text legibility: Drop shadow
+    if (m_dropShadowEnabled != slide.dropShadowEnabled()) {
+        m_dropShadowEnabled = slide.dropShadowEnabled();
+        emit dropShadowEnabledChanged();
+        changed = true;
+    }
+    if (m_dropShadowColor != slide.dropShadowColor()) {
+        m_dropShadowColor = slide.dropShadowColor();
+        emit dropShadowColorChanged();
+        changed = true;
+    }
+    if (m_dropShadowOffsetX != slide.dropShadowOffsetX()) {
+        m_dropShadowOffsetX = slide.dropShadowOffsetX();
+        emit dropShadowOffsetXChanged();
+        changed = true;
+    }
+    if (m_dropShadowOffsetY != slide.dropShadowOffsetY()) {
+        m_dropShadowOffsetY = slide.dropShadowOffsetY();
+        emit dropShadowOffsetYChanged();
+        changed = true;
+    }
+    if (m_dropShadowBlur != slide.dropShadowBlur()) {
+        m_dropShadowBlur = slide.dropShadowBlur();
+        emit dropShadowBlurChanged();
+        changed = true;
+    }
+
+    // Handle text legibility: Overlay
+    if (m_overlayEnabled != slide.overlayEnabled()) {
+        m_overlayEnabled = slide.overlayEnabled();
+        emit overlayEnabledChanged();
+        changed = true;
+    }
+    if (m_overlayColor != slide.overlayColor()) {
+        m_overlayColor = slide.overlayColor();
+        emit overlayColorChanged();
+        changed = true;
+    }
+    if (m_overlayBlur != slide.overlayBlur()) {
+        m_overlayBlur = slide.overlayBlur();
+        emit overlayBlurChanged();
+        changed = true;
+    }
+
+    // Handle text legibility: Text container
+    if (m_textContainerEnabled != slide.textContainerEnabled()) {
+        m_textContainerEnabled = slide.textContainerEnabled();
+        emit textContainerEnabledChanged();
+        changed = true;
+    }
+    if (m_textContainerColor != slide.textContainerColor()) {
+        m_textContainerColor = slide.textContainerColor();
+        emit textContainerColorChanged();
+        changed = true;
+    }
+    if (m_textContainerPadding != slide.textContainerPadding()) {
+        m_textContainerPadding = slide.textContainerPadding();
+        emit textContainerPaddingChanged();
+        changed = true;
+    }
+    if (m_textContainerRadius != slide.textContainerRadius()) {
+        m_textContainerRadius = slide.textContainerRadius();
+        emit textContainerRadiusChanged();
+        changed = true;
+    }
+    if (m_textContainerBlur != slide.textContainerBlur()) {
+        m_textContainerBlur = slide.textContainerBlur();
+        emit textContainerBlurChanged();
+        changed = true;
+    }
+
+    // Handle text legibility: Text band
+    if (m_textBandEnabled != slide.textBandEnabled()) {
+        m_textBandEnabled = slide.textBandEnabled();
+        emit textBandEnabledChanged();
+        changed = true;
+    }
+    if (m_textBandColor != slide.textBandColor()) {
+        m_textBandColor = slide.textBandColor();
+        emit textBandColorChanged();
+        changed = true;
+    }
+    if (m_textBandBlur != slide.textBandBlur()) {
+        m_textBandBlur = slide.textBandBlur();
+        emit textBandBlurChanged();
+        changed = true;
+    }
+
     if (m_isCleared) {
         m_isCleared = false;
         emit isClearedChanged();
@@ -175,6 +309,27 @@ void OutputDisplay::clearDisplay()
     m_gradientStartColor = QColor("#1e3a8a");
     m_gradientEndColor = QColor("#60a5fa");
     m_gradientAngle = 135;
+    m_backgroundVideoSource.clear();
+    m_videoLoop = true;
+
+    // Reset text legibility to defaults
+    m_dropShadowEnabled = true;
+    m_dropShadowColor = QColor("#000000");
+    m_dropShadowOffsetX = 2;
+    m_dropShadowOffsetY = 2;
+    m_dropShadowBlur = 4;
+    m_overlayEnabled = false;
+    m_overlayColor = QColor("#80000000");
+    m_overlayBlur = 0;
+    m_textContainerEnabled = false;
+    m_textContainerColor = QColor("#80000000");
+    m_textContainerPadding = 20;
+    m_textContainerRadius = 8;
+    m_textContainerBlur = 0;
+    m_textBandEnabled = false;
+    m_textBandColor = QColor("#80000000");
+    m_textBandBlur = 0;
+
     m_isCleared = true;
 
     emit slideTextChanged();
@@ -184,6 +339,27 @@ void OutputDisplay::clearDisplay()
     emit gradientStartColorChanged();
     emit gradientEndColorChanged();
     emit gradientAngleChanged();
+    emit backgroundVideoSourceChanged();
+    emit videoLoopChanged();
+
+    // Emit text legibility signals
+    emit dropShadowEnabledChanged();
+    emit dropShadowColorChanged();
+    emit dropShadowOffsetXChanged();
+    emit dropShadowOffsetYChanged();
+    emit dropShadowBlurChanged();
+    emit overlayEnabledChanged();
+    emit overlayColorChanged();
+    emit overlayBlurChanged();
+    emit textContainerEnabledChanged();
+    emit textContainerColorChanged();
+    emit textContainerPaddingChanged();
+    emit textContainerRadiusChanged();
+    emit textContainerBlurChanged();
+    emit textBandEnabledChanged();
+    emit textBandColorChanged();
+    emit textBandBlurChanged();
+
     emit isClearedChanged();
 
     qDebug() << "OutputDisplay: Display cleared";

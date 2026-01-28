@@ -1,40 +1,80 @@
 #include "SlideEditorDialog.h"
+#include "Core/SettingsManager.h"
+#include "Core/WheelEventFilter.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QPixmap>
 #include <QBuffer>
 #include <QDebug>
+#include <QScrollArea>
+#include <QFrame>
 
 namespace Clarity {
 
-SlideEditorDialog::SlideEditorDialog(QWidget* parent)
+SlideEditorDialog::SlideEditorDialog(SettingsManager* settings, QWidget* parent)
     : QDialog(parent)
+    , m_settings(settings)
 {
     setupUI();
     setWindowTitle("Edit Slide");
-    resize(600, 600);  // Taller to accommodate notes section
+    resize(900, 600);
+    setMinimumSize(700, 400);  // Allow resizing but set minimum for two columns
+}
+
+void SlideEditorDialog::installWheelFilter(QWidget* widget)
+{
+    if (m_settings) {
+        widget->installEventFilter(new WheelEventFilter(m_settings, widget));
+        widget->setFocusPolicy(Qt::StrongFocus);
+    }
 }
 
 void SlideEditorDialog::setupUI()
 {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(6, 6, 6, 6);
+
+    // Create scroll area for all content
+    QScrollArea* scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
+    // Content widget that goes inside scroll area
+    QWidget* contentWidget = new QWidget();
+    QHBoxLayout* columnsLayout = new QHBoxLayout(contentWidget);
+    columnsLayout->setContentsMargins(0, 0, 6, 0);  // Right margin for scrollbar
+
+    // Left column - main slide content
+    QWidget* leftColumn = new QWidget();
+    QVBoxLayout* leftLayout = new QVBoxLayout(leftColumn);
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+
+    // Right column - text legibility options
+    QWidget* rightColumn = new QWidget();
+    QVBoxLayout* rightLayout = new QVBoxLayout(rightColumn);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+
+    // === LEFT COLUMN ===
 
     // Text content section
-    QGroupBox* textGroup = new QGroupBox("Slide Content", this);
+    QGroupBox* textGroup = new QGroupBox("Slide Content", leftColumn);
     QVBoxLayout* textLayout = new QVBoxLayout(textGroup);
 
     m_textEdit = new QTextEdit(this);
     m_textEdit->setPlaceholderText("Enter slide text here...");
-    m_textEdit->setMinimumHeight(150);
+    m_textEdit->setMinimumHeight(120);
     textLayout->addWidget(m_textEdit);
 
-    mainLayout->addWidget(textGroup);
+    leftLayout->addWidget(textGroup);
 
     // Text styling section
-    QGroupBox* textStyleGroup = new QGroupBox("Text Style", this);
+    QGroupBox* textStyleGroup = new QGroupBox("Text Style", leftColumn);
     QFormLayout* textStyleLayout = new QFormLayout(textStyleGroup);
 
     m_textColorButton = new QPushButton("Choose Color", this);
@@ -43,24 +83,28 @@ void SlideEditorDialog::setupUI()
 
     m_fontFamilyCombo = new QComboBox(this);
     m_fontFamilyCombo->addItems({"Arial", "Helvetica", "Georgia", "Verdana", "Times New Roman"});
+    installWheelFilter(m_fontFamilyCombo);
     textStyleLayout->addRow("Font Family:", m_fontFamilyCombo);
 
     m_fontSizeSpinBox = new QSpinBox(this);
     m_fontSizeSpinBox->setRange(12, 144);
     m_fontSizeSpinBox->setValue(48);
     m_fontSizeSpinBox->setSuffix(" pt");
+    installWheelFilter(m_fontSizeSpinBox);
     textStyleLayout->addRow("Font Size:", m_fontSizeSpinBox);
 
-    mainLayout->addWidget(textStyleGroup);
+    leftLayout->addWidget(textStyleGroup);
 
     // Background section
-    QGroupBox* backgroundGroup = new QGroupBox("Background", this);
+    QGroupBox* backgroundGroup = new QGroupBox("Background", leftColumn);
     QVBoxLayout* backgroundLayout = new QVBoxLayout(backgroundGroup);
 
     m_backgroundTypeCombo = new QComboBox(this);
     m_backgroundTypeCombo->addItem("Solid Color", "solidColor");
     m_backgroundTypeCombo->addItem("Gradient", "gradient");
     m_backgroundTypeCombo->addItem("Image", "image");
+    m_backgroundTypeCombo->addItem("Video", "video");
+    installWheelFilter(m_backgroundTypeCombo);
     connect(m_backgroundTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &SlideEditorDialog::onBackgroundTypeChanged);
     backgroundLayout->addWidget(m_backgroundTypeCombo);
@@ -93,6 +137,7 @@ void SlideEditorDialog::setupUI()
     m_gradientAngleSpinBox->setValue(135);
     m_gradientAngleSpinBox->setSuffix("°");
     m_gradientAngleSpinBox->setToolTip("0° = top to bottom, 90° = left to right, 180° = bottom to top, 270° = right to left");
+    installWheelFilter(m_gradientAngleSpinBox);
     gradientLayout->addRow("Gradient Angle:", m_gradientAngleSpinBox);
 
     m_backgroundStack->addWidget(gradientPage);
@@ -121,11 +166,166 @@ void SlideEditorDialog::setupUI()
 
     m_backgroundStack->addWidget(imagePage);
 
+    // Page 3: Video
+    QWidget* videoPage = new QWidget(this);
+    QVBoxLayout* videoLayout = new QVBoxLayout(videoPage);
+
+    QHBoxLayout* videoPathLayout = new QHBoxLayout();
+    m_videoPathEdit = new QLineEdit(this);
+    m_videoPathEdit->setPlaceholderText("No video selected");
+    m_videoPathEdit->setReadOnly(true);
+    videoPathLayout->addWidget(m_videoPathEdit);
+
+    m_chooseVideoButton = new QPushButton("Browse...", this);
+    connect(m_chooseVideoButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseBackgroundVideo);
+    videoPathLayout->addWidget(m_chooseVideoButton);
+    videoLayout->addLayout(videoPathLayout);
+
+    m_videoLoopCheck = new QCheckBox("Loop video", this);
+    m_videoLoopCheck->setChecked(true);
+    m_videoLoopCheck->setToolTip("When enabled, video will repeat continuously");
+    videoLayout->addWidget(m_videoLoopCheck);
+
+    QLabel* videoNote = new QLabel("Note: Videos are always muted (background only)", this);
+    videoNote->setStyleSheet("QLabel { color: #666; font-style: italic; }");
+    videoLayout->addWidget(videoNote);
+
+    videoLayout->addStretch();
+    m_backgroundStack->addWidget(videoPage);
+
     backgroundLayout->addWidget(m_backgroundStack);
-    mainLayout->addWidget(backgroundGroup);
+    leftLayout->addWidget(backgroundGroup);
+
+    // === RIGHT COLUMN ===
+
+    // Text Legibility section
+    QGroupBox* legibilityGroup = new QGroupBox("Text Legibility", rightColumn);
+    QVBoxLayout* legibilityLayout = new QVBoxLayout(legibilityGroup);
+
+    // Drop Shadow subsection
+    QGroupBox* shadowGroup = new QGroupBox("Drop Shadow", this);
+    QFormLayout* shadowLayout = new QFormLayout(shadowGroup);
+
+    m_dropShadowEnabledCheck = new QCheckBox("Enable drop shadow", this);
+    m_dropShadowEnabledCheck->setChecked(true);
+    shadowLayout->addRow(m_dropShadowEnabledCheck);
+
+    m_dropShadowColorButton = new QPushButton("Choose Color", this);
+    connect(m_dropShadowColorButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseDropShadowColor);
+    shadowLayout->addRow("Shadow Color:", m_dropShadowColorButton);
+
+    QHBoxLayout* shadowOffsetLayout = new QHBoxLayout();
+    m_dropShadowOffsetXSpinBox = new QSpinBox(this);
+    m_dropShadowOffsetXSpinBox->setRange(-20, 20);
+    m_dropShadowOffsetXSpinBox->setValue(2);
+    m_dropShadowOffsetXSpinBox->setSuffix(" px");
+    installWheelFilter(m_dropShadowOffsetXSpinBox);
+    shadowOffsetLayout->addWidget(new QLabel("X:", this));
+    shadowOffsetLayout->addWidget(m_dropShadowOffsetXSpinBox);
+
+    m_dropShadowOffsetYSpinBox = new QSpinBox(this);
+    m_dropShadowOffsetYSpinBox->setRange(-20, 20);
+    m_dropShadowOffsetYSpinBox->setValue(2);
+    m_dropShadowOffsetYSpinBox->setSuffix(" px");
+    installWheelFilter(m_dropShadowOffsetYSpinBox);
+    shadowOffsetLayout->addWidget(new QLabel("Y:", this));
+    shadowOffsetLayout->addWidget(m_dropShadowOffsetYSpinBox);
+    shadowLayout->addRow("Offset:", shadowOffsetLayout);
+
+    m_dropShadowBlurSpinBox = new QSpinBox(this);
+    m_dropShadowBlurSpinBox->setRange(0, 50);
+    m_dropShadowBlurSpinBox->setValue(4);
+    m_dropShadowBlurSpinBox->setSuffix(" px");
+    installWheelFilter(m_dropShadowBlurSpinBox);
+    shadowLayout->addRow("Blur Radius:", m_dropShadowBlurSpinBox);
+
+    legibilityLayout->addWidget(shadowGroup);
+
+    // Background Overlay subsection
+    QGroupBox* overlayGroup = new QGroupBox("Background Overlay", this);
+    QFormLayout* overlayLayout = new QFormLayout(overlayGroup);
+
+    m_overlayEnabledCheck = new QCheckBox("Enable background darkening overlay", this);
+    overlayLayout->addRow(m_overlayEnabledCheck);
+
+    m_overlayColorButton = new QPushButton("Choose Color", this);
+    connect(m_overlayColorButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseOverlayColor);
+    overlayLayout->addRow("Overlay Color:", m_overlayColorButton);
+
+    m_overlayBlurSpinBox = new QSpinBox(this);
+    m_overlayBlurSpinBox->setRange(0, 50);
+    m_overlayBlurSpinBox->setValue(0);
+    m_overlayBlurSpinBox->setSuffix(" px");
+    m_overlayBlurSpinBox->setToolTip("Blur the background under the overlay (0 = no blur)");
+    installWheelFilter(m_overlayBlurSpinBox);
+    overlayLayout->addRow("Background Blur:", m_overlayBlurSpinBox);
+
+    legibilityLayout->addWidget(overlayGroup);
+
+    // Text Container subsection
+    QGroupBox* containerGroup = new QGroupBox("Text Container", this);
+    QFormLayout* containerLayout = new QFormLayout(containerGroup);
+
+    m_textContainerEnabledCheck = new QCheckBox("Enable text container box", this);
+    containerLayout->addRow(m_textContainerEnabledCheck);
+
+    m_textContainerColorButton = new QPushButton("Choose Color", this);
+    connect(m_textContainerColorButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseTextContainerColor);
+    containerLayout->addRow("Container Color:", m_textContainerColorButton);
+
+    m_textContainerPaddingSpinBox = new QSpinBox(this);
+    m_textContainerPaddingSpinBox->setRange(0, 100);
+    m_textContainerPaddingSpinBox->setValue(20);
+    m_textContainerPaddingSpinBox->setSuffix(" px");
+    installWheelFilter(m_textContainerPaddingSpinBox);
+    containerLayout->addRow("Padding:", m_textContainerPaddingSpinBox);
+
+    m_textContainerRadiusSpinBox = new QSpinBox(this);
+    m_textContainerRadiusSpinBox->setRange(0, 50);
+    m_textContainerRadiusSpinBox->setValue(8);
+    m_textContainerRadiusSpinBox->setSuffix(" px");
+    installWheelFilter(m_textContainerRadiusSpinBox);
+    containerLayout->addRow("Corner Radius:", m_textContainerRadiusSpinBox);
+
+    m_textContainerBlurSpinBox = new QSpinBox(this);
+    m_textContainerBlurSpinBox->setRange(0, 50);
+    m_textContainerBlurSpinBox->setValue(0);
+    m_textContainerBlurSpinBox->setSuffix(" px");
+    m_textContainerBlurSpinBox->setToolTip("Blur the background under the container (0 = no blur)");
+    installWheelFilter(m_textContainerBlurSpinBox);
+    containerLayout->addRow("Background Blur:", m_textContainerBlurSpinBox);
+
+    legibilityLayout->addWidget(containerGroup);
+
+    // Text Band subsection
+    QGroupBox* bandGroup = new QGroupBox("Text Band", this);
+    QFormLayout* bandLayout = new QFormLayout(bandGroup);
+
+    m_textBandEnabledCheck = new QCheckBox("Enable horizontal text band", this);
+    bandLayout->addRow(m_textBandEnabledCheck);
+
+    m_textBandColorButton = new QPushButton("Choose Color", this);
+    connect(m_textBandColorButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseTextBandColor);
+    bandLayout->addRow("Band Color:", m_textBandColorButton);
+
+    m_textBandBlurSpinBox = new QSpinBox(this);
+    m_textBandBlurSpinBox->setRange(0, 50);
+    m_textBandBlurSpinBox->setValue(0);
+    m_textBandBlurSpinBox->setSuffix(" px");
+    m_textBandBlurSpinBox->setToolTip("Blur the background under the band (0 = no blur)");
+    installWheelFilter(m_textBandBlurSpinBox);
+    bandLayout->addRow("Background Blur:", m_textBandBlurSpinBox);
+
+    legibilityLayout->addWidget(bandGroup);
+    rightLayout->addWidget(legibilityGroup);
+
+    // Add stretch to right column to push content to top
+    rightLayout->addStretch();
+
+    // === BACK TO LEFT COLUMN ===
 
     // Transition override section
-    QGroupBox* transitionGroup = new QGroupBox("Transition Override", this);
+    QGroupBox* transitionGroup = new QGroupBox("Transition Override", leftColumn);
     QFormLayout* transitionLayout = new QFormLayout(transitionGroup);
 
     m_transitionTypeCombo = new QComboBox(this);
@@ -136,6 +336,7 @@ void SlideEditorDialog::setupUI()
     m_transitionTypeCombo->addItem("Slide Right", "slideRight");
     m_transitionTypeCombo->addItem("Slide Up", "slideUp");
     m_transitionTypeCombo->addItem("Slide Down", "slideDown");
+    installWheelFilter(m_transitionTypeCombo);
     transitionLayout->addRow("Transition Type:", m_transitionTypeCombo);
 
     m_transitionDurationCombo = new QComboBox(this);
@@ -147,12 +348,13 @@ void SlideEditorDialog::setupUI()
     m_transitionDurationCombo->addItem("Slow (1000 ms)", 1000);
     m_transitionDurationCombo->addItem("Very Slow (1500 ms)", 1500);
     m_transitionDurationCombo->addItem("Extra Slow (2000 ms)", 2000);
+    installWheelFilter(m_transitionDurationCombo);
     transitionLayout->addRow("Transition Duration:", m_transitionDurationCombo);
 
-    mainLayout->addWidget(transitionGroup);
+    leftLayout->addWidget(transitionGroup);
 
     // Presenter notes section
-    QGroupBox* notesGroup = new QGroupBox("Presenter Notes", this);
+    QGroupBox* notesGroup = new QGroupBox("Presenter Notes", leftColumn);
     QVBoxLayout* notesLayout = new QVBoxLayout(notesGroup);
 
     m_notesEdit = new QTextEdit(this);
@@ -160,9 +362,20 @@ void SlideEditorDialog::setupUI()
     m_notesEdit->setMaximumHeight(80);
     notesLayout->addWidget(m_notesEdit);
 
-    mainLayout->addWidget(notesGroup);
+    leftLayout->addWidget(notesGroup);
 
-    // Dialog buttons
+    // Add stretch to left column to push content to top
+    leftLayout->addStretch();
+
+    // Add columns to the main content layout
+    columnsLayout->addWidget(leftColumn, 1);   // Left column gets stretch factor 1
+    columnsLayout->addWidget(rightColumn, 1);  // Right column gets stretch factor 1
+
+    // Set the content widget in scroll area and add to main layout
+    scrollArea->setWidget(contentWidget);
+    mainLayout->addWidget(scrollArea, 1);  // Give scroll area stretch factor
+
+    // Dialog buttons (outside scroll area, fixed at bottom)
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->addStretch();
 
@@ -217,6 +430,11 @@ void SlideEditorDialog::setSlide(const Slide& slide)
                 }
             }
             break;
+        case Slide::Video:
+            m_backgroundTypeCombo->setCurrentIndex(3);
+            m_videoPathEdit->setText(slide.backgroundVideoPath());
+            m_videoLoopCheck->setChecked(slide.videoLoop());
+            break;
     }
 
     updateBackgroundControls();
@@ -242,6 +460,30 @@ void SlideEditorDialog::setSlide(const Slide& slide)
 
     // Load presenter notes
     m_notesEdit->setPlainText(slide.notes());
+
+    // Load text legibility settings - Drop shadow
+    m_dropShadowEnabledCheck->setChecked(slide.dropShadowEnabled());
+    updateColorButton(m_dropShadowColorButton, slide.dropShadowColor());
+    m_dropShadowOffsetXSpinBox->setValue(slide.dropShadowOffsetX());
+    m_dropShadowOffsetYSpinBox->setValue(slide.dropShadowOffsetY());
+    m_dropShadowBlurSpinBox->setValue(slide.dropShadowBlur());
+
+    // Load text legibility settings - Overlay
+    m_overlayEnabledCheck->setChecked(slide.overlayEnabled());
+    updateColorButton(m_overlayColorButton, slide.overlayColor());
+    m_overlayBlurSpinBox->setValue(slide.overlayBlur());
+
+    // Load text legibility settings - Text container
+    m_textContainerEnabledCheck->setChecked(slide.textContainerEnabled());
+    updateColorButton(m_textContainerColorButton, slide.textContainerColor());
+    m_textContainerPaddingSpinBox->setValue(slide.textContainerPadding());
+    m_textContainerRadiusSpinBox->setValue(slide.textContainerRadius());
+    m_textContainerBlurSpinBox->setValue(slide.textContainerBlur());
+
+    // Load text legibility settings - Text band
+    m_textBandEnabledCheck->setChecked(slide.textBandEnabled());
+    updateColorButton(m_textBandColorButton, slide.textBandColor());
+    m_textBandBlurSpinBox->setValue(slide.textBandBlur());
 }
 
 Slide SlideEditorDialog::slide() const
@@ -266,6 +508,10 @@ Slide SlideEditorDialog::slide() const
         case 2: // Image
             slide.setBackgroundType(Slide::Image);
             break;
+        case 3: // Video
+            slide.setBackgroundType(Slide::Video);
+            slide.setVideoLoop(m_videoLoopCheck->isChecked());
+            break;
     }
 
     // Transition override settings
@@ -277,6 +523,26 @@ Slide SlideEditorDialog::slide() const
 
     // Presenter notes
     slide.setNotes(m_notesEdit->toPlainText());
+
+    // Text legibility - Drop shadow
+    slide.setDropShadowEnabled(m_dropShadowEnabledCheck->isChecked());
+    slide.setDropShadowOffsetX(m_dropShadowOffsetXSpinBox->value());
+    slide.setDropShadowOffsetY(m_dropShadowOffsetYSpinBox->value());
+    slide.setDropShadowBlur(m_dropShadowBlurSpinBox->value());
+
+    // Text legibility - Overlay
+    slide.setOverlayEnabled(m_overlayEnabledCheck->isChecked());
+    slide.setOverlayBlur(m_overlayBlurSpinBox->value());
+
+    // Text legibility - Text container
+    slide.setTextContainerEnabled(m_textContainerEnabledCheck->isChecked());
+    slide.setTextContainerPadding(m_textContainerPaddingSpinBox->value());
+    slide.setTextContainerRadius(m_textContainerRadiusSpinBox->value());
+    slide.setTextContainerBlur(m_textContainerBlurSpinBox->value());
+
+    // Text legibility - Text band
+    slide.setTextBandEnabled(m_textBandEnabledCheck->isChecked());
+    slide.setTextBandBlur(m_textBandBlurSpinBox->value());
 
     return slide;
 }
@@ -362,6 +628,78 @@ void SlideEditorDialog::onChooseBackgroundImage()
         ));
 
         qDebug() << "Loaded background image:" << fileName << "size:" << imageData.size() << "bytes";
+    }
+}
+
+void SlideEditorDialog::onChooseBackgroundVideo()
+{
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        "Choose Background Video",
+        QString(),
+        "Video Files (*.mp4 *.webm *.avi *.mov *.mkv);;All Files (*)"
+    );
+
+    if (!fileName.isEmpty()) {
+        // Verify file exists
+        QFileInfo fileInfo(fileName);
+        if (!fileInfo.exists()) {
+            qWarning() << "Video file does not exist:" << fileName;
+            return;
+        }
+
+        // Update slide with video path (not embedded - videos are too large)
+        m_slide.setBackgroundVideoPath(fileName);
+        m_slide.setVideoLoop(m_videoLoopCheck->isChecked());
+
+        // Update UI
+        m_videoPathEdit->setText(fileName);
+
+        qDebug() << "Selected background video:" << fileName;
+    }
+}
+
+void SlideEditorDialog::onChooseDropShadowColor()
+{
+    QColor currentColor = m_slide.dropShadowColor();
+    QColor color = QColorDialog::getColor(currentColor, this, "Choose Drop Shadow Color",
+                                          QColorDialog::ShowAlphaChannel);
+    if (color.isValid()) {
+        m_slide.setDropShadowColor(color);
+        updateColorButton(m_dropShadowColorButton, color);
+    }
+}
+
+void SlideEditorDialog::onChooseOverlayColor()
+{
+    QColor currentColor = m_slide.overlayColor();
+    QColor color = QColorDialog::getColor(currentColor, this, "Choose Overlay Color",
+                                          QColorDialog::ShowAlphaChannel);
+    if (color.isValid()) {
+        m_slide.setOverlayColor(color);
+        updateColorButton(m_overlayColorButton, color);
+    }
+}
+
+void SlideEditorDialog::onChooseTextContainerColor()
+{
+    QColor currentColor = m_slide.textContainerColor();
+    QColor color = QColorDialog::getColor(currentColor, this, "Choose Text Container Color",
+                                          QColorDialog::ShowAlphaChannel);
+    if (color.isValid()) {
+        m_slide.setTextContainerColor(color);
+        updateColorButton(m_textContainerColorButton, color);
+    }
+}
+
+void SlideEditorDialog::onChooseTextBandColor()
+{
+    QColor currentColor = m_slide.textBandColor();
+    QColor color = QColorDialog::getColor(currentColor, this, "Choose Text Band Color",
+                                          QColorDialog::ShowAlphaChannel);
+    if (color.isValid()) {
+        m_slide.setTextBandColor(color);
+        updateColorButton(m_textBandColorButton, color);
     }
 }
 

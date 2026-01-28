@@ -34,6 +34,7 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_prevButton(nullptr)
     , m_nextButton(nullptr)
     , m_clearButton(nullptr)
+    , m_outputDisabledButton(nullptr)
     , m_launchOutputButton(nullptr)
     , m_launchConfidenceButton(nullptr)
     , m_settingsButton(nullptr)
@@ -229,13 +230,20 @@ void ControlWindow::setupUI()
     m_nextButton = new QPushButton("Next", this);
     m_clearButton = new QPushButton("Clear", this);
 
+    // Output disable toggle - checkable button that stays pressed when output is disabled
+    m_outputDisabledButton = new QPushButton("Disable Output", this);
+    m_outputDisabledButton->setCheckable(true);
+    m_outputDisabledButton->setToolTip("When enabled, blacks out the output display and keeps it disabled during navigation");
+
     connect(m_prevButton, &QPushButton::clicked, this, &ControlWindow::onPrevSlide);
     connect(m_nextButton, &QPushButton::clicked, this, &ControlWindow::onNextSlide);
     connect(m_clearButton, &QPushButton::clicked, this, &ControlWindow::onClearOutput);
+    connect(m_outputDisabledButton, &QPushButton::toggled, this, &ControlWindow::onOutputDisabledToggled);
 
     buttonLayout->addWidget(m_prevButton);
     buttonLayout->addWidget(m_nextButton);
     buttonLayout->addWidget(m_clearButton);
+    buttonLayout->addWidget(m_outputDisabledButton);
 
     // Separator
     QFrame* separator = new QFrame(this);
@@ -319,6 +327,10 @@ void ControlWindow::updateUI()
 
 void ControlWindow::broadcastCurrentSlide()
 {
+    // Clear blackout/whiteout state when broadcasting a slide
+    m_isBlackout = false;
+    m_isWhiteout = false;
+
     Presentation presentation = m_presentationModel->presentation();
     if (presentation.slideCount() == 0) {
         return;
@@ -337,26 +349,28 @@ void ControlWindow::broadcastCurrentSlide()
     // Update live preview panel with current and next slides
     m_livePreviewPanel->setSlides(currentSlide, nextSlide, currentIndex, totalSlides);
 
-    // Send standard slideData message to output displays
-    QJsonObject outputMessage;
-    outputMessage["type"] = "slideData";
-    outputMessage["index"] = currentIndex;
-    outputMessage["slide"] = currentSlide.toJson();
+    // Send standard slideData message to output displays (unless output is disabled)
+    if (!m_isOutputDisabled) {
+        QJsonObject outputMessage;
+        outputMessage["type"] = "slideData";
+        outputMessage["index"] = currentIndex;
+        outputMessage["slide"] = currentSlide.toJson();
 
-    // Include transition settings (per-slide override or global default)
-    QString transitionType = currentSlide.transitionType();
-    if (transitionType.isEmpty()) {
-        transitionType = m_settingsManager->transitionType();
+        // Include transition settings (per-slide override or global default)
+        QString transitionType = currentSlide.transitionType();
+        if (transitionType.isEmpty()) {
+            transitionType = m_settingsManager->transitionType();
+        }
+        outputMessage["transitionType"] = transitionType;
+
+        int transitionDuration = currentSlide.transitionDuration();
+        if (transitionDuration < 0) {
+            transitionDuration = m_settingsManager->transitionDuration();
+        }
+        outputMessage["transitionDuration"] = transitionDuration;
+
+        m_ipcServer->sendToClientType("output", outputMessage);
     }
-    outputMessage["transitionType"] = transitionType;
-
-    int transitionDuration = currentSlide.transitionDuration();
-    if (transitionDuration < 0) {
-        transitionDuration = m_settingsManager->transitionDuration();
-    }
-    outputMessage["transitionDuration"] = transitionDuration;
-
-    m_ipcServer->sendToClientType("output", outputMessage);
 
     // Send enhanced confidenceData message to confidence monitors
     QJsonObject confidenceMessage;
@@ -533,7 +547,7 @@ void ControlWindow::onAddSlide()
     newSlide.setTextColor(QColor("#ffffff"));
 
     // Open editor dialog
-    SlideEditorDialog dialog(this);
+    SlideEditorDialog dialog(m_settingsManager, this);
     dialog.setSlide(newSlide);
 
     if (dialog.exec() == QDialog::Accepted) {
@@ -560,7 +574,7 @@ void ControlWindow::onEditSlide()
     Slide currentSlide = m_presentationModel->getSlide(index);
 
     // Open editor dialog
-    SlideEditorDialog dialog(this);
+    SlideEditorDialog dialog(m_settingsManager, this);
     dialog.setSlide(currentSlide);
 
     if (dialog.exec() == QDialog::Accepted) {
@@ -1083,6 +1097,12 @@ void ControlWindow::setupShortcuts()
     // W = White screen
     new QShortcut(QKeySequence(Qt::Key_W), this, SLOT(whiteScreen()));
 
+    // D = Toggle output disable (persistent blackout)
+    QShortcut* disableShortcut = new QShortcut(QKeySequence(Qt::Key_D), this);
+    connect(disableShortcut, &QShortcut::activated, this, [this]() {
+        m_outputDisabledButton->toggle();
+    });
+
     // Escape = Clear output
     new QShortcut(QKeySequence(Qt::Key_Escape), this, SLOT(onClearOutput()));
 
@@ -1180,12 +1200,46 @@ void ControlWindow::promptGotoSlide()
 
 void ControlWindow::blackScreen()
 {
+    // Ignore if output is persistently disabled
+    if (m_isOutputDisabled) {
+        return;
+    }
+
+    // Toggle blackout - if already black, restore slide
+    if (m_isBlackout) {
+        // Restore the current slide
+        m_isBlackout = false;
+        broadcastCurrentSlide();
+        return;
+    }
+
+    // Clear any whiteout state
+    m_isWhiteout = false;
+    m_isBlackout = true;
+
     // Clear output (same as Clear button) - shows black screen
     onClearOutput();
 }
 
 void ControlWindow::whiteScreen()
 {
+    // Ignore if output is persistently disabled
+    if (m_isOutputDisabled) {
+        return;
+    }
+
+    // Toggle whiteout - if already white, restore slide
+    if (m_isWhiteout) {
+        // Restore the current slide
+        m_isWhiteout = false;
+        broadcastCurrentSlide();
+        return;
+    }
+
+    // Clear any blackout state
+    m_isBlackout = false;
+    m_isWhiteout = true;
+
     // Send a white screen command to displays
     // We'll create a temporary white slide to display
     QJsonObject message;
@@ -1211,6 +1265,33 @@ void ControlWindow::whiteScreen()
     whiteSlide.setBackgroundColor(QColor("#ffffff"));
     whiteSlide.setTextColor(QColor("#000000"));
     m_livePreviewPanel->setOutputSlide(whiteSlide);
+}
+
+void ControlWindow::onOutputDisabledToggled(bool disabled)
+{
+    m_isOutputDisabled = disabled;
+
+    if (disabled) {
+        // Black out the output display
+        m_isBlackout = false;  // Clear temporary blackout state
+        m_isWhiteout = false;  // Clear temporary whiteout state
+
+        // Send clear command to black out the output
+        QJsonObject message;
+        message["type"] = "clearOutput";
+        m_ipcServer->sendToClientType("output", message);
+
+        // Update button appearance to indicate active state
+        m_outputDisabledButton->setText("Output Disabled");
+        m_outputDisabledButton->setStyleSheet("QPushButton { background-color: #c0392b; color: white; font-weight: bold; }");
+    } else {
+        // Re-enable output and restore current slide
+        m_outputDisabledButton->setText("Disable Output");
+        m_outputDisabledButton->setStyleSheet("");  // Reset to default style
+
+        // Broadcast current slide to restore display
+        broadcastCurrentSlide();
+    }
 }
 
 void ControlWindow::toggleOutputDisplay()
@@ -1268,8 +1349,9 @@ void ControlWindow::showKeyboardShortcuts()
 
 <h3>Display Control</h3>
 <table>
-<tr><td><b>B</b></td><td>Black screen (clear output)</td></tr>
-<tr><td><b>W</b></td><td>White screen</td></tr>
+<tr><td><b>B</b></td><td>Toggle black screen</td></tr>
+<tr><td><b>W</b></td><td>Toggle white screen</td></tr>
+<tr><td><b>D</b></td><td>Toggle output disable (persistent blackout)</td></tr>
 <tr><td><b>Escape</b></td><td>Clear output</td></tr>
 <tr><td><b>O</b></td><td>Toggle output display</td></tr>
 <tr><td><b>F</b></td><td>Toggle output fullscreen</td></tr>

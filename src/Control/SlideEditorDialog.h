@@ -10,8 +10,11 @@
 #include <QLabel>
 #include <QStackedWidget>
 #include <QLineEdit>
+#include <QCheckBox>
 
 namespace Clarity {
+
+class SettingsManager;
 
 /**
  * @brief Dialog for editing slide properties
@@ -26,7 +29,7 @@ class SlideEditorDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit SlideEditorDialog(QWidget* parent = nullptr);
+    explicit SlideEditorDialog(SettingsManager* settings, QWidget* parent = nullptr);
 
     // Set/get the slide being edited
     void setSlide(const Slide& slide);
@@ -39,11 +42,19 @@ private slots:
     void onChooseGradientStartColor();
     void onChooseGradientEndColor();
     void onChooseBackgroundImage();
+    void onChooseBackgroundVideo();
+    void onChooseDropShadowColor();
+    void onChooseOverlayColor();
+    void onChooseTextContainerColor();
+    void onChooseTextBandColor();
 
 private:
     void setupUI();
     void updateBackgroundControls();
     void updateColorButton(QPushButton* button, const QColor& color);
+    void installWheelFilter(QWidget* widget);
+
+    SettingsManager* m_settings;
 
     // Text controls
     QTextEdit* m_textEdit;
@@ -68,6 +79,11 @@ private:
     QPushButton* m_choosImageButton;
     QLabel* m_imagePreviewLabel;
 
+    // Video controls
+    QLineEdit* m_videoPathEdit;
+    QPushButton* m_chooseVideoButton;
+    QCheckBox* m_videoLoopCheck;
+
     // Dialog buttons
     QPushButton* m_okButton;
     QPushButton* m_cancelButton;
@@ -78,6 +94,30 @@ private:
 
     // Presenter notes
     QTextEdit* m_notesEdit;
+
+    // Text legibility: Drop shadow controls
+    QCheckBox* m_dropShadowEnabledCheck;
+    QPushButton* m_dropShadowColorButton;
+    QSpinBox* m_dropShadowOffsetXSpinBox;
+    QSpinBox* m_dropShadowOffsetYSpinBox;
+    QSpinBox* m_dropShadowBlurSpinBox;
+
+    // Text legibility: Overlay controls
+    QCheckBox* m_overlayEnabledCheck;
+    QPushButton* m_overlayColorButton;
+    QSpinBox* m_overlayBlurSpinBox;
+
+    // Text legibility: Text container controls
+    QCheckBox* m_textContainerEnabledCheck;
+    QPushButton* m_textContainerColorButton;
+    QSpinBox* m_textContainerPaddingSpinBox;
+    QSpinBox* m_textContainerRadiusSpinBox;
+    QSpinBox* m_textContainerBlurSpinBox;
+
+    // Text legibility: Text band controls
+    QCheckBox* m_textBandEnabledCheck;
+    QPushButton* m_textBandColorButton;
+    QSpinBox* m_textBandBlurSpinBox;
 
     // Current slide data
     Slide m_slide;

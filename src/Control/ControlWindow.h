@@ -74,6 +74,7 @@ private slots:
     // Display control shortcuts
     void blackScreen();
     void whiteScreen();
+    void onOutputDisabledToggled(bool disabled);
     void toggleOutputDisplay();
     void toggleOutputFullscreen();
     void toggleConfidenceMonitor();
@@ -116,6 +117,7 @@ private:
     QPushButton* m_prevButton;
     QPushButton* m_nextButton;
     QPushButton* m_clearButton;
+    QPushButton* m_outputDisabledButton;  ///< Toggle to disable output display
     QPushButton* m_launchOutputButton;
     QPushButton* m_launchConfidenceButton;
     QPushButton* m_settingsButton;
@@ -141,6 +143,11 @@ private:
     // File management
     QString m_currentFilePath;
     bool m_isDirty;
+
+    // Display state tracking for toggle shortcuts
+    bool m_isBlackout = false;
+    bool m_isWhiteout = false;
+    bool m_isOutputDisabled = false;  ///< Persistent output disable (survives navigation)
 };
 
 } // namespace Clarity

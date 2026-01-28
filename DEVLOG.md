@@ -4,6 +4,88 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-27 - Phase 3 Tasks 7-8: Video Backgrounds and Text Legibility (Complete)
+
+### Summary
+Implemented video background support for slides and comprehensive text legibility features including drop shadows, background overlays, text containers, and text bands. These features significantly improve text visibility on busy backgrounds like videos and images.
+
+### Work Completed
+
+#### Video Backgrounds (Task 7)
+- Added `Video` to BackgroundType enum in Slide class
+- Added `backgroundVideoPath` (file path) and `videoLoop` (bool) properties
+- Videos stored by path reference (not embedded) due to large file sizes
+- Added Qt6::Multimedia to CMakeLists.txt
+- Created video selection UI in SlideEditorDialog with file browser and loop checkbox
+- Videos are always muted (background use only - audio playback deferred to Phase 4)
+- Output display uses Qt Multimedia Video component with auto-play behavior
+- Graceful fallback to black background if video file is missing
+
+#### Text Legibility Features (Task 8)
+- **Drop Shadow**: Configurable shadow behind text with color, X/Y offset, and blur radius
+  - Enabled by default for all slides
+  - Uses Qt5Compat.GraphicalEffects DropShadow component
+- **Background Overlay**: Semi-transparent darkening layer over entire background
+  - Helps text stand out on busy backgrounds
+  - Configurable color with alpha and optional blur
+- **Text Container**: Box/rectangle behind text area
+  - Configurable color, padding, corner radius, and optional blur
+  - Great for lower-third style presentations
+- **Text Band**: Horizontal strip across full screen width behind text
+  - Similar to text container but extends to edges
+  - Useful for title slides
+
+#### UI Updates
+- SlideEditorDialog expanded with "Text Legibility" section containing:
+  - Drop Shadow: enable checkbox, color button, X/Y offset spinboxes, blur spinbox
+  - Background Overlay: enable checkbox, color button, blur spinbox
+  - Text Container: enable checkbox, color button, padding/radius/blur spinboxes
+  - Text Band: enable checkbox, color button, blur spinbox
+- All color pickers support alpha channel for transparency
+- Dialog resized to accommodate new sections
+
+### Technical Decisions
+
+1. **Video Storage**: File path only (not embedded Base64) due to video file sizes. Trade-off: presentations not portable without video files.
+
+2. **Drop Shadow vs Text Outline**: Kept existing text outline AND added configurable drop shadow. Both can be used together for maximum legibility.
+
+3. **Blur Implementation**: Added blur properties for overlay/container/band but deferred actual blur rendering to Phase 4 (requires ShaderEffectSource which has performance implications).
+
+4. **Default Values**: Drop shadow enabled by default (2px offset, 4px blur, black color). Other legibility features disabled by default to maintain backwards compatibility.
+
+### Files Modified
+- `CMakeLists.txt` - Added Qt6::Multimedia
+- `src/Core/Slide.h` - Added Video enum, video properties, and all text legibility properties
+- `src/Core/Slide.cpp` - Initialization and JSON serialization for new properties
+- `src/Control/SlideEditorDialog.h` - Added UI control members
+- `src/Control/SlideEditorDialog.cpp` - Video and text legibility UI sections
+- `src/Output/OutputDisplay.h` - Q_PROPERTY declarations for new features
+- `src/Output/OutputDisplay.cpp` - Property handling in updateSlide() and clearDisplay()
+- `src/Output/qml/OutputDisplay.qml` - Video component, overlay, band, container, and DropShadow
+
+### Phase 4 Considerations (Deferred)
+- **Audio Playback**: Video audio control, dedicated audio tracks
+- **Background Blur Effects**: FastBlur under overlay/container/band (performance optimization needed)
+- **Text Glow/Outer Glow**: Neon-style text effects
+- **Configurable Text Outline**: User-adjustable outline thickness and color
+- **Lower Thirds**: Animated lower-third templates
+- **Ken Burns Effect**: Pan/zoom animation for image backgrounds
+- **Video Playback Controls**: Start/end times, playback speed
+
+### Testing
+- Build verification with Qt Multimedia module
+- Manual testing of video selection and playback
+- Verify text legibility features render correctly on output display
+- Test transitions between video and non-video slides
+
+### Next Steps
+- Test blur effects when enabled (may need optimization)
+- Consider presets for common legibility configurations
+- Phase 4 features as prioritized
+
+---
+
 ## 2026-01-25 - Phase 3 Task 6: Keyboard Shortcuts (Complete)
 
 ### Summary

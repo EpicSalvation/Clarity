@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find Qt6 packages
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql Multimedia)
 
 # Core library (shared between all modes)
 add_library(ClarityCore STATIC
@@ -111,6 +111,7 @@ target_link_libraries(Clarity
         Qt6::Widgets
         Qt6::Quick
         Qt6::Network
+        Qt6::Multimedia
 )
 
 # Platform-specific settings

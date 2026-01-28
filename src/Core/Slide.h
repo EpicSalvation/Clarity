@@ -21,7 +21,8 @@ public:
     enum BackgroundType {
         SolidColor,  ///< Solid color background (default)
         Image,       ///< Image background
-        Gradient     ///< Gradient background (future)
+        Gradient,    ///< Gradient background
+        Video        ///< Video background (Phase 3)
     };
 
     Slide();
@@ -39,6 +40,32 @@ public:
     QColor gradientStartColor() const { return m_gradientStartColor; }
     QColor gradientEndColor() const { return m_gradientEndColor; }
     int gradientAngle() const { return m_gradientAngle; }
+    QString backgroundVideoPath() const { return m_backgroundVideoPath; }
+    bool videoLoop() const { return m_videoLoop; }
+
+    // Text legibility: Drop shadow
+    bool dropShadowEnabled() const { return m_dropShadowEnabled; }
+    QColor dropShadowColor() const { return m_dropShadowColor; }
+    int dropShadowOffsetX() const { return m_dropShadowOffsetX; }
+    int dropShadowOffsetY() const { return m_dropShadowOffsetY; }
+    int dropShadowBlur() const { return m_dropShadowBlur; }
+
+    // Text legibility: Background overlay (darkening layer over entire background)
+    bool overlayEnabled() const { return m_overlayEnabled; }
+    QColor overlayColor() const { return m_overlayColor; }
+    int overlayBlur() const { return m_overlayBlur; }
+
+    // Text legibility: Text container (box behind text)
+    bool textContainerEnabled() const { return m_textContainerEnabled; }
+    QColor textContainerColor() const { return m_textContainerColor; }
+    int textContainerPadding() const { return m_textContainerPadding; }
+    int textContainerRadius() const { return m_textContainerRadius; }
+    int textContainerBlur() const { return m_textContainerBlur; }
+
+    // Text legibility: Text band (horizontal strip across screen)
+    bool textBandEnabled() const { return m_textBandEnabled; }
+    QColor textBandColor() const { return m_textBandColor; }
+    int textBandBlur() const { return m_textBandBlur; }
 
     // Transition overrides (empty/negative means use default)
     QString transitionType() const { return m_transitionType; }
@@ -61,6 +88,32 @@ public:
     void setGradientStartColor(const QColor& color) { m_gradientStartColor = color; }
     void setGradientEndColor(const QColor& color) { m_gradientEndColor = color; }
     void setGradientAngle(int angle) { m_gradientAngle = angle; }
+    void setBackgroundVideoPath(const QString& path) { m_backgroundVideoPath = path; }
+    void setVideoLoop(bool loop) { m_videoLoop = loop; }
+
+    // Text legibility: Drop shadow setters
+    void setDropShadowEnabled(bool enabled) { m_dropShadowEnabled = enabled; }
+    void setDropShadowColor(const QColor& color) { m_dropShadowColor = color; }
+    void setDropShadowOffsetX(int offset) { m_dropShadowOffsetX = offset; }
+    void setDropShadowOffsetY(int offset) { m_dropShadowOffsetY = offset; }
+    void setDropShadowBlur(int blur) { m_dropShadowBlur = blur; }
+
+    // Text legibility: Background overlay setters
+    void setOverlayEnabled(bool enabled) { m_overlayEnabled = enabled; }
+    void setOverlayColor(const QColor& color) { m_overlayColor = color; }
+    void setOverlayBlur(int blur) { m_overlayBlur = blur; }
+
+    // Text legibility: Text container setters
+    void setTextContainerEnabled(bool enabled) { m_textContainerEnabled = enabled; }
+    void setTextContainerColor(const QColor& color) { m_textContainerColor = color; }
+    void setTextContainerPadding(int padding) { m_textContainerPadding = padding; }
+    void setTextContainerRadius(int radius) { m_textContainerRadius = radius; }
+    void setTextContainerBlur(int blur) { m_textContainerBlur = blur; }
+
+    // Text legibility: Text band setters
+    void setTextBandEnabled(bool enabled) { m_textBandEnabled = enabled; }
+    void setTextBandColor(const QColor& color) { m_textBandColor = color; }
+    void setTextBandBlur(int blur) { m_textBandBlur = blur; }
 
     // Transition overrides
     void setTransitionType(const QString& type) { m_transitionType = type; }
@@ -87,6 +140,34 @@ private:
     QColor m_gradientStartColor;        ///< Gradient start color
     QColor m_gradientEndColor;          ///< Gradient end color
     int m_gradientAngle;                ///< Gradient angle in degrees (0=top-to-bottom, 90=left-to-right)
+
+    // Phase 3: Video background support
+    QString m_backgroundVideoPath;      ///< Path to video file (not embedded due to file size)
+    bool m_videoLoop;                   ///< Whether video loops (default true)
+
+    // Phase 3: Text legibility - Drop shadow
+    bool m_dropShadowEnabled;           ///< Enable drop shadow on text
+    QColor m_dropShadowColor;           ///< Shadow color (typically black with alpha)
+    int m_dropShadowOffsetX;            ///< Shadow horizontal offset in pixels
+    int m_dropShadowOffsetY;            ///< Shadow vertical offset in pixels
+    int m_dropShadowBlur;               ///< Shadow blur radius in pixels
+
+    // Phase 3: Text legibility - Background overlay
+    bool m_overlayEnabled;              ///< Enable darkening overlay over background
+    QColor m_overlayColor;              ///< Overlay color (typically black with alpha)
+    int m_overlayBlur;                  ///< Blur radius for background under overlay
+
+    // Phase 3: Text legibility - Text container (box behind text)
+    bool m_textContainerEnabled;        ///< Enable text container box
+    QColor m_textContainerColor;        ///< Container color (typically semi-transparent)
+    int m_textContainerPadding;         ///< Padding around text in pixels
+    int m_textContainerRadius;          ///< Corner radius in pixels
+    int m_textContainerBlur;            ///< Blur radius for background under container
+
+    // Phase 3: Text legibility - Text band (horizontal strip)
+    bool m_textBandEnabled;             ///< Enable horizontal band across screen
+    QColor m_textBandColor;             ///< Band color (typically semi-transparent)
+    int m_textBandBlur;                 ///< Blur radius for background under band
 
     // Phase 3: Per-slide transition override
     QString m_transitionType;           ///< Override transition type (empty = use default)

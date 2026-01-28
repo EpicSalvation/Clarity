@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Window
+import QtMultimedia
 
 /**
  * Output display window - fullscreen presentation view with transitions
@@ -34,6 +35,25 @@ Window {
     property color gradientStartColorA: "#1e3a8a"
     property color gradientEndColorA: "#60a5fa"
     property int gradientAngleA: 135
+    property string backgroundVideoSourceA: ""
+    property bool videoLoopA: true
+    // Text legibility properties for container A
+    property bool dropShadowEnabledA: true
+    property color dropShadowColorA: "#000000"
+    property int dropShadowOffsetXA: 2
+    property int dropShadowOffsetYA: 2
+    property int dropShadowBlurA: 4
+    property bool overlayEnabledA: false
+    property color overlayColorA: "#80000000"
+    property int overlayBlurA: 0
+    property bool textContainerEnabledA: false
+    property color textContainerColorA: "#80000000"
+    property int textContainerPaddingA: 20
+    property int textContainerRadiusA: 8
+    property int textContainerBlurA: 0
+    property bool textBandEnabledA: false
+    property color textBandColorA: "#80000000"
+    property int textBandBlurA: 0
 
     // Cached slide data for container B
     property string slideTextB: ""
@@ -46,6 +66,25 @@ Window {
     property color gradientStartColorB: "#1e3a8a"
     property color gradientEndColorB: "#60a5fa"
     property int gradientAngleB: 135
+    property string backgroundVideoSourceB: ""
+    property bool videoLoopB: true
+    // Text legibility properties for container B
+    property bool dropShadowEnabledB: true
+    property color dropShadowColorB: "#000000"
+    property int dropShadowOffsetXB: 2
+    property int dropShadowOffsetYB: 2
+    property int dropShadowBlurB: 4
+    property bool overlayEnabledB: false
+    property color overlayColorB: "#80000000"
+    property int overlayBlurB: 0
+    property bool textContainerEnabledB: false
+    property color textContainerColorB: "#80000000"
+    property int textContainerPaddingB: 20
+    property int textContainerRadiusB: 8
+    property int textContainerBlurB: 0
+    property bool textBandEnabledB: false
+    property color textBandColorB: "#80000000"
+    property int textBandBlurB: 0
 
     // Copy current displayController values to the specified container
     function copyToContainerA() {
@@ -59,6 +98,25 @@ Window {
         gradientStartColorA = displayController.gradientStartColor
         gradientEndColorA = displayController.gradientEndColor
         gradientAngleA = displayController.gradientAngle
+        backgroundVideoSourceA = displayController.backgroundVideoSource
+        videoLoopA = displayController.videoLoop
+        // Text legibility
+        dropShadowEnabledA = displayController.dropShadowEnabled
+        dropShadowColorA = displayController.dropShadowColor
+        dropShadowOffsetXA = displayController.dropShadowOffsetX
+        dropShadowOffsetYA = displayController.dropShadowOffsetY
+        dropShadowBlurA = displayController.dropShadowBlur
+        overlayEnabledA = displayController.overlayEnabled
+        overlayColorA = displayController.overlayColor
+        overlayBlurA = displayController.overlayBlur
+        textContainerEnabledA = displayController.textContainerEnabled
+        textContainerColorA = displayController.textContainerColor
+        textContainerPaddingA = displayController.textContainerPadding
+        textContainerRadiusA = displayController.textContainerRadius
+        textContainerBlurA = displayController.textContainerBlur
+        textBandEnabledA = displayController.textBandEnabled
+        textBandColorA = displayController.textBandColor
+        textBandBlurA = displayController.textBandBlur
     }
 
     function copyToContainerB() {
@@ -72,6 +130,25 @@ Window {
         gradientStartColorB = displayController.gradientStartColor
         gradientEndColorB = displayController.gradientEndColor
         gradientAngleB = displayController.gradientAngle
+        backgroundVideoSourceB = displayController.backgroundVideoSource
+        videoLoopB = displayController.videoLoop
+        // Text legibility
+        dropShadowEnabledB = displayController.dropShadowEnabled
+        dropShadowColorB = displayController.dropShadowColor
+        dropShadowOffsetXB = displayController.dropShadowOffsetX
+        dropShadowOffsetYB = displayController.dropShadowOffsetY
+        dropShadowBlurB = displayController.dropShadowBlur
+        overlayEnabledB = displayController.overlayEnabled
+        overlayColorB = displayController.overlayColor
+        overlayBlurB = displayController.overlayBlur
+        textContainerEnabledB = displayController.textContainerEnabled
+        textContainerColorB = displayController.textContainerColor
+        textContainerPaddingB = displayController.textContainerPadding
+        textContainerRadiusB = displayController.textContainerRadius
+        textContainerBlurB = displayController.textContainerBlur
+        textBandEnabledB = displayController.textBandEnabled
+        textBandColorB = displayController.textBandColor
+        textBandBlurB = displayController.textBandBlur
     }
 
     // Initialize container A with first slide
@@ -277,8 +354,81 @@ Window {
             smooth: true
         }
 
-        // Text content
+        // Background video
+        Video {
+            id: videoA
+            anchors.fill: parent
+            visible: root.backgroundTypeA === "video"
+            source: root.backgroundTypeA === "video" ? root.backgroundVideoSourceA : ""
+            loops: root.videoLoopA ? MediaPlayer.Infinite : 1
+            muted: true  // Always muted for background videos
+            fillMode: VideoOutput.PreserveAspectCrop
+            // Auto-play when source changes and video is visible
+            onSourceChanged: {
+                if (source !== "" && root.backgroundTypeA === "video") {
+                    play()
+                }
+            }
+            // Also play when becoming visible during transitions
+            onVisibleChanged: {
+                if (visible && source !== "") {
+                    play()
+                } else if (!visible) {
+                    stop()
+                }
+            }
+        }
+
+        // Background overlay - darkens the entire background for better text visibility
+        Rectangle {
+            id: overlayA
+            anchors.fill: parent
+            color: root.overlayColorA
+            visible: root.overlayEnabledA
+        }
+
+        // Text band - horizontal strip behind text area
+        Rectangle {
+            id: textBandA
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            height: textContentA.height + root.textContainerPaddingA * 2
+            color: root.textBandColorA
+            visible: root.textBandEnabledA
+        }
+
+        // Text container - box behind text
+        Rectangle {
+            id: textContainerA
+            anchors.centerIn: parent
+            width: textContentA.width + root.textContainerPaddingA * 2
+            height: textContentA.height + root.textContainerPaddingA * 2
+            radius: root.textContainerRadiusA
+            color: root.textContainerColorA
+            visible: root.textContainerEnabledA
+        }
+
+        // Text shadow (rendered behind main text for drop shadow effect)
         Text {
+            id: textShadowA
+            anchors.centerIn: parent
+            anchors.horizontalCenterOffset: root.dropShadowOffsetXA
+            anchors.verticalCenterOffset: root.dropShadowOffsetYA
+            text: root.slideTextA
+            color: root.dropShadowColorA
+            font.family: root.fontFamilyA
+            font.pixelSize: root.fontSizeA
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            wrapMode: Text.WordWrap
+            width: parent.width * 0.8
+            visible: root.dropShadowEnabledA
+        }
+
+        // Main text content
+        Text {
+            id: textContentA
             anchors.centerIn: parent
             text: root.slideTextA
             color: root.textColorA
@@ -340,8 +490,81 @@ Window {
             smooth: true
         }
 
-        // Text content
+        // Background video
+        Video {
+            id: videoB
+            anchors.fill: parent
+            visible: root.backgroundTypeB === "video"
+            source: root.backgroundTypeB === "video" ? root.backgroundVideoSourceB : ""
+            loops: root.videoLoopB ? MediaPlayer.Infinite : 1
+            muted: true  // Always muted for background videos
+            fillMode: VideoOutput.PreserveAspectCrop
+            // Auto-play when source changes and video is visible
+            onSourceChanged: {
+                if (source !== "" && root.backgroundTypeB === "video") {
+                    play()
+                }
+            }
+            // Also play when becoming visible during transitions
+            onVisibleChanged: {
+                if (visible && source !== "") {
+                    play()
+                } else if (!visible) {
+                    stop()
+                }
+            }
+        }
+
+        // Background overlay - darkens the entire background for better text visibility
+        Rectangle {
+            id: overlayB
+            anchors.fill: parent
+            color: root.overlayColorB
+            visible: root.overlayEnabledB
+        }
+
+        // Text band - horizontal strip behind text area
+        Rectangle {
+            id: textBandB
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            height: textContentB.height + root.textContainerPaddingB * 2
+            color: root.textBandColorB
+            visible: root.textBandEnabledB
+        }
+
+        // Text container - box behind text
+        Rectangle {
+            id: textContainerB
+            anchors.centerIn: parent
+            width: textContentB.width + root.textContainerPaddingB * 2
+            height: textContentB.height + root.textContainerPaddingB * 2
+            radius: root.textContainerRadiusB
+            color: root.textContainerColorB
+            visible: root.textContainerEnabledB
+        }
+
+        // Text shadow (rendered behind main text for drop shadow effect)
         Text {
+            id: textShadowB
+            anchors.centerIn: parent
+            anchors.horizontalCenterOffset: root.dropShadowOffsetXB
+            anchors.verticalCenterOffset: root.dropShadowOffsetYB
+            text: root.slideTextB
+            color: root.dropShadowColorB
+            font.family: root.fontFamilyB
+            font.pixelSize: root.fontSizeB
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            wrapMode: Text.WordWrap
+            width: parent.width * 0.8
+            visible: root.dropShadowEnabledB
+        }
+
+        // Main text content
+        Text {
+            id: textContentB
             anchors.centerIn: parent
             text: root.slideTextB
             color: root.textColorB

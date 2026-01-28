@@ -11,6 +11,23 @@ Slide::Slide()
     , m_gradientStartColor("#1e3a8a")
     , m_gradientEndColor("#60a5fa")
     , m_gradientAngle(135)
+    , m_videoLoop(true)
+    , m_dropShadowEnabled(true)
+    , m_dropShadowColor("#000000")
+    , m_dropShadowOffsetX(2)
+    , m_dropShadowOffsetY(2)
+    , m_dropShadowBlur(4)
+    , m_overlayEnabled(false)
+    , m_overlayColor("#80000000")  // 50% black
+    , m_overlayBlur(0)
+    , m_textContainerEnabled(false)
+    , m_textContainerColor("#80000000")  // 50% black
+    , m_textContainerPadding(20)
+    , m_textContainerRadius(8)
+    , m_textContainerBlur(0)
+    , m_textBandEnabled(false)
+    , m_textBandColor("#80000000")  // 50% black
+    , m_textBandBlur(0)
     , m_transitionDuration(-1)
 {
 }
@@ -25,6 +42,23 @@ Slide::Slide(const QString& text, const QColor& backgroundColor, const QColor& t
     , m_gradientStartColor("#1e3a8a")
     , m_gradientEndColor("#60a5fa")
     , m_gradientAngle(135)
+    , m_videoLoop(true)
+    , m_dropShadowEnabled(true)
+    , m_dropShadowColor("#000000")
+    , m_dropShadowOffsetX(2)
+    , m_dropShadowOffsetY(2)
+    , m_dropShadowBlur(4)
+    , m_overlayEnabled(false)
+    , m_overlayColor("#80000000")  // 50% black
+    , m_overlayBlur(0)
+    , m_textContainerEnabled(false)
+    , m_textContainerColor("#80000000")  // 50% black
+    , m_textContainerPadding(20)
+    , m_textContainerRadius(8)
+    , m_textContainerBlur(0)
+    , m_textBandEnabled(false)
+    , m_textBandColor("#80000000")  // 50% black
+    , m_textBandBlur(0)
     , m_transitionDuration(-1)
 {
 }
@@ -50,6 +84,9 @@ QJsonObject Slide::toJson() const
         case Gradient:
             bgTypeString = "gradient";
             break;
+        case Video:
+            bgTypeString = "video";
+            break;
     }
     json["backgroundType"] = bgTypeString;
 
@@ -66,6 +103,12 @@ QJsonObject Slide::toJson() const
         json["gradientAngle"] = m_gradientAngle;
     }
 
+    // Include video data if background type is Video
+    if (m_backgroundType == Video) {
+        json["backgroundVideoPath"] = m_backgroundVideoPath;
+        json["videoLoop"] = m_videoLoop;
+    }
+
     // Phase 3: Per-slide transition override (only include if set)
     if (!m_transitionType.isEmpty()) {
         json["transitionType"] = m_transitionType;
@@ -77,6 +120,38 @@ QJsonObject Slide::toJson() const
     // Phase 3: Presenter notes (only include if not empty)
     if (!m_notes.isEmpty()) {
         json["notes"] = m_notes;
+    }
+
+    // Phase 3: Text legibility - Drop shadow
+    json["dropShadowEnabled"] = m_dropShadowEnabled;
+    if (m_dropShadowEnabled) {
+        json["dropShadowColor"] = m_dropShadowColor.name(QColor::HexArgb);
+        json["dropShadowOffsetX"] = m_dropShadowOffsetX;
+        json["dropShadowOffsetY"] = m_dropShadowOffsetY;
+        json["dropShadowBlur"] = m_dropShadowBlur;
+    }
+
+    // Phase 3: Text legibility - Background overlay
+    json["overlayEnabled"] = m_overlayEnabled;
+    if (m_overlayEnabled) {
+        json["overlayColor"] = m_overlayColor.name(QColor::HexArgb);
+        json["overlayBlur"] = m_overlayBlur;
+    }
+
+    // Phase 3: Text legibility - Text container
+    json["textContainerEnabled"] = m_textContainerEnabled;
+    if (m_textContainerEnabled) {
+        json["textContainerColor"] = m_textContainerColor.name(QColor::HexArgb);
+        json["textContainerPadding"] = m_textContainerPadding;
+        json["textContainerRadius"] = m_textContainerRadius;
+        json["textContainerBlur"] = m_textContainerBlur;
+    }
+
+    // Phase 3: Text legibility - Text band
+    json["textBandEnabled"] = m_textBandEnabled;
+    if (m_textBandEnabled) {
+        json["textBandColor"] = m_textBandColor.name(QColor::HexArgb);
+        json["textBandBlur"] = m_textBandBlur;
     }
 
     return json;
@@ -105,6 +180,10 @@ Slide Slide::fromJson(const QJsonObject& json)
         slide.m_gradientStartColor = QColor(json["gradientStartColor"].toString("#1e3a8a"));
         slide.m_gradientEndColor = QColor(json["gradientEndColor"].toString("#60a5fa"));
         slide.m_gradientAngle = json["gradientAngle"].toInt(135);
+    } else if (bgTypeString == "video") {
+        slide.m_backgroundType = Video;
+        slide.m_backgroundVideoPath = json["backgroundVideoPath"].toString();
+        slide.m_videoLoop = json["videoLoop"].toBool(true);
     } else {
         slide.m_backgroundType = SolidColor;
     }
@@ -121,6 +200,38 @@ Slide Slide::fromJson(const QJsonObject& json)
     if (json.contains("notes")) {
         slide.m_notes = json["notes"].toString();
     }
+
+    // Phase 3: Text legibility - Drop shadow
+    slide.m_dropShadowEnabled = json["dropShadowEnabled"].toBool(true);
+    if (json.contains("dropShadowColor")) {
+        slide.m_dropShadowColor = QColor(json["dropShadowColor"].toString("#000000"));
+    }
+    slide.m_dropShadowOffsetX = json["dropShadowOffsetX"].toInt(2);
+    slide.m_dropShadowOffsetY = json["dropShadowOffsetY"].toInt(2);
+    slide.m_dropShadowBlur = json["dropShadowBlur"].toInt(4);
+
+    // Phase 3: Text legibility - Background overlay
+    slide.m_overlayEnabled = json["overlayEnabled"].toBool(false);
+    if (json.contains("overlayColor")) {
+        slide.m_overlayColor = QColor(json["overlayColor"].toString("#80000000"));
+    }
+    slide.m_overlayBlur = json["overlayBlur"].toInt(0);
+
+    // Phase 3: Text legibility - Text container
+    slide.m_textContainerEnabled = json["textContainerEnabled"].toBool(false);
+    if (json.contains("textContainerColor")) {
+        slide.m_textContainerColor = QColor(json["textContainerColor"].toString("#80000000"));
+    }
+    slide.m_textContainerPadding = json["textContainerPadding"].toInt(20);
+    slide.m_textContainerRadius = json["textContainerRadius"].toInt(8);
+    slide.m_textContainerBlur = json["textContainerBlur"].toInt(0);
+
+    // Phase 3: Text legibility - Text band
+    slide.m_textBandEnabled = json["textBandEnabled"].toBool(false);
+    if (json.contains("textBandColor")) {
+        slide.m_textBandColor = QColor(json["textBandColor"].toString("#80000000"));
+    }
+    slide.m_textBandBlur = json["textBandBlur"].toInt(0);
 
     return slide;
 }

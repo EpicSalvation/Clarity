@@ -29,6 +29,32 @@ class OutputDisplay : public QObject {
     Q_PROPERTY(QColor gradientStartColor READ gradientStartColor NOTIFY gradientStartColorChanged)
     Q_PROPERTY(QColor gradientEndColor READ gradientEndColor NOTIFY gradientEndColorChanged)
     Q_PROPERTY(int gradientAngle READ gradientAngle NOTIFY gradientAngleChanged)
+    Q_PROPERTY(QString backgroundVideoSource READ backgroundVideoSource NOTIFY backgroundVideoSourceChanged)
+    Q_PROPERTY(bool videoLoop READ videoLoop NOTIFY videoLoopChanged)
+
+    // Text legibility: Drop shadow
+    Q_PROPERTY(bool dropShadowEnabled READ dropShadowEnabled NOTIFY dropShadowEnabledChanged)
+    Q_PROPERTY(QColor dropShadowColor READ dropShadowColor NOTIFY dropShadowColorChanged)
+    Q_PROPERTY(int dropShadowOffsetX READ dropShadowOffsetX NOTIFY dropShadowOffsetXChanged)
+    Q_PROPERTY(int dropShadowOffsetY READ dropShadowOffsetY NOTIFY dropShadowOffsetYChanged)
+    Q_PROPERTY(int dropShadowBlur READ dropShadowBlur NOTIFY dropShadowBlurChanged)
+
+    // Text legibility: Background overlay
+    Q_PROPERTY(bool overlayEnabled READ overlayEnabled NOTIFY overlayEnabledChanged)
+    Q_PROPERTY(QColor overlayColor READ overlayColor NOTIFY overlayColorChanged)
+    Q_PROPERTY(int overlayBlur READ overlayBlur NOTIFY overlayBlurChanged)
+
+    // Text legibility: Text container
+    Q_PROPERTY(bool textContainerEnabled READ textContainerEnabled NOTIFY textContainerEnabledChanged)
+    Q_PROPERTY(QColor textContainerColor READ textContainerColor NOTIFY textContainerColorChanged)
+    Q_PROPERTY(int textContainerPadding READ textContainerPadding NOTIFY textContainerPaddingChanged)
+    Q_PROPERTY(int textContainerRadius READ textContainerRadius NOTIFY textContainerRadiusChanged)
+    Q_PROPERTY(int textContainerBlur READ textContainerBlur NOTIFY textContainerBlurChanged)
+
+    // Text legibility: Text band
+    Q_PROPERTY(bool textBandEnabled READ textBandEnabled NOTIFY textBandEnabledChanged)
+    Q_PROPERTY(QColor textBandColor READ textBandColor NOTIFY textBandColorChanged)
+    Q_PROPERTY(int textBandBlur READ textBandBlur NOTIFY textBandBlurChanged)
 
     // Transition properties
     Q_PROPERTY(QString transitionType READ transitionType NOTIFY transitionTypeChanged)
@@ -50,6 +76,32 @@ public:
     QColor gradientStartColor() const { return m_gradientStartColor; }
     QColor gradientEndColor() const { return m_gradientEndColor; }
     int gradientAngle() const { return m_gradientAngle; }
+    QString backgroundVideoSource() const { return m_backgroundVideoSource; }
+    bool videoLoop() const { return m_videoLoop; }
+
+    // Text legibility: Drop shadow getters
+    bool dropShadowEnabled() const { return m_dropShadowEnabled; }
+    QColor dropShadowColor() const { return m_dropShadowColor; }
+    int dropShadowOffsetX() const { return m_dropShadowOffsetX; }
+    int dropShadowOffsetY() const { return m_dropShadowOffsetY; }
+    int dropShadowBlur() const { return m_dropShadowBlur; }
+
+    // Text legibility: Overlay getters
+    bool overlayEnabled() const { return m_overlayEnabled; }
+    QColor overlayColor() const { return m_overlayColor; }
+    int overlayBlur() const { return m_overlayBlur; }
+
+    // Text legibility: Text container getters
+    bool textContainerEnabled() const { return m_textContainerEnabled; }
+    QColor textContainerColor() const { return m_textContainerColor; }
+    int textContainerPadding() const { return m_textContainerPadding; }
+    int textContainerRadius() const { return m_textContainerRadius; }
+    int textContainerBlur() const { return m_textContainerBlur; }
+
+    // Text legibility: Text band getters
+    bool textBandEnabled() const { return m_textBandEnabled; }
+    QColor textBandColor() const { return m_textBandColor; }
+    int textBandBlur() const { return m_textBandBlur; }
 
     // Transition getters
     QString transitionType() const { return m_transitionType; }
@@ -70,6 +122,27 @@ signals:
     void gradientStartColorChanged();
     void gradientEndColorChanged();
     void gradientAngleChanged();
+    void backgroundVideoSourceChanged();
+    void videoLoopChanged();
+
+    // Text legibility signals
+    void dropShadowEnabledChanged();
+    void dropShadowColorChanged();
+    void dropShadowOffsetXChanged();
+    void dropShadowOffsetYChanged();
+    void dropShadowBlurChanged();
+    void overlayEnabledChanged();
+    void overlayColorChanged();
+    void overlayBlurChanged();
+    void textContainerEnabledChanged();
+    void textContainerColorChanged();
+    void textContainerPaddingChanged();
+    void textContainerRadiusChanged();
+    void textContainerBlurChanged();
+    void textBandEnabledChanged();
+    void textBandColorChanged();
+    void textBandBlurChanged();
+
     void transitionTypeChanged();
     void transitionDurationChanged();
 
@@ -107,6 +180,32 @@ private:
     QColor m_gradientStartColor;
     QColor m_gradientEndColor;
     int m_gradientAngle;
+    QString m_backgroundVideoSource;
+    bool m_videoLoop;
+
+    // Text legibility: Drop shadow
+    bool m_dropShadowEnabled;
+    QColor m_dropShadowColor;
+    int m_dropShadowOffsetX;
+    int m_dropShadowOffsetY;
+    int m_dropShadowBlur;
+
+    // Text legibility: Overlay
+    bool m_overlayEnabled;
+    QColor m_overlayColor;
+    int m_overlayBlur;
+
+    // Text legibility: Text container
+    bool m_textContainerEnabled;
+    QColor m_textContainerColor;
+    int m_textContainerPadding;
+    int m_textContainerRadius;
+    int m_textContainerBlur;
+
+    // Text legibility: Text band
+    bool m_textBandEnabled;
+    QColor m_textBandColor;
+    int m_textBandBlur;
 
     // Transition properties
     QString m_transitionType;
