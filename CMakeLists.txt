@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find Qt6 packages
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql Multimedia WebSockets)
 
 # Core library (shared between all modes)
 add_library(ClarityCore STATIC
@@ -42,6 +42,8 @@ add_library(ClarityCore STATIC
     src/Core/MediaLibrary.cpp
     src/Core/VideoThumbnailGenerator.h
     src/Core/VideoThumbnailGenerator.cpp
+    src/Core/RemoteServer.h
+    src/Core/RemoteServer.cpp
 )
 
 target_link_libraries(ClarityCore
@@ -52,6 +54,7 @@ target_link_libraries(ClarityCore
         Qt6::Network
         Qt6::Sql
         Qt6::Multimedia
+        Qt6::WebSockets
 )
 
 target_include_directories(ClarityCore

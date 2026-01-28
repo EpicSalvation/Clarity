@@ -38,6 +38,7 @@ private:
     void setupUI();
     void createGeneralPage();
     void createDisplayPage();
+    void createRemoteControlPage();
     void loadSettings();
     void saveSettings();
     void updateColorButtonStyle(QPushButton* button, const QColor& color);
@@ -64,6 +65,10 @@ private:
 
     // UI behavior settings
     QCheckBox* m_scrollWheelChangesInputsCheckBox;
+
+    // Remote control settings
+    QCheckBox* m_remoteControlEnabledCheckBox;
+    QSpinBox* m_remoteControlPortSpinBox;
 
     // Settings manager
     SettingsManager* m_settingsManager;

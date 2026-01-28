@@ -57,6 +57,8 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_themeManager(new ThemeManager(this))
     , m_mediaLibrary(new MediaLibrary(this))
     , m_thumbnailGenerator(new VideoThumbnailGenerator(this))
+    , m_remoteServer(new RemoteServer(8080, this))
+    , m_remoteStatusLabel(nullptr)
     , m_currentFilePath("")
     , m_isDirty(false)
 {
@@ -97,6 +99,46 @@ ControlWindow::ControlWindow(QWidget* parent)
     connect(m_ipcServer, &IpcServer::clientConnected, this, &ControlWindow::onClientConnected);
     connect(m_ipcServer, &IpcServer::clientDisconnected, this, &ControlWindow::onClientDisconnected);
     connect(m_ipcServer, &IpcServer::messageReceived, this, &ControlWindow::onMessageReceived);
+
+    // Start remote control server if enabled
+    if (m_settingsManager->remoteControlEnabled()) {
+        m_remoteServer->setPort(m_settingsManager->remoteControlPort());
+        if (m_remoteServer->start()) {
+            qDebug() << "Remote control server started at" << m_remoteServer->serverUrl();
+            m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
+        }
+    }
+
+    // Connect remote server signals
+    connect(m_remoteServer, &RemoteServer::navigationRequested,
+            this, &ControlWindow::onRemoteNavigation);
+    connect(m_remoteServer, &RemoteServer::clientConnected, this, [this]() {
+        updateRemoteServer();
+        // Update status label with client count
+        int clients = m_remoteServer->connectedClientCount();
+        m_remoteStatusLabel->setText(QString("Remote: %1 (%2 client%3)")
+            .arg(m_remoteServer->serverUrl())
+            .arg(clients)
+            .arg(clients == 1 ? "" : "s"));
+    });
+    connect(m_remoteServer, &RemoteServer::clientDisconnected, this, [this]() {
+        int clients = m_remoteServer->connectedClientCount();
+        if (clients > 0) {
+            m_remoteStatusLabel->setText(QString("Remote: %1 (%2 client%3)")
+                .arg(m_remoteServer->serverUrl())
+                .arg(clients)
+                .arg(clients == 1 ? "" : "s"));
+        } else {
+            m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
+        }
+    });
+    connect(m_remoteServer, &RemoteServer::runningChanged, this, [this](bool running) {
+        if (running) {
+            m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
+        } else {
+            m_remoteStatusLabel->setText("");
+        }
+    });
 
     // Connect presentation modification signal
     connect(m_presentationModel, &PresentationModel::presentationModified, this, &ControlWindow::onPresentationModified);
@@ -304,6 +346,11 @@ void ControlWindow::setupUI()
     // Status bar
     m_statusLabel = new QLabel("Ready", this);
     statusBar()->addWidget(m_statusLabel);
+
+    // Remote server status label (right side of status bar)
+    m_remoteStatusLabel = new QLabel("", this);
+    m_remoteStatusLabel->setOpenExternalLinks(false);
+    statusBar()->addPermanentWidget(m_remoteStatusLabel);
 }
 
 void ControlWindow::createDemoPresentation()
@@ -405,6 +452,9 @@ void ControlWindow::broadcastCurrentSlide()
     }
 
     m_ipcServer->sendToClientType("confidence", confidenceMessage);
+
+    // Update remote control clients
+    updateRemoteServer();
 }
 
 void ControlWindow::onPrevSlide()
@@ -1404,6 +1454,62 @@ void ControlWindow::showKeyboardShortcuts()
     msgBox.setText(shortcuts);
     msgBox.setIcon(QMessageBox::Information);
     msgBox.exec();
+}
+
+void ControlWindow::onRemoteNavigation(const QString& action)
+{
+    qDebug() << "Remote navigation requested:" << action;
+
+    if (action == "next") {
+        onNextSlide();
+    } else if (action == "prev") {
+        onPrevSlide();
+    } else if (action == "first") {
+        gotoFirstSlide();
+    } else if (action == "last") {
+        gotoLastSlide();
+    } else if (action == "clear") {
+        onClearOutput();
+    } else if (action == "black") {
+        blackScreen();
+    } else if (action == "white") {
+        whiteScreen();
+    } else if (action.startsWith("goto:")) {
+        bool ok;
+        int index = action.mid(5).toInt(&ok);
+        if (ok) {
+            gotoSlide(index);
+        }
+    }
+}
+
+void ControlWindow::updateRemoteServer()
+{
+    if (!m_remoteServer->isRunning()) {
+        return;
+    }
+
+    Presentation pres = m_presentationModel->presentation();
+    int currentIndex = pres.currentSlideIndex();
+    int totalSlides = pres.slideCount();
+
+    QString currentText;
+    QString nextText;
+
+    if (currentIndex >= 0 && currentIndex < totalSlides) {
+        currentText = pres.getSlide(currentIndex).text();
+    }
+
+    if (currentIndex + 1 < totalSlides) {
+        nextText = pres.getSlide(currentIndex + 1).text();
+    }
+
+    m_remoteServer->broadcastSlideUpdate(currentIndex, totalSlides, currentText, nextText);
+
+    // Update connection status
+    bool outputConnected = m_ipcServer->hasClientType("output");
+    bool confidenceConnected = m_ipcServer->hasClientType("confidence");
+    m_remoteServer->broadcastStatus(outputConnected, confidenceConnected);
 }
 
 } // namespace Clarity

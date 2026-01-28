@@ -9,6 +9,7 @@
 #include "Core/ThemeManager.h"
 #include "Core/MediaLibrary.h"
 #include "Core/VideoThumbnailGenerator.h"
+#include "Core/RemoteServer.h"
 #include "ProcessManager.h"
 #include "SlideGridDelegate.h"
 #include "LivePreviewPanel.h"
@@ -94,6 +95,10 @@ private slots:
     void onPauseTimer();
     void onResetTimer();
 
+    // Remote control
+    void onRemoteNavigation(const QString& action);
+    void updateRemoteServer();
+
     // IPC handlers
     void onClientConnected(QLocalSocket* client);
     void onClientDisconnected(QLocalSocket* client);
@@ -143,6 +148,8 @@ private:
     ThemeManager* m_themeManager;
     MediaLibrary* m_mediaLibrary;
     VideoThumbnailGenerator* m_thumbnailGenerator;
+    RemoteServer* m_remoteServer;
+    QLabel* m_remoteStatusLabel;
 
     // File management
     QString m_currentFilePath;

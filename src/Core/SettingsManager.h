@@ -51,6 +51,13 @@ public:
     bool scrollWheelChangesInputs() const;  // Whether mouse wheel changes combo boxes/spin boxes without focus
     void setScrollWheelChangesInputs(bool enabled);
 
+    // Remote control settings
+    bool remoteControlEnabled() const;
+    void setRemoteControlEnabled(bool enabled);
+
+    quint16 remoteControlPort() const;
+    void setRemoteControlPort(quint16 port);
+
     // Reset all settings to defaults
     void resetToDefaults();
 
@@ -59,6 +66,7 @@ signals:
     void confidenceScreenIndexChanged(int index);
     void confidenceDisplaySettingsChanged();
     void transitionSettingsChanged();
+    void remoteControlSettingsChanged();
 
 private:
     QSettings* m_settings;
@@ -68,6 +76,7 @@ private:
     static constexpr int DEFAULT_CONFIDENCE_SCREEN_INDEX = 0;
     static constexpr int DEFAULT_CONFIDENCE_FONT_SIZE = 32;
     static constexpr int DEFAULT_TRANSITION_DURATION = 500;
+    static constexpr quint16 DEFAULT_REMOTE_CONTROL_PORT = 8080;
 };
 
 } // namespace Clarity

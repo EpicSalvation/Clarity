@@ -181,6 +181,41 @@ void SettingsManager::setScrollWheelChangesInputs(bool enabled)
     }
 }
 
+bool SettingsManager::remoteControlEnabled() const
+{
+    return m_settings->value("RemoteControl/Enabled", true).toBool();
+}
+
+void SettingsManager::setRemoteControlEnabled(bool enabled)
+{
+    if (remoteControlEnabled() != enabled) {
+        m_settings->setValue("RemoteControl/Enabled", enabled);
+        m_settings->sync();
+        emit remoteControlSettingsChanged();
+        qDebug() << "SettingsManager: Remote control enabled set to" << enabled;
+    }
+}
+
+quint16 SettingsManager::remoteControlPort() const
+{
+    return static_cast<quint16>(m_settings->value("RemoteControl/Port", DEFAULT_REMOTE_CONTROL_PORT).toUInt());
+}
+
+void SettingsManager::setRemoteControlPort(quint16 port)
+{
+    if (port < 1024 || port > 65535) {
+        qWarning() << "SettingsManager: Invalid port number:" << port;
+        return;
+    }
+
+    if (remoteControlPort() != port) {
+        m_settings->setValue("RemoteControl/Port", port);
+        m_settings->sync();
+        emit remoteControlSettingsChanged();
+        qDebug() << "SettingsManager: Remote control port set to" << port;
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";
@@ -189,6 +224,7 @@ void SettingsManager::resetToDefaults()
     emit confidenceScreenIndexChanged(DEFAULT_CONFIDENCE_SCREEN_INDEX);
     emit confidenceDisplaySettingsChanged();
     emit transitionSettingsChanged();
+    emit remoteControlSettingsChanged();
 }
 
 } // namespace Clarity

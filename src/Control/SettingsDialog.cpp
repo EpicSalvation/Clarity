@@ -28,6 +28,8 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_transitionTypeComboBox(nullptr)
     , m_transitionDurationComboBox(nullptr)
     , m_scrollWheelChangesInputsCheckBox(nullptr)
+    , m_remoteControlEnabledCheckBox(nullptr)
+    , m_remoteControlPortSpinBox(nullptr)
     , m_settingsManager(settingsManager)
 {
     setupUI();
@@ -57,6 +59,7 @@ void SettingsDialog::setupUI()
     // Add categories
     m_categoryList->addItem("General");
     m_categoryList->addItem("Display");
+    m_categoryList->addItem("Remote Control");
 
     connect(m_categoryList, &QListWidget::currentRowChanged,
             this, &SettingsDialog::onCategoryChanged);
@@ -70,6 +73,7 @@ void SettingsDialog::setupUI()
     // Create settings pages (order must match category list order)
     createGeneralPage();
     createDisplayPage();
+    createRemoteControlPage();
 
     // Set initial selection
     m_categoryList->setCurrentRow(0);
@@ -279,6 +283,42 @@ void SettingsDialog::createDisplayPage()
     m_pageStack->addWidget(displayPage);
 }
 
+void SettingsDialog::createRemoteControlPage()
+{
+    QWidget* remotePage = new QWidget(this);
+    QVBoxLayout* pageLayout = new QVBoxLayout(remotePage);
+
+    // Remote Control Settings group
+    QGroupBox* remoteGroup = new QGroupBox("Remote Control Server", remotePage);
+    QFormLayout* remoteLayout = new QFormLayout(remoteGroup);
+
+    // Enable checkbox
+    m_remoteControlEnabledCheckBox = new QCheckBox("Enable remote control server", remoteGroup);
+    remoteLayout->addRow(m_remoteControlEnabledCheckBox);
+
+    // Port setting
+    m_remoteControlPortSpinBox = new QSpinBox(remoteGroup);
+    m_remoteControlPortSpinBox->setRange(1024, 65535);
+    m_remoteControlPortSpinBox->setValue(8080);
+    remoteLayout->addRow("Port:", m_remoteControlPortSpinBox);
+
+    QLabel* remoteHelpLabel = new QLabel(
+        "When enabled, Clarity runs a web server that allows remote control from mobile "
+        "devices on the same network. Open the URL shown in the status bar on your phone "
+        "or tablet to control the presentation remotely.\n\n"
+        "Note: Changes to these settings require restarting Clarity to take effect.",
+        remoteGroup);
+    remoteHelpLabel->setWordWrap(true);
+    remoteHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    remoteLayout->addRow(remoteHelpLabel);
+
+    pageLayout->addWidget(remoteGroup);
+
+    pageLayout->addStretch(); // Push content to top
+
+    m_pageStack->addWidget(remotePage);
+}
+
 void SettingsDialog::onCategoryChanged(int row)
 {
     m_pageStack->setCurrentIndex(row);
@@ -369,6 +409,10 @@ void SettingsDialog::loadSettings()
 
     // Load UI behavior settings
     m_scrollWheelChangesInputsCheckBox->setChecked(m_settingsManager->scrollWheelChangesInputs());
+
+    // Load remote control settings
+    m_remoteControlEnabledCheckBox->setChecked(m_settingsManager->remoteControlEnabled());
+    m_remoteControlPortSpinBox->setValue(m_settingsManager->remoteControlPort());
 }
 
 void SettingsDialog::saveSettings()
@@ -401,6 +445,10 @@ void SettingsDialog::saveSettings()
 
     // Save UI behavior settings
     m_settingsManager->setScrollWheelChangesInputs(m_scrollWheelChangesInputsCheckBox->isChecked());
+
+    // Save remote control settings
+    m_settingsManager->setRemoteControlEnabled(m_remoteControlEnabledCheckBox->isChecked());
+    m_settingsManager->setRemoteControlPort(static_cast<quint16>(m_remoteControlPortSpinBox->value()));
 }
 
 void SettingsDialog::onOkClicked()
