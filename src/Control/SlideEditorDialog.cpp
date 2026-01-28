@@ -1,5 +1,8 @@
 #include "SlideEditorDialog.h"
+#include "MediaLibraryDialog.h"
 #include "Core/SettingsManager.h"
+#include "Core/MediaLibrary.h"
+#include "Core/VideoThumbnailGenerator.h"
 #include "Core/WheelEventFilter.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -15,9 +18,12 @@
 
 namespace Clarity {
 
-SlideEditorDialog::SlideEditorDialog(SettingsManager* settings, QWidget* parent)
+SlideEditorDialog::SlideEditorDialog(SettingsManager* settings, MediaLibrary* mediaLibrary,
+                                     VideoThumbnailGenerator* thumbnailGen, QWidget* parent)
     : QDialog(parent)
     , m_settings(settings)
+    , m_mediaLibrary(mediaLibrary)
+    , m_thumbnailGen(thumbnailGen)
 {
     setupUI();
     setWindowTitle("Edit Slide");
@@ -152,9 +158,16 @@ void SlideEditorDialog::setupUI()
     m_imagePathEdit->setReadOnly(true);
     imagePathLayout->addWidget(m_imagePathEdit);
 
-    m_choosImageButton = new QPushButton("Browse...", this);
+    m_choosImageButton = new QPushButton("Import...", this);
+    m_choosImageButton->setToolTip("Import a new image file");
     connect(m_choosImageButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseBackgroundImage);
     imagePathLayout->addWidget(m_choosImageButton);
+
+    m_imageLibraryButton = new QPushButton("Library...", this);
+    m_imageLibraryButton->setToolTip("Browse images in your media library");
+    connect(m_imageLibraryButton, &QPushButton::clicked, this, &SlideEditorDialog::onBrowseImageLibrary);
+    imagePathLayout->addWidget(m_imageLibraryButton);
+
     imageLayout->addLayout(imagePathLayout);
 
     m_imagePreviewLabel = new QLabel(this);
@@ -176,9 +189,16 @@ void SlideEditorDialog::setupUI()
     m_videoPathEdit->setReadOnly(true);
     videoPathLayout->addWidget(m_videoPathEdit);
 
-    m_chooseVideoButton = new QPushButton("Browse...", this);
+    m_chooseVideoButton = new QPushButton("Import...", this);
+    m_chooseVideoButton->setToolTip("Import a new video file");
     connect(m_chooseVideoButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseBackgroundVideo);
     videoPathLayout->addWidget(m_chooseVideoButton);
+
+    m_videoLibraryButton = new QPushButton("Library...", this);
+    m_videoLibraryButton->setToolTip("Browse videos in your media library");
+    connect(m_videoLibraryButton, &QPushButton::clicked, this, &SlideEditorDialog::onBrowseVideoLibrary);
+    videoPathLayout->addWidget(m_videoLibraryButton);
+
     videoLayout->addLayout(videoPathLayout);
 
     m_videoLoopCheck = new QCheckBox("Loop video", this);
@@ -596,67 +616,130 @@ void SlideEditorDialog::onChooseBackgroundImage()
 {
     QString fileName = QFileDialog::getOpenFileName(
         this,
-        "Choose Background Image",
+        "Import Background Image",
         QString(),
-        "Image Files (*.png *.jpg *.jpeg *.bmp);;All Files (*)"
+        "Image Files (*.png *.jpg *.jpeg *.bmp *.gif);;All Files (*)"
     );
 
     if (!fileName.isEmpty()) {
-        // Load image file
-        QPixmap pixmap(fileName);
-        if (pixmap.isNull()) {
-            qWarning() << "Failed to load image:" << fileName;
-            return;
+        // Add to media library (this copies the file to the library)
+        QString libraryPath = fileName;
+        if (m_mediaLibrary) {
+            libraryPath = m_mediaLibrary->addImage(fileName);
+            if (libraryPath.isEmpty()) {
+                qWarning() << "Failed to add image to library, using original path";
+                libraryPath = fileName;
+            }
         }
 
-        // Convert to byte array
-        QByteArray imageData;
-        QBuffer buffer(&imageData);
-        buffer.open(QIODevice::WriteOnly);
-        pixmap.save(&buffer, "PNG");
-
-        // Update slide
-        m_slide.setBackgroundImagePath(fileName);
-        m_slide.setBackgroundImageData(imageData);
-
-        // Update UI
-        m_imagePathEdit->setText(fileName);
-        m_imagePreviewLabel->setPixmap(pixmap.scaled(
-            m_imagePreviewLabel->size(),
-            Qt::KeepAspectRatio,
-            Qt::SmoothTransformation
-        ));
-
-        qDebug() << "Loaded background image:" << fileName << "size:" << imageData.size() << "bytes";
+        setImageFromPath(libraryPath);
     }
+}
+
+void SlideEditorDialog::onBrowseImageLibrary()
+{
+    if (!m_mediaLibrary) {
+        return;
+    }
+
+    MediaLibraryDialog dialog(m_mediaLibrary, MediaLibrary::Image, m_thumbnailGen, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        QString selectedPath = dialog.selectedPath();
+        if (!selectedPath.isEmpty()) {
+            setImageFromPath(selectedPath);
+        }
+    }
+}
+
+void SlideEditorDialog::setImageFromPath(const QString& path)
+{
+    // Load image file
+    QPixmap pixmap(path);
+    if (pixmap.isNull()) {
+        qWarning() << "Failed to load image:" << path;
+        return;
+    }
+
+    // Convert to byte array
+    QByteArray imageData;
+    QBuffer buffer(&imageData);
+    buffer.open(QIODevice::WriteOnly);
+    pixmap.save(&buffer, "PNG");
+
+    // Update slide
+    m_slide.setBackgroundImagePath(path);
+    m_slide.setBackgroundImageData(imageData);
+
+    // Update UI - show just the filename for cleaner display
+    QFileInfo fileInfo(path);
+    m_imagePathEdit->setText(fileInfo.fileName());
+    m_imagePathEdit->setToolTip(path);
+    m_imagePreviewLabel->setPixmap(pixmap.scaled(
+        m_imagePreviewLabel->size(),
+        Qt::KeepAspectRatio,
+        Qt::SmoothTransformation
+    ));
+
+    qDebug() << "Loaded background image:" << path << "size:" << imageData.size() << "bytes";
 }
 
 void SlideEditorDialog::onChooseBackgroundVideo()
 {
     QString fileName = QFileDialog::getOpenFileName(
         this,
-        "Choose Background Video",
+        "Import Background Video",
         QString(),
         "Video Files (*.mp4 *.webm *.avi *.mov *.mkv);;All Files (*)"
     );
 
     if (!fileName.isEmpty()) {
-        // Verify file exists
-        QFileInfo fileInfo(fileName);
-        if (!fileInfo.exists()) {
-            qWarning() << "Video file does not exist:" << fileName;
-            return;
+        // Add to media library (this copies the file to the library)
+        QString libraryPath = fileName;
+        if (m_mediaLibrary) {
+            libraryPath = m_mediaLibrary->addVideo(fileName);
+            if (libraryPath.isEmpty()) {
+                qWarning() << "Failed to add video to library, using original path";
+                libraryPath = fileName;
+            }
         }
 
-        // Update slide with video path (not embedded - videos are too large)
-        m_slide.setBackgroundVideoPath(fileName);
-        m_slide.setVideoLoop(m_videoLoopCheck->isChecked());
-
-        // Update UI
-        m_videoPathEdit->setText(fileName);
-
-        qDebug() << "Selected background video:" << fileName;
+        setVideoFromPath(libraryPath);
     }
+}
+
+void SlideEditorDialog::onBrowseVideoLibrary()
+{
+    if (!m_mediaLibrary) {
+        return;
+    }
+
+    MediaLibraryDialog dialog(m_mediaLibrary, MediaLibrary::Video, m_thumbnailGen, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        QString selectedPath = dialog.selectedPath();
+        if (!selectedPath.isEmpty()) {
+            setVideoFromPath(selectedPath);
+        }
+    }
+}
+
+void SlideEditorDialog::setVideoFromPath(const QString& path)
+{
+    // Verify file exists
+    QFileInfo fileInfo(path);
+    if (!fileInfo.exists()) {
+        qWarning() << "Video file does not exist:" << path;
+        return;
+    }
+
+    // Update slide with video path (not embedded - videos are too large)
+    m_slide.setBackgroundVideoPath(path);
+    m_slide.setVideoLoop(m_videoLoopCheck->isChecked());
+
+    // Update UI - show just the filename for cleaner display
+    m_videoPathEdit->setText(fileInfo.fileName());
+    m_videoPathEdit->setToolTip(path);
+
+    qDebug() << "Selected background video:" << path;
 }
 
 void SlideEditorDialog::onChooseDropShadowColor()

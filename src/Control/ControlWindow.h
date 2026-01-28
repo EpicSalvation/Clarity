@@ -7,6 +7,8 @@
 #include "Core/BibleDatabase.h"
 #include "Core/SongLibrary.h"
 #include "Core/ThemeManager.h"
+#include "Core/MediaLibrary.h"
+#include "Core/VideoThumbnailGenerator.h"
 #include "ProcessManager.h"
 #include "SlideGridDelegate.h"
 #include "LivePreviewPanel.h"
@@ -139,6 +141,8 @@ private:
     BibleDatabase* m_bibleDatabase;
     SongLibrary* m_songLibrary;
     ThemeManager* m_themeManager;
+    MediaLibrary* m_mediaLibrary;
+    VideoThumbnailGenerator* m_thumbnailGenerator;
 
     // File management
     QString m_currentFilePath;

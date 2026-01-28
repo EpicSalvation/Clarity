@@ -15,6 +15,8 @@
 namespace Clarity {
 
 class SettingsManager;
+class MediaLibrary;
+class VideoThumbnailGenerator;
 
 /**
  * @brief Dialog for editing slide properties
@@ -29,7 +31,8 @@ class SlideEditorDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit SlideEditorDialog(SettingsManager* settings, QWidget* parent = nullptr);
+    explicit SlideEditorDialog(SettingsManager* settings, MediaLibrary* mediaLibrary,
+                               VideoThumbnailGenerator* thumbnailGen, QWidget* parent = nullptr);
 
     // Set/get the slide being edited
     void setSlide(const Slide& slide);
@@ -42,7 +45,9 @@ private slots:
     void onChooseGradientStartColor();
     void onChooseGradientEndColor();
     void onChooseBackgroundImage();
+    void onBrowseImageLibrary();
     void onChooseBackgroundVideo();
+    void onBrowseVideoLibrary();
     void onChooseDropShadowColor();
     void onChooseOverlayColor();
     void onChooseTextContainerColor();
@@ -53,8 +58,12 @@ private:
     void updateBackgroundControls();
     void updateColorButton(QPushButton* button, const QColor& color);
     void installWheelFilter(QWidget* widget);
+    void setImageFromPath(const QString& path);
+    void setVideoFromPath(const QString& path);
 
     SettingsManager* m_settings;
+    MediaLibrary* m_mediaLibrary;
+    VideoThumbnailGenerator* m_thumbnailGen;
 
     // Text controls
     QTextEdit* m_textEdit;
@@ -77,11 +86,13 @@ private:
     // Image controls
     QLineEdit* m_imagePathEdit;
     QPushButton* m_choosImageButton;
+    QPushButton* m_imageLibraryButton;
     QLabel* m_imagePreviewLabel;
 
     // Video controls
     QLineEdit* m_videoPathEdit;
     QPushButton* m_chooseVideoButton;
+    QPushButton* m_videoLibraryButton;
     QCheckBox* m_videoLoopCheck;
 
     // Dialog buttons

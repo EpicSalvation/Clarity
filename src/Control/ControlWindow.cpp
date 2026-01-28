@@ -4,6 +4,7 @@
 #include "ScriptureDialog.h"
 #include "SongLibraryDialog.h"
 #include "ThemeSelectorDialog.h"
+#include "Core/SlidePreviewRenderer.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QToolBar>
@@ -54,11 +55,26 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_bibleDatabase(new BibleDatabase(this))
     , m_songLibrary(new SongLibrary(this))
     , m_themeManager(new ThemeManager(this))
+    , m_mediaLibrary(new MediaLibrary(this))
+    , m_thumbnailGenerator(new VideoThumbnailGenerator(this))
     , m_currentFilePath("")
     , m_isDirty(false)
 {
     setupUI();
     setupShortcuts();
+
+    // Set up video thumbnail generator for slide previews
+    SlidePreviewRenderer::setVideoThumbnailGenerator(m_thumbnailGenerator);
+
+    // Refresh slide views when video thumbnails are generated
+    connect(m_thumbnailGenerator, &VideoThumbnailGenerator::thumbnailReady,
+            this, [this](const QString& /*videoPath*/, const QImage& /*thumbnail*/) {
+        // Invalidate cached thumbnails and repaint
+        m_slideDelegate->invalidateCache();
+        m_slideGridView->viewport()->update();
+        m_slideListView->viewport()->update();
+    });
+
     createDemoPresentation();
 
     // Initialize Bible database
@@ -547,7 +563,7 @@ void ControlWindow::onAddSlide()
     newSlide.setTextColor(QColor("#ffffff"));
 
     // Open editor dialog
-    SlideEditorDialog dialog(m_settingsManager, this);
+    SlideEditorDialog dialog(m_settingsManager, m_mediaLibrary, m_thumbnailGenerator, this);
     dialog.setSlide(newSlide);
 
     if (dialog.exec() == QDialog::Accepted) {
@@ -574,7 +590,7 @@ void ControlWindow::onEditSlide()
     Slide currentSlide = m_presentationModel->getSlide(index);
 
     // Open editor dialog
-    SlideEditorDialog dialog(m_settingsManager, this);
+    SlideEditorDialog dialog(m_settingsManager, m_mediaLibrary, m_thumbnailGenerator, this);
     dialog.setSlide(currentSlide);
 
     if (dialog.exec() == QDialog::Accepted) {

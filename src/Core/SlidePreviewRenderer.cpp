@@ -1,9 +1,18 @@
 #include "SlidePreviewRenderer.h"
+#include "VideoThumbnailGenerator.h"
 #include <QPainter>
 #include <QLinearGradient>
 #include <QtMath>
 
 namespace Clarity {
+
+// Initialize static member
+VideoThumbnailGenerator* SlidePreviewRenderer::s_thumbnailGenerator = nullptr;
+
+void SlidePreviewRenderer::setVideoThumbnailGenerator(VideoThumbnailGenerator* generator)
+{
+    s_thumbnailGenerator = generator;
+}
 
 QPixmap SlidePreviewRenderer::render(const Slide& slide, const QSize& size,
                                      const RenderOptions& options)
@@ -24,6 +33,9 @@ QPixmap SlidePreviewRenderer::render(const Slide& slide, const QSize& size,
         break;
     case Slide::Image:
         drawImage(painter, slide, rect);
+        break;
+    case Slide::Video:
+        drawVideo(painter, slide, rect);
         break;
     case Slide::SolidColor:
     default:
@@ -114,6 +126,33 @@ void SlidePreviewRenderer::drawImage(QPainter& painter, const Slide& slide, cons
 
         painter.drawImage(x, y, scaled);
     }
+}
+
+void SlidePreviewRenderer::drawVideo(QPainter& painter, const Slide& slide, const QRect& rect)
+{
+    // First fill with dark background as fallback
+    painter.fillRect(rect, QColor(30, 30, 30));
+
+    QString videoPath = slide.backgroundVideoPath();
+    if (videoPath.isEmpty()) {
+        return;
+    }
+
+    // Use thumbnail generator if available
+    if (s_thumbnailGenerator) {
+        QPixmap thumbnail = s_thumbnailGenerator->getThumbnail(videoPath, rect.size());
+        if (!thumbnail.isNull()) {
+            // Center the thumbnail
+            int x = rect.x() + (rect.width() - thumbnail.width()) / 2;
+            int y = rect.y() + (rect.height() - thumbnail.height()) / 2;
+            painter.drawPixmap(x, y, thumbnail);
+            return;
+        }
+    }
+
+    // Fallback: draw placeholder with video icon
+    QPixmap placeholder = VideoThumbnailGenerator::placeholderThumbnail(rect.size());
+    painter.drawPixmap(rect.topLeft(), placeholder);
 }
 
 void SlidePreviewRenderer::drawText(QPainter& painter, const Slide& slide, const QRect& rect, int scaledFontSize)

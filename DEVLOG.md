@@ -4,6 +4,71 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-28 - Media Library Improvements and Video Thumbnails
+
+### Summary
+Implemented video thumbnail generation using FFmpeg for reliable cross-platform support, and improved the media library dialog with a clean uniform grid layout. Fixed crashes related to thumbnail generation and improved overall stability.
+
+### Work Completed
+
+#### Video Thumbnail Generation
+- Replaced Qt Multimedia-based thumbnail extraction with FFmpeg subprocess approach
+- FFmpeg is more reliable across platforms and handles all video codecs
+- Auto-detection of FFmpeg in PATH or common installation locations
+- Thumbnails cached to disk (`AppData/Local/Clarity/ThumbnailCache`) for fast subsequent access
+- Background thread worker for async thumbnail generation (non-blocking UI)
+- Clear startup message indicating whether FFmpeg is available
+
+#### Media Library Dialog Improvements
+- Converted from variable-width items to uniform grid layout
+- Removed filename text labels for cleaner appearance (filename shown in tooltip on hover)
+- Fixed grid cell size (130x100) with consistent thumbnail size (120x90)
+- Thumbnails centered within cells - wide images have dark bars top/bottom, tall images have dark bars left/right
+- Dark background (#1E1E1E) for consistent appearance matching video placeholders
+- File details shown in preview panel when item is selected
+
+#### Stability Improvements
+- Added defensive null checks throughout MediaLibraryDialog
+- Fixed MediaItem struct with proper default values and `isValid()` helper
+- Added explicit destructor to MediaLibraryDialog for clean signal disconnection
+- Path normalization for consistent Windows path handling (backslash consistency)
+- File existence checks before thumbnail generation attempts
+- Proper error handling and logging throughout thumbnail pipeline
+
+### Technical Decisions
+
+1. **FFmpeg over Qt Multimedia**: QMediaPlayer had reliability issues in background threads on Windows. FFmpeg subprocess is more stable and handles any video format.
+
+2. **Thumbnail Caching**: Two-tier cache (memory + disk) with MD5-based filenames incorporating file modification time for cache invalidation.
+
+3. **Centered Thumbnails**: Created helper function to scale-and-center thumbnails within fixed-size cells, providing uniform grid appearance regardless of source aspect ratio.
+
+4. **Path Normalization**: All video paths normalized using `QDir::toNativeSeparators()` to prevent cache lookup misses from mixed forward/backslash paths on Windows.
+
+### Files Modified
+- `src/Core/VideoThumbnailGenerator.h` - Added FFmpeg methods, startup check
+- `src/Core/VideoThumbnailGenerator.cpp` - FFmpeg-based extraction, path normalization, logging
+- `src/Core/MediaLibrary.h` - MediaItem default values and isValid() helper
+- `src/Control/MediaLibraryDialog.h` - Added destructor declaration
+- `src/Control/MediaLibraryDialog.cpp` - Grid layout, centered thumbnails, defensive checks
+
+### Requirements
+- **FFmpeg**: Required for video thumbnails. Download from https://www.gyan.dev/ffmpeg/builds/ and either add to PATH or place `ffmpeg.exe` in application directory.
+
+### Testing
+- Verified FFmpeg detection at startup
+- Tested video thumbnail generation for various formats (mp4, webm, avi)
+- Confirmed uniform grid layout in both image and video libraries
+- Verified crash fixes during import/delete operations
+- Tested thumbnail caching (memory and disk)
+
+### Next Steps
+- Consider bundling FFmpeg with releases
+- Add thumbnail generation progress indicator
+- Potential: support for animated GIF thumbnails
+
+---
+
 ## 2026-01-27 - Phase 3 Tasks 7-8: Video Backgrounds and Text Legibility (Complete)
 
 ### Summary

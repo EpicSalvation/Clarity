@@ -38,6 +38,10 @@ add_library(ClarityCore STATIC
     src/Core/WheelEventFilter.cpp
     src/Core/SlidePreviewRenderer.h
     src/Core/SlidePreviewRenderer.cpp
+    src/Core/MediaLibrary.h
+    src/Core/MediaLibrary.cpp
+    src/Core/VideoThumbnailGenerator.h
+    src/Core/VideoThumbnailGenerator.cpp
 )
 
 target_link_libraries(ClarityCore
@@ -47,6 +51,7 @@ target_link_libraries(ClarityCore
         Qt6::Widgets
         Qt6::Network
         Qt6::Sql
+        Qt6::Multimedia
 )
 
 target_include_directories(ClarityCore
@@ -87,6 +92,8 @@ add_executable(Clarity
     src/Control/LivePreviewPanel.cpp
     src/Control/ConfidencePreviewWidget.h
     src/Control/ConfidencePreviewWidget.cpp
+    src/Control/MediaLibraryDialog.h
+    src/Control/MediaLibraryDialog.cpp
 
     # Output display files
     src/Output/OutputMain.h

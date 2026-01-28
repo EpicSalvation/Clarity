@@ -7,6 +7,8 @@
 
 namespace Clarity {
 
+class VideoThumbnailGenerator;
+
 /**
  * @brief Centralized utility for rendering slide previews to QPixmap
  *
@@ -48,6 +50,14 @@ public:
     static QPixmap render(const Slide& slide, const QSize& size,
                           const RenderOptions& options = RenderOptions());
 
+    /**
+     * @brief Set the global video thumbnail generator
+     *
+     * Must be called before rendering slides with video backgrounds.
+     * The caller retains ownership of the generator.
+     */
+    static void setVideoThumbnailGenerator(VideoThumbnailGenerator* generator);
+
 private:
     /**
      * @brief Draw solid color background
@@ -65,6 +75,11 @@ private:
     static void drawImage(QPainter& painter, const Slide& slide, const QRect& rect);
 
     /**
+     * @brief Draw video background (thumbnail frame)
+     */
+    static void drawVideo(QPainter& painter, const Slide& slide, const QRect& rect);
+
+    /**
      * @brief Draw slide text with scaled font
      */
     static void drawText(QPainter& painter, const Slide& slide, const QRect& rect, int scaledFontSize);
@@ -79,6 +94,8 @@ private:
      */
     static void drawHighlight(QPainter& painter, const QRect& rect,
                               const QColor& color, int borderWidth);
+
+    static VideoThumbnailGenerator* s_thumbnailGenerator;
 };
 
 } // namespace Clarity
