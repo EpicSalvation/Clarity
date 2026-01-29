@@ -216,6 +216,50 @@ void SettingsManager::setRemoteControlPort(quint16 port)
     }
 }
 
+bool SettingsManager::remoteControlPinEnabled() const
+{
+    return m_settings->value("RemoteControl/PinEnabled", false).toBool();
+}
+
+void SettingsManager::setRemoteControlPinEnabled(bool enabled)
+{
+    if (remoteControlPinEnabled() != enabled) {
+        m_settings->setValue("RemoteControl/PinEnabled", enabled);
+        m_settings->sync();
+        emit remoteControlSettingsChanged();
+        qDebug() << "SettingsManager: Remote control PIN enabled set to" << enabled;
+    }
+}
+
+QString SettingsManager::remoteControlPin() const
+{
+    return m_settings->value("RemoteControl/Pin", "").toString();
+}
+
+void SettingsManager::setRemoteControlPin(const QString& pin)
+{
+    // Allow 4-8 digit PINs only
+    if (!pin.isEmpty() && (pin.length() < 4 || pin.length() > 8)) {
+        qWarning() << "SettingsManager: PIN must be 4-8 digits";
+        return;
+    }
+
+    // Validate that PIN contains only digits
+    for (const QChar& c : pin) {
+        if (!c.isDigit()) {
+            qWarning() << "SettingsManager: PIN must contain only digits";
+            return;
+        }
+    }
+
+    if (remoteControlPin() != pin) {
+        m_settings->setValue("RemoteControl/Pin", pin);
+        m_settings->sync();
+        emit remoteControlSettingsChanged();
+        qDebug() << "SettingsManager: Remote control PIN updated";
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";

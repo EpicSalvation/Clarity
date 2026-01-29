@@ -7,6 +7,7 @@
 #include <QWebSocketServer>
 #include <QWebSocket>
 #include <QList>
+#include <QImage>
 
 namespace Clarity {
 
@@ -55,9 +56,29 @@ public:
     void setPort(quint16 port);
 
     /**
+     * @brief Configure PIN protection
+     * @param enabled Whether PIN is required
+     * @param pin The PIN (4-8 digits)
+     */
+    void setPin(bool enabled, const QString& pin);
+
+    /**
+     * @brief Check if PIN protection is enabled
+     */
+    bool pinEnabled() const { return m_pinEnabled; }
+
+    /**
      * @brief Get number of connected clients
      */
     int connectedClientCount() const { return m_webSocketClients.size(); }
+
+    /**
+     * @brief Generate a QR code image for the server URL
+     * @param moduleSize Size of each QR module in pixels
+     * @param margin Quiet zone margin in modules
+     * @return QImage containing the QR code
+     */
+    QImage qrCode(int moduleSize = 8, int margin = 4) const;
 
     /**
      * @brief Send slide update to all connected clients
@@ -112,7 +133,12 @@ private:
     QTcpServer* m_httpServer;
     QWebSocketServer* m_webSocketServer;
     QList<QWebSocket*> m_webSocketClients;
+    QList<QWebSocket*> m_authenticatedClients;  // Clients that have entered correct PIN
     QList<QTcpSocket*> m_httpClients;
+
+    // PIN protection
+    bool m_pinEnabled = false;
+    QString m_pin;
 
     // Current state for new clients
     int m_currentIndex = 0;

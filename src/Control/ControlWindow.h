@@ -38,6 +38,7 @@ public:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private slots:
     // File operations
@@ -98,6 +99,7 @@ private slots:
     // Remote control
     void onRemoteNavigation(const QString& action);
     void updateRemoteServer();
+    void showQrCode();
 
     // IPC handlers
     void onClientConnected(QLocalSocket* client);

@@ -4,6 +4,70 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-28 - Remote Control QR Code and PIN Security
+
+### Summary
+Enhanced the remote control feature with QR code generation for easy mobile device connection and PIN security to prevent unauthorized access. Also fixed the network adapter detection to prefer physical adapters over virtual ones (e.g., Wi-Fi Direct Virtual Adapter).
+
+### Work Completed
+
+#### QR Code Generation
+- Implemented full QR code generator based on Project Nayuki's public domain algorithm
+- Supports QR Code versions 1-40, error correction level M, automatic version/mask selection
+- QR code displayed in a dialog when clicking the remote control URL in the status bar
+- Dialog shows scannable QR code, selectable URL text, and connection instructions
+- Remote status label styled as clickable link (blue, underline on hover)
+
+#### PIN Security
+- Added PIN protection option in Settings > Remote Control
+- PIN must be 4-8 digits, validated on input
+- When enabled, mobile clients see a PIN entry dialog before accessing controls
+- Server tracks authenticated clients separately from connected clients
+- Incorrect PIN attempts show error message, correct PIN grants access
+- PIN changes take effect immediately - existing clients prompted to re-authenticate
+
+#### Live Settings Updates
+- Remote control settings now take effect immediately without restart:
+  - Enable/disable server: starts or stops immediately
+  - Port change: server restarts on new port
+  - PIN enable/disable/change: updates immediately, clients notified
+
+#### Network Adapter Detection Fix
+- Fixed IP address detection to filter out virtual adapters
+- Added patterns for: Wi-Fi Direct, Hyper-V, VPN, tunnel adapters, Teredo, etc.
+- Windows "Local Area Connection*" pattern detection for Wi-Fi Direct
+- Prefers physical Ethernet/Wi-Fi adapters over virtual ones
+
+### Technical Decisions
+
+1. **Custom QR Code Implementation**: Implemented full QR code generation rather than using external library to avoid dependencies. Based on well-tested Nayuki algorithm.
+
+2. **WebSocket-based PIN Auth**: PIN authentication happens over WebSocket after connection, allowing the same connection to be reused after authentication.
+
+3. **Immediate Settings Effect**: Connected the `remoteControlSettingsChanged` signal to dynamically update the server, providing better UX than requiring restart.
+
+### Files Modified
+- `src/Core/QrCode.h` - New QR code generator class
+- `src/Core/QrCode.cpp` - Full QR code implementation (~640 lines)
+- `src/Core/RemoteServer.h` - Added PIN settings, authenticated clients tracking
+- `src/Core/RemoteServer.cpp` - PIN validation, QR code method, settings updates, virtual adapter filtering
+- `src/Core/SettingsManager.h/cpp` - Added PIN enabled/value settings
+- `src/Control/SettingsDialog.h/cpp` - Added PIN Security UI group
+- `src/Control/ControlWindow.h/cpp` - QR code dialog, live settings updates
+- `CMakeLists.txt` - Added QrCode source files
+
+### Testing
+- Verified QR code scans correctly on iOS and Android devices
+- Tested PIN authentication flow (correct/incorrect PIN)
+- Verified settings changes take effect immediately
+- Confirmed virtual adapter filtering works on Windows
+
+### Next Steps
+- Consider adding PIN hint/reminder option
+- Potential: session timeout for authenticated clients
+
+---
+
 ## 2026-01-28 - Media Library Improvements and Video Thumbnails
 
 ### Summary

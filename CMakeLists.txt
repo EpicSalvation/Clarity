@@ -44,6 +44,8 @@ add_library(ClarityCore STATIC
     src/Core/VideoThumbnailGenerator.cpp
     src/Core/RemoteServer.h
     src/Core/RemoteServer.cpp
+    src/Core/QrCode.h
+    src/Core/QrCode.cpp
 )
 
 target_link_libraries(ClarityCore

@@ -9,6 +9,7 @@
 #include <QFontComboBox>
 #include <QSpinBox>
 #include <QCheckBox>
+#include <QLineEdit>
 
 namespace Clarity {
 
@@ -69,6 +70,8 @@ private:
     // Remote control settings
     QCheckBox* m_remoteControlEnabledCheckBox;
     QSpinBox* m_remoteControlPortSpinBox;
+    QCheckBox* m_remoteControlPinEnabledCheckBox;
+    QLineEdit* m_remoteControlPinEdit;
 
     // Settings manager
     SettingsManager* m_settingsManager;

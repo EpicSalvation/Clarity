@@ -39,6 +39,12 @@ Clarity now includes comprehensive presentation features suitable for worship se
 - **Slide transitions** with per-slide overrides
 - Output preview in control window
 
+#### Remote Control
+- **Mobile web interface** for controlling presentations from phone/tablet
+- **QR code** for easy connection (click URL in status bar)
+- **PIN protection** to prevent unauthorized access
+- Real-time slide preview and navigation controls
+
 #### Additional Features
 - **Themes** for consistent slide styling
 - **Presenter notes** for each slide
@@ -182,12 +188,15 @@ See [DEVLOG.md](DEVLOG.md) for development history and technical decisions.
 ## Roadmap
 
 ### Phase 4 (Planned)
+- **Transition refinements** - respect slide changes during transitions
 - Audio playback support
 - Background blur effects
 - Ken Burns effect for images
 - Video playback controls (start/end times)
 - Lower-third animations
 - Scripture lookup integration
+
+See [PHASE4_PLAN.md](PHASE4_PLAN.md) for detailed planning.
 
 ## License
 

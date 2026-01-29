@@ -1,4 +1,5 @@
 #include "RemoteServer.h"
+#include "QrCode.h"
 #include <QNetworkInterface>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -93,6 +94,11 @@ QString RemoteServer::serverUrl() const
     return QString("http://%1:%2").arg(ip).arg(m_port);
 }
 
+QImage RemoteServer::qrCode(int moduleSize, int margin) const
+{
+    return QrCode::generate(serverUrl(), moduleSize, margin);
+}
+
 void RemoteServer::setPort(quint16 port)
 {
     if (!isRunning()) {
@@ -100,17 +106,104 @@ void RemoteServer::setPort(quint16 port)
     }
 }
 
-QString RemoteServer::getLocalIpAddress() const
+void RemoteServer::setPin(bool enabled, const QString& pin)
 {
-    // Find the first non-loopback IPv4 address
-    const QList<QHostAddress> addresses = QNetworkInterface::allAddresses();
-    for (const QHostAddress& address : addresses) {
-        if (address.protocol() == QAbstractSocket::IPv4Protocol &&
-            !address.isLoopback()) {
-            return address.toString();
+    bool pinChanged = (m_pinEnabled != enabled) || (m_pin != pin);
+    m_pinEnabled = enabled;
+    m_pin = pin;
+    qDebug() << "RemoteServer: PIN protection" << (enabled ? "enabled" : "disabled");
+
+    // If PIN settings changed, clear authenticated clients and notify them
+    if (pinChanged && !m_authenticatedClients.isEmpty()) {
+        m_authenticatedClients.clear();
+        qDebug() << "RemoteServer: Cleared authenticated clients due to PIN change";
+
+        // Notify all connected clients to re-check authentication
+        QJsonObject notification;
+        notification["type"] = "authStatus";
+        notification["pinRequired"] = m_pinEnabled;
+        notification["authenticated"] = !m_pinEnabled;  // Only auto-authenticated if PIN disabled
+
+        QByteArray message = QJsonDocument(notification).toJson(QJsonDocument::Compact);
+        for (QWebSocket* client : m_webSocketClients) {
+            client->sendTextMessage(QString::fromUtf8(message));
         }
     }
-    return "127.0.0.1";
+}
+
+QString RemoteServer::getLocalIpAddress() const
+{
+    // Find the best non-loopback IPv4 address, preferring real network interfaces
+    // over virtual ones (e.g. Miracast, VPN, virtual display adapters)
+    QString fallbackAddress;
+
+    const QList<QNetworkInterface> interfaces = QNetworkInterface::allInterfaces();
+    for (const QNetworkInterface& iface : interfaces) {
+        // Skip interfaces that are down or loopback
+        if (!(iface.flags() & QNetworkInterface::IsUp) ||
+            (iface.flags() & QNetworkInterface::IsLoopBack)) {
+            continue;
+        }
+
+        // Skip known virtual interface name patterns (case-insensitive)
+        QString name = iface.name().toLower();
+        QString humanName = iface.humanReadableName().toLower();
+
+        // Check for virtual adapter patterns in the technical name
+        bool isVirtualByName = name.contains("virtual") ||
+                               name.contains("vethernet") ||
+                               name.contains("vmnet") ||
+                               name.contains("vmware") ||
+                               name.contains("vbox") ||
+                               name.contains("docker") ||
+                               name.contains("br-") ||
+                               name.contains("virbr") ||
+                               name.contains("vnic") ||
+                               name.contains("vpn") ||
+                               name.contains("tap") ||
+                               name.contains("tun");
+
+        // Check for virtual adapter patterns in the human-readable name
+        // This catches Windows adapters like "Microsoft Wi-Fi Direct Virtual Adapter"
+        bool isVirtualByHumanName = humanName.contains("virtual") ||
+                                    humanName.contains("wi-fi direct") ||
+                                    humanName.contains("wifi direct") ||
+                                    humanName.contains("direct virtual") ||
+                                    humanName.contains("miracast") ||
+                                    humanName.contains("hosted network") ||
+                                    humanName.contains("loopback") ||
+                                    humanName.contains("hyper-v") ||
+                                    humanName.contains("vmware") ||
+                                    humanName.contains("virtualbox") ||
+                                    humanName.contains("vpn") ||
+                                    humanName.contains("tunnel") ||
+                                    humanName.contains("pseudo") ||
+                                    humanName.contains("teredo");
+
+        // Windows assigns "Local Area Connection* X" to Wi-Fi Direct adapters
+        bool isWifiDirectConnection = humanName.contains("local area connection*");
+
+        bool isVirtual = isVirtualByName || isVirtualByHumanName || isWifiDirectConnection;
+
+        // Find the first IPv4 address on this interface
+        const QList<QNetworkAddressEntry> entries = iface.addressEntries();
+        for (const QNetworkAddressEntry& entry : entries) {
+            QHostAddress addr = entry.ip();
+            if (addr.protocol() != QAbstractSocket::IPv4Protocol || addr.isLoopback()) {
+                continue;
+            }
+
+            if (!isVirtual) {
+                return addr.toString();  // Preferred: real interface
+            }
+
+            if (fallbackAddress.isEmpty()) {
+                fallbackAddress = addr.toString();  // Remember first virtual as fallback
+            }
+        }
+    }
+
+    return fallbackAddress.isEmpty() ? "127.0.0.1" : fallbackAddress;
 }
 
 void RemoteServer::broadcastSlideUpdate(int currentIndex, int totalSlides,
@@ -267,13 +360,71 @@ void RemoteServer::onWebSocketConnection()
 
 void RemoteServer::onWebSocketTextMessage(const QString& message)
 {
+    QWebSocket* client = qobject_cast<QWebSocket*>(sender());
+    if (!client) return;
+
     QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8());
     if (!doc.isObject()) return;
 
     QJsonObject json = doc.object();
-    QString action = json["action"].toString();
+    QString type = json["type"].toString();
 
+    // Handle PIN authentication
+    if (type == "auth") {
+        QString pin = json["pin"].toString();
+        QJsonObject response;
+        response["type"] = "authResponse";
+
+        if (!m_pinEnabled) {
+            // No PIN required, auto-authenticate
+            if (!m_authenticatedClients.contains(client)) {
+                m_authenticatedClients.append(client);
+            }
+            response["success"] = true;
+            response["pinRequired"] = false;
+        } else if (pin == m_pin) {
+            // Correct PIN
+            if (!m_authenticatedClients.contains(client)) {
+                m_authenticatedClients.append(client);
+            }
+            response["success"] = true;
+            response["pinRequired"] = true;
+            qDebug() << "RemoteServer: Client authenticated with PIN";
+        } else {
+            // Wrong PIN
+            response["success"] = false;
+            response["pinRequired"] = true;
+            response["error"] = "Incorrect PIN";
+            qDebug() << "RemoteServer: Client failed PIN authentication";
+        }
+
+        client->sendTextMessage(QJsonDocument(response).toJson(QJsonDocument::Compact));
+        return;
+    }
+
+    // Handle PIN requirement check
+    if (type == "checkAuth") {
+        QJsonObject response;
+        response["type"] = "authStatus";
+        response["pinRequired"] = m_pinEnabled;
+        response["authenticated"] = !m_pinEnabled || m_authenticatedClients.contains(client);
+        client->sendTextMessage(QJsonDocument(response).toJson(QJsonDocument::Compact));
+        return;
+    }
+
+    // For navigation actions, check if client is authenticated
+    QString action = json["action"].toString();
     if (!action.isEmpty()) {
+        // Check authentication if PIN is enabled
+        if (m_pinEnabled && !m_authenticatedClients.contains(client)) {
+            qDebug() << "RemoteServer: Unauthenticated client attempted action:" << action;
+            QJsonObject response;
+            response["type"] = "error";
+            response["error"] = "Authentication required";
+            client->sendTextMessage(QJsonDocument(response).toJson(QJsonDocument::Compact));
+            return;
+        }
+
         qDebug() << "RemoteServer: Navigation requested:" << action;
         emit navigationRequested(action);
     }
@@ -285,6 +436,7 @@ void RemoteServer::onWebSocketDisconnected()
     if (client) {
         qDebug() << "RemoteServer: Client disconnected";
         m_webSocketClients.removeAll(client);
+        m_authenticatedClients.removeAll(client);
         client->deleteLater();
         emit clientDisconnected();
     }
@@ -303,7 +455,19 @@ QByteArray RemoteServer::getIndexHtml()
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <div class="container">
+    <!-- PIN Entry Dialog -->
+    <div id="pinOverlay" class="pin-overlay" style="display: none;">
+        <div class="pin-dialog">
+            <h2>Enter PIN</h2>
+            <p>A PIN is required to access the remote control.</p>
+            <input type="password" id="pinInput" class="pin-input" maxlength="8"
+                   pattern="[0-9]*" inputmode="numeric" placeholder="Enter PIN">
+            <div id="pinError" class="pin-error" style="display: none;">Incorrect PIN</div>
+            <button id="pinSubmit" class="pin-submit" onclick="submitPin()">Connect</button>
+        </div>
+    </div>
+
+    <div id="mainContent" class="container">
         <header>
             <h1>Clarity Remote</h1>
             <div id="status" class="status disconnected">Connecting...</div>
@@ -375,6 +539,97 @@ body {
     color: #ffffff;
     min-height: 100vh;
     overflow-x: hidden;
+}
+
+/* PIN Overlay Styles */
+.pin-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.pin-dialog {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 320px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pin-dialog h2 {
+    font-size: 22px;
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.pin-dialog p {
+    color: #9ca3af;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.pin-input {
+    width: 100%;
+    padding: 16px;
+    font-size: 24px;
+    text-align: center;
+    letter-spacing: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    color: #ffffff;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.pin-input:focus {
+    border-color: #667eea;
+}
+
+.pin-input::placeholder {
+    letter-spacing: normal;
+    font-size: 16px;
+}
+
+.pin-error {
+    color: #ef4444;
+    font-size: 14px;
+    margin-top: 12px;
+}
+
+.pin-submit {
+    width: 100%;
+    padding: 14px;
+    margin-top: 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.2s;
+}
+
+.pin-submit:hover {
+    opacity: 0.9;
+}
+
+.pin-submit:active {
+    transform: scale(0.98);
 }
 
 .container {
@@ -593,23 +848,21 @@ QByteArray RemoteServer::getAppJs()
     return QString(R"JS(
 let ws = null;
 let reconnectTimer = null;
+let authenticated = false;
 
 function connect() {
     const wsUrl = 'ws://' + location.hostname + ':%1';
     ws = new WebSocket(wsUrl);
 
     ws.onopen = function() {
-        document.getElementById('status').className = 'status connected';
-        document.getElementById('status').textContent = 'Connected';
-        if (reconnectTimer) {
-            clearTimeout(reconnectTimer);
-            reconnectTimer = null;
-        }
+        // Check if PIN is required
+        ws.send(JSON.stringify({ type: 'checkAuth' }));
     };
 
     ws.onclose = function() {
         document.getElementById('status').className = 'status disconnected';
         document.getElementById('status').textContent = 'Disconnected';
+        authenticated = false;
         // Reconnect after 2 seconds
         if (!reconnectTimer) {
             reconnectTimer = setTimeout(connect, 2000);
@@ -627,6 +880,51 @@ function connect() {
 }
 
 function handleMessage(data) {
+    // Handle authentication status check response
+    if (data.type === 'authStatus') {
+        if (data.pinRequired && !data.authenticated) {
+            showPinDialog();
+        } else {
+            hidePinDialog();
+            authenticated = true;
+            document.getElementById('status').className = 'status connected';
+            document.getElementById('status').textContent = 'Connected';
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+        }
+        return;
+    }
+
+    // Handle authentication response
+    if (data.type === 'authResponse') {
+        if (data.success) {
+            hidePinDialog();
+            authenticated = true;
+            document.getElementById('status').className = 'status connected';
+            document.getElementById('status').textContent = 'Connected';
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+        } else {
+            document.getElementById('pinError').style.display = 'block';
+            document.getElementById('pinError').textContent = data.error || 'Incorrect PIN';
+            document.getElementById('pinInput').value = '';
+            document.getElementById('pinInput').focus();
+        }
+        return;
+    }
+
+    // Handle error (e.g., auth required)
+    if (data.type === 'error') {
+        if (data.error === 'Authentication required') {
+            showPinDialog();
+        }
+        return;
+    }
+
     if (data.type === 'init' || data.type === 'slideUpdate') {
         document.getElementById('currentNum').textContent =
             data.totalSlides > 0 ? (data.currentIndex + 1) : '-';
@@ -648,6 +946,33 @@ function handleMessage(data) {
         confEl.className = 'conn-status ' + (data.confidenceConnected ? 'on' : 'off');
     }
 }
+
+function showPinDialog() {
+    document.getElementById('pinOverlay').style.display = 'flex';
+    document.getElementById('mainContent').style.display = 'none';
+    document.getElementById('pinInput').focus();
+}
+
+function hidePinDialog() {
+    document.getElementById('pinOverlay').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'flex';
+    document.getElementById('pinError').style.display = 'none';
+}
+
+function submitPin() {
+    const pin = document.getElementById('pinInput').value;
+    if (pin && ws && ws.readyState === WebSocket.OPEN) {
+        document.getElementById('pinError').style.display = 'none';
+        ws.send(JSON.stringify({ type: 'auth', pin: pin }));
+    }
+}
+
+// Handle Enter key in PIN input
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.getElementById('pinOverlay').style.display === 'flex') {
+        submitPin();
+    }
+});
 
 function send(action) {
     if (ws && ws.readyState === WebSocket.OPEN) {

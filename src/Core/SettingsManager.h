@@ -58,6 +58,12 @@ public:
     quint16 remoteControlPort() const;
     void setRemoteControlPort(quint16 port);
 
+    bool remoteControlPinEnabled() const;
+    void setRemoteControlPinEnabled(bool enabled);
+
+    QString remoteControlPin() const;
+    void setRemoteControlPin(const QString& pin);
+
     // Reset all settings to defaults
     void resetToDefaults();
 

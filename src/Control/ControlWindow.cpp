@@ -16,12 +16,15 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QCloseEvent>
+#include <QMouseEvent>
 #include <QDir>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QFrame>
 #include <QShortcut>
 #include <QInputDialog>
+#include <QDialog>
+#include <QPixmap>
 #include <QDebug>
 
 namespace Clarity {
@@ -103,6 +106,8 @@ ControlWindow::ControlWindow(QWidget* parent)
     // Start remote control server if enabled
     if (m_settingsManager->remoteControlEnabled()) {
         m_remoteServer->setPort(m_settingsManager->remoteControlPort());
+        m_remoteServer->setPin(m_settingsManager->remoteControlPinEnabled(),
+                               m_settingsManager->remoteControlPin());
         if (m_remoteServer->start()) {
             qDebug() << "Remote control server started at" << m_remoteServer->serverUrl();
             m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
@@ -137,6 +142,47 @@ ControlWindow::ControlWindow(QWidget* parent)
             m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
         } else {
             m_remoteStatusLabel->setText("");
+        }
+    });
+
+    // Update remote server settings when they change
+    connect(m_settingsManager, &SettingsManager::remoteControlSettingsChanged, this, [this]() {
+        bool shouldBeRunning = m_settingsManager->remoteControlEnabled();
+        quint16 newPort = m_settingsManager->remoteControlPort();
+        bool isRunning = m_remoteServer->isRunning();
+        quint16 currentPort = m_remoteServer->port();
+
+        // Handle enable/disable and port changes
+        if (shouldBeRunning) {
+            if (!isRunning) {
+                // Start the server
+                m_remoteServer->setPort(newPort);
+                m_remoteServer->setPin(m_settingsManager->remoteControlPinEnabled(),
+                                       m_settingsManager->remoteControlPin());
+                if (m_remoteServer->start()) {
+                    qDebug() << "Remote control server started at" << m_remoteServer->serverUrl();
+                    m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
+                }
+            } else if (currentPort != newPort) {
+                // Port changed - restart on new port
+                m_remoteServer->stop();
+                m_remoteServer->setPort(newPort);
+                m_remoteServer->setPin(m_settingsManager->remoteControlPinEnabled(),
+                                       m_settingsManager->remoteControlPin());
+                if (m_remoteServer->start()) {
+                    qDebug() << "Remote control server restarted at" << m_remoteServer->serverUrl();
+                    m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
+                }
+            } else {
+                // Just update PIN settings
+                m_remoteServer->setPin(m_settingsManager->remoteControlPinEnabled(),
+                                       m_settingsManager->remoteControlPin());
+            }
+        } else if (isRunning) {
+            // Stop the server
+            m_remoteServer->stop();
+            m_remoteStatusLabel->setText("");
+            qDebug() << "Remote control server stopped";
         }
     });
 
@@ -347,9 +393,13 @@ void ControlWindow::setupUI()
     m_statusLabel = new QLabel("Ready", this);
     statusBar()->addWidget(m_statusLabel);
 
-    // Remote server status label (right side of status bar)
+    // Remote server status label (right side of status bar) - clickable for QR code
     m_remoteStatusLabel = new QLabel("", this);
     m_remoteStatusLabel->setOpenExternalLinks(false);
+    m_remoteStatusLabel->setCursor(Qt::PointingHandCursor);
+    m_remoteStatusLabel->setToolTip("Click to show QR code for mobile remote control");
+    m_remoteStatusLabel->setStyleSheet("QLabel { color: #0066cc; } QLabel:hover { text-decoration: underline; }");
+    m_remoteStatusLabel->installEventFilter(this);
     statusBar()->addPermanentWidget(m_remoteStatusLabel);
 }
 
@@ -1510,6 +1560,79 @@ void ControlWindow::updateRemoteServer()
     bool outputConnected = m_ipcServer->hasClientType("output");
     bool confidenceConnected = m_ipcServer->hasClientType("confidence");
     m_remoteServer->broadcastStatus(outputConnected, confidenceConnected);
+}
+
+bool ControlWindow::eventFilter(QObject* watched, QEvent* event)
+{
+    // Handle click on remote status label to show QR code
+    if (watched == m_remoteStatusLabel && event->type() == QEvent::MouseButtonRelease) {
+        QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton && m_remoteServer->isRunning()) {
+            showQrCode();
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
+}
+
+void ControlWindow::showQrCode()
+{
+    if (!m_remoteServer->isRunning()) {
+        return;
+    }
+
+    // Create a dialog to show the QR code
+    QDialog* dialog = new QDialog(this);
+    dialog->setWindowTitle("Remote Control QR Code");
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+
+    QVBoxLayout* layout = new QVBoxLayout(dialog);
+    layout->setSpacing(16);
+    layout->setContentsMargins(24, 24, 24, 24);
+
+    // Title
+    QLabel* titleLabel = new QLabel("Scan to connect", dialog);
+    titleLabel->setAlignment(Qt::AlignCenter);
+    QFont titleFont = titleLabel->font();
+    titleFont.setPointSize(14);
+    titleFont.setBold(true);
+    titleLabel->setFont(titleFont);
+    layout->addWidget(titleLabel);
+
+    // QR Code image
+    QImage qrImage = m_remoteServer->qrCode(6, 4);
+    QLabel* qrLabel = new QLabel(dialog);
+    qrLabel->setPixmap(QPixmap::fromImage(qrImage));
+    qrLabel->setAlignment(Qt::AlignCenter);
+    layout->addWidget(qrLabel);
+
+    // URL text (selectable)
+    QString url = m_remoteServer->serverUrl();
+    QLabel* urlLabel = new QLabel(url, dialog);
+    urlLabel->setAlignment(Qt::AlignCenter);
+    urlLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    urlLabel->setCursor(Qt::IBeamCursor);
+    QFont urlFont = urlLabel->font();
+    urlFont.setPointSize(12);
+    urlLabel->setFont(urlFont);
+    layout->addWidget(urlLabel);
+
+    // Instructions
+    QLabel* instructionsLabel = new QLabel(
+        "Open this URL on your phone or tablet to control\n"
+        "the presentation remotely from the same network.",
+        dialog);
+    instructionsLabel->setAlignment(Qt::AlignCenter);
+    instructionsLabel->setStyleSheet("color: gray;");
+    layout->addWidget(instructionsLabel);
+
+    // Close button
+    QPushButton* closeButton = new QPushButton("Close", dialog);
+    connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
+    layout->addWidget(closeButton);
+
+    dialog->setFixedSize(dialog->sizeHint());
+    dialog->exec();
 }
 
 } // namespace Clarity

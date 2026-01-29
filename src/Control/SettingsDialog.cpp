@@ -8,6 +8,7 @@
 #include <QScreen>
 #include <QGuiApplication>
 #include <QColorDialog>
+#include <QRegularExpressionValidator>
 #include <QDebug>
 #include <climits>
 
@@ -302,17 +303,51 @@ void SettingsDialog::createRemoteControlPage()
     m_remoteControlPortSpinBox->setValue(8080);
     remoteLayout->addRow("Port:", m_remoteControlPortSpinBox);
 
+    pageLayout->addWidget(remoteGroup);
+
+    // PIN Security group
+    QGroupBox* pinGroup = new QGroupBox("PIN Security", remotePage);
+    QFormLayout* pinLayout = new QFormLayout(pinGroup);
+
+    // PIN enable checkbox
+    m_remoteControlPinEnabledCheckBox = new QCheckBox("Require PIN to connect", pinGroup);
+    pinLayout->addRow(m_remoteControlPinEnabledCheckBox);
+
+    // PIN entry
+    m_remoteControlPinEdit = new QLineEdit(pinGroup);
+    m_remoteControlPinEdit->setPlaceholderText("4-8 digits");
+    m_remoteControlPinEdit->setMaxLength(8);
+    m_remoteControlPinEdit->setEchoMode(QLineEdit::Password);
+    // Only allow digits
+    m_remoteControlPinEdit->setValidator(new QRegularExpressionValidator(
+        QRegularExpression("^[0-9]{0,8}$"), m_remoteControlPinEdit));
+    pinLayout->addRow("PIN:", m_remoteControlPinEdit);
+
+    // Enable/disable PIN edit based on checkbox
+    connect(m_remoteControlPinEnabledCheckBox, &QCheckBox::toggled,
+            m_remoteControlPinEdit, &QLineEdit::setEnabled);
+
+    QLabel* pinHelpLabel = new QLabel(
+        "When PIN is enabled, users must enter the correct PIN before they can "
+        "control the presentation. This prevents unauthorized access from other "
+        "devices on the network.",
+        pinGroup);
+    pinHelpLabel->setWordWrap(true);
+    pinHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    pinLayout->addRow(pinHelpLabel);
+
+    pageLayout->addWidget(pinGroup);
+
+    // Help text
     QLabel* remoteHelpLabel = new QLabel(
         "When enabled, Clarity runs a web server that allows remote control from mobile "
         "devices on the same network. Open the URL shown in the status bar on your phone "
         "or tablet to control the presentation remotely.\n\n"
         "Note: Changes to these settings require restarting Clarity to take effect.",
-        remoteGroup);
+        remotePage);
     remoteHelpLabel->setWordWrap(true);
     remoteHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
-    remoteLayout->addRow(remoteHelpLabel);
-
-    pageLayout->addWidget(remoteGroup);
+    pageLayout->addWidget(remoteHelpLabel);
 
     pageLayout->addStretch(); // Push content to top
 
@@ -413,6 +448,11 @@ void SettingsDialog::loadSettings()
     // Load remote control settings
     m_remoteControlEnabledCheckBox->setChecked(m_settingsManager->remoteControlEnabled());
     m_remoteControlPortSpinBox->setValue(m_settingsManager->remoteControlPort());
+
+    // Load PIN settings
+    m_remoteControlPinEnabledCheckBox->setChecked(m_settingsManager->remoteControlPinEnabled());
+    m_remoteControlPinEdit->setText(m_settingsManager->remoteControlPin());
+    m_remoteControlPinEdit->setEnabled(m_settingsManager->remoteControlPinEnabled());
 }
 
 void SettingsDialog::saveSettings()
@@ -449,6 +489,10 @@ void SettingsDialog::saveSettings()
     // Save remote control settings
     m_settingsManager->setRemoteControlEnabled(m_remoteControlEnabledCheckBox->isChecked());
     m_settingsManager->setRemoteControlPort(static_cast<quint16>(m_remoteControlPortSpinBox->value()));
+
+    // Save PIN settings
+    m_settingsManager->setRemoteControlPinEnabled(m_remoteControlPinEnabledCheckBox->isChecked());
+    m_settingsManager->setRemoteControlPin(m_remoteControlPinEdit->text());
 }
 
 void SettingsDialog::onOkClicked()
