@@ -68,6 +68,64 @@ Improved scripture features:
 - Automatic verse formatting
 - Scripture-specific themes
 
+### 8. Bible Enhancements
+**Priority: Medium**
+
+- **Full Bible Importer**: Tool/UI to import complete Bible translations from standard formats (OSIS, USFM, Zefania XML)
+- **Red Letter Edition**: Format words of Jesus in red text on slides
+  - Requires verse-level markup in database schema
+  - UI option to enable/disable red letters
+  - May need rich text support in slides
+
+### 9. Song Library Enhancements
+**Priority: Medium**
+
+- **SongSelect Integration**: Direct integration with CCLI SongSelect service
+  - Search SongSelect catalog from within Clarity
+  - Download lyrics directly (requires CCLI subscription)
+  - Automatic CCLI reporting integration
+  - OAuth authentication with SongSelect API
+  - Cache downloaded songs in local library
+
+### 10. Presentation Structure Refactor (Playlist Model)
+**Priority: Low**
+
+Restructure presentations to be playlists of "items" rather than flat slide lists.
+
+**Problem**: Currently presentations are flat lists of slides. This makes it difficult to:
+- Apply a theme to "all slides in this song" or "all slides in this scripture passage"
+- Reorder entire songs/scripture blocks as units
+- Track which slides belong together logically
+- Show song/scripture metadata in confidence monitor
+
+**Proposed Solution**: PresentationItem base class with derived types:
+- `SongItem` - references a Song from the library, generates slides on demand
+- `ScriptureItem` - references a scripture passage, generates slides on demand
+- `CustomSlideItem` - standalone slides (announcements, images, etc.)
+- `SlideGroupItem` - arbitrary group of slides that belong together
+
+**Benefits**:
+- Each item can have its own theme/style settings
+- Items track their source (song ID, scripture reference) for updates
+- "Apply theme to item" applies to all slides in that item
+- Drag-and-drop reorders entire items, not individual slides
+- Confidence monitor can show "Now playing: Amazing Grace (Verse 2 of 4)"
+
+**Migration path**:
+- Existing .cly files load as a single SlideGroupItem
+- New presentations use item-based structure
+- Version field in JSON handles format detection
+
+### 11. Other Potential Features
+**Priority: Low**
+
+- Radial gradients
+- Multi-stop gradients
+- Drag-and-drop slide reordering (item-level and slide-level)
+- Undo/redo for edits
+- Cloud sync for presentations
+- Presentation templates marketplace
+
 ## Technical Considerations
 
 ### Transition Interruption
