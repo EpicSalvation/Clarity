@@ -88,7 +88,7 @@ Improved scripture features:
   - Cache downloaded songs in local library
 
 ### 10. Presentation Structure Refactor (Playlist Model)
-**Priority: Low**
+**Priority: High**
 
 Restructure presentations to be playlists of "items" rather than flat slide lists.
 
