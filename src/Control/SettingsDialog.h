@@ -66,6 +66,7 @@ private:
 
     // UI behavior settings
     QCheckBox* m_scrollWheelChangesInputsCheckBox;
+    QCheckBox* m_showAllSlidesInGridCheckBox;
 
     // Language settings
     QComboBox* m_languageComboBox;

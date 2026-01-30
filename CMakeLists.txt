@@ -16,8 +16,22 @@ add_library(ClarityCore STATIC
     src/Core/Slide.cpp
     src/Core/Presentation.h
     src/Core/Presentation.cpp
+    src/Core/PresentationItem.h
+    src/Core/PresentationItem.cpp
+    src/Core/CustomSlideItem.h
+    src/Core/CustomSlideItem.cpp
+    src/Core/SlideGroupItem.h
+    src/Core/SlideGroupItem.cpp
+    src/Core/SongItem.h
+    src/Core/SongItem.cpp
+    src/Core/ScriptureItem.h
+    src/Core/ScriptureItem.cpp
     src/Core/PresentationModel.h
     src/Core/PresentationModel.cpp
+    src/Core/ItemListModel.h
+    src/Core/ItemListModel.cpp
+    src/Core/SlideFilterProxyModel.h
+    src/Core/SlideFilterProxyModel.cpp
     src/Core/IpcServer.h
     src/Core/IpcServer.cpp
     src/Core/IpcClient.h
@@ -131,6 +145,8 @@ if(WIN32)
     set_target_properties(Clarity PROPERTIES
         WIN32_EXECUTABLE TRUE
     )
+    # Add Windows resource file for application icon
+    target_sources(Clarity PRIVATE resources/app.rc)
 endif()
 
 # Translation files

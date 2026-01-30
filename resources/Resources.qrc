@@ -3,5 +3,6 @@
     <qresource prefix="/">
         <file alias="qml/OutputDisplay.qml">../src/Output/qml/OutputDisplay.qml</file>
         <file alias="qml/ConfidenceMonitor.qml">../src/Confidence/qml/ConfidenceMonitor.qml</file>
+        <file alias="icons/clarity.ico">clarity.ico</file>
     </qresource>
 </RCC>

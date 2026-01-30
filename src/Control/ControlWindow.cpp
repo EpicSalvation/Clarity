@@ -5,6 +5,11 @@
 #include "SongLibraryDialog.h"
 #include "ThemeSelectorDialog.h"
 #include "Core/SlidePreviewRenderer.h"
+#include "Core/PresentationItem.h"
+#include "Core/SongItem.h"
+#include "Core/ScriptureItem.h"
+#include "Core/CustomSlideItem.h"
+#include "Core/SlideGroupItem.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QToolBar>
@@ -52,6 +57,8 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_timerResetButton(nullptr)
     , m_statusLabel(nullptr)
     , m_presentationModel(new PresentationModel(this))
+    , m_itemListModel(new ItemListModel(this))
+    , m_slideFilterProxy(new SlideFilterProxyModel(this))
     , m_ipcServer(new IpcServer(this))
     , m_processManager(new ProcessManager(this))
     , m_settingsManager(new SettingsManager(this))
@@ -203,6 +210,25 @@ ControlWindow::ControlWindow(QWidget* parent)
         m_ipcServer->sendToClientType("confidence", message);
     });
 
+    // Handle slide grid mode changes from settings
+    connect(m_settingsManager, &SettingsManager::slideGridModeChanged, this, [this](bool showAll) {
+        m_slideFilterProxy->setShowAllSlides(showAll);
+
+        if (!showAll) {
+            // When switching to item-only mode, set the filter to the current item
+            int currentIndex = m_presentationModel->currentSlideIndex();
+            int itemIndex = m_itemListModel->itemIndexForSlide(currentIndex);
+            if (itemIndex >= 0) {
+                m_slideFilterProxy->setFilterItemIndex(itemIndex);
+            }
+        }
+
+        // Invalidate the delegate cache and refresh the view
+        m_slideDelegate->invalidateCache();
+        m_slideGridView->viewport()->update();
+        updateUI();
+    });
+
     updateUI();
     updateWindowTitle();
 }
@@ -259,18 +285,22 @@ void ControlWindow::setupUI()
     // Content area: horizontal layout with list on left, grid in center, preview on right
     QHBoxLayout* contentLayout = new QHBoxLayout();
 
-    // Left panel: Slide list (playlist view)
+    // Left panel: Item list (playlist items - songs, scriptures, slide groups)
     m_slideListView = new QListView(this);
-    m_slideListView->setModel(m_presentationModel);
+    m_slideListView->setModel(m_itemListModel);
     m_slideListView->setFixedWidth(180);
     m_slideListView->setSelectionMode(QAbstractItemView::SingleSelection);
-    connect(m_slideListView, &QListView::clicked, this, &ControlWindow::onSlideClicked);
-    connect(m_slideListView, &QListView::doubleClicked, this, &ControlWindow::onSlideDoubleClicked);
+    connect(m_slideListView, &QListView::clicked, this, &ControlWindow::onItemClicked);
+    connect(m_slideListView, &QListView::doubleClicked, this, &ControlWindow::onItemDoubleClicked);
     contentLayout->addWidget(m_slideListView);
 
     // Center panel: Slide grid view
     m_slideGridView = new QListView(this);
-    m_slideGridView->setModel(m_presentationModel);
+
+    // Set up proxy model for filtering slides by item
+    m_slideFilterProxy->setSourceModel(m_presentationModel);
+    m_slideFilterProxy->setShowAllSlides(m_settingsManager->showAllSlidesInGrid());
+    m_slideGridView->setModel(m_slideFilterProxy);
 
     // Configure for grid/icon mode
     m_slideGridView->setViewMode(QListView::IconMode);
@@ -402,16 +432,20 @@ void ControlWindow::setupUI()
 void ControlWindow::createDemoPresentation()
 {
     // Create a demo presentation for Phase 1 testing
-    Presentation demo("Demo Presentation");
+    Presentation* demo = new Presentation("Demo Presentation");
 
-    demo.addSlide(Slide("Welcome to Clarity", QColor("#1e3a8a"), QColor("#ffffff")));
-    demo.addSlide(Slide("Amazing Grace\nHow sweet the sound", QColor("#064e3b"), QColor("#ffffff")));
-    demo.addSlide(Slide("That saved a wretch like me", QColor("#064e3b"), QColor("#ffffff")));
-    demo.addSlide(Slide("I once was lost\nBut now am found", QColor("#064e3b"), QColor("#ffffff")));
-    demo.addSlide(Slide("Was blind but now I see", QColor("#064e3b"), QColor("#ffffff")));
-    demo.addSlide(Slide("John 3:16\n\nFor God so loved the world...", QColor("#7c2d12"), QColor("#ffffff")));
+    demo->addSlide(Slide("Welcome to Clarity", QColor("#1e3a8a"), QColor("#ffffff")));
+    demo->addSlide(Slide("Amazing Grace\nHow sweet the sound", QColor("#064e3b"), QColor("#ffffff")));
+    demo->addSlide(Slide("That saved a wretch like me", QColor("#064e3b"), QColor("#ffffff")));
+    demo->addSlide(Slide("I once was lost\nBut now am found", QColor("#064e3b"), QColor("#ffffff")));
+    demo->addSlide(Slide("Was blind but now I see", QColor("#064e3b"), QColor("#ffffff")));
+    demo->addSlide(Slide("John 3:16\n\nFor God so loved the world...", QColor("#7c2d12"), QColor("#ffffff")));
 
     m_presentationModel->setPresentation(demo);
+    m_itemListModel->setPresentation(demo);
+
+    // Initialize filter to first item
+    m_slideFilterProxy->setFilterItemIndex(0);
 }
 
 void ControlWindow::updateUI()
@@ -422,11 +456,30 @@ void ControlWindow::updateUI()
     m_prevButton->setEnabled(currentIndex > 0);
     m_nextButton->setEnabled(currentIndex < slideCount - 1);
 
-    // Update selection in both list and grid views
+    // Update selection in item list view (items)
+    int itemIndex = m_itemListModel->itemIndexForSlide(currentIndex);
+    if (itemIndex >= 0) {
+        QModelIndex itemModelIndex = m_itemListModel->index(itemIndex);
+        m_slideListView->setCurrentIndex(itemModelIndex);
+
+        // Update the filter if not showing all slides
+        if (!m_settingsManager->showAllSlidesInGrid()) {
+            int oldFilterIndex = m_slideFilterProxy->filterItemIndex();
+            if (oldFilterIndex != itemIndex) {
+                m_slideFilterProxy->setFilterItemIndex(itemIndex);
+                // Invalidate delegate cache when filter changes
+                m_slideDelegate->invalidateCache();
+            }
+        }
+    }
+
+    // Update selection in grid view (slides) - use proxy model
     if (slideCount > 0) {
-        QModelIndex index = m_presentationModel->index(currentIndex);
-        m_slideListView->setCurrentIndex(index);
-        m_slideGridView->setCurrentIndex(index);
+        QModelIndex sourceIndex = m_presentationModel->index(currentIndex);
+        QModelIndex proxyIndex = m_slideFilterProxy->mapFromSource(sourceIndex);
+        if (proxyIndex.isValid()) {
+            m_slideGridView->setCurrentIndex(proxyIndex);
+        }
     }
 
     // Update the delegate to show "live" indicator on current slide
@@ -440,19 +493,19 @@ void ControlWindow::broadcastCurrentSlide()
     m_isBlackout = false;
     m_isWhiteout = false;
 
-    Presentation presentation = m_presentationModel->presentation();
-    if (presentation.slideCount() == 0) {
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation || presentation->slideCount() == 0) {
         return;
     }
 
-    Slide currentSlide = presentation.currentSlide();
-    int currentIndex = presentation.currentSlideIndex();
-    int totalSlides = presentation.slideCount();
+    Slide currentSlide = presentation->currentSlide();
+    int currentIndex = presentation->currentSlideIndex();
+    int totalSlides = presentation->slideCount();
 
     // Get next slide if available
     Slide nextSlide;
     if (currentIndex < totalSlides - 1) {
-        nextSlide = presentation.getSlide(currentIndex + 1);
+        nextSlide = presentation->getSlide(currentIndex + 1);
     }
 
     // Update live preview panel with current and next slides
@@ -485,16 +538,23 @@ void ControlWindow::broadcastCurrentSlide()
     QJsonObject confidenceMessage;
     confidenceMessage["type"] = "confidenceData";
     confidenceMessage["currentIndex"] = currentIndex;
-    confidenceMessage["totalSlides"] = presentation.slideCount();
+    confidenceMessage["totalSlides"] = presentation->slideCount();
     confidenceMessage["currentSlide"] = currentSlide.toJson();
 
     // Add next slide if available
-    if (currentIndex < presentation.slideCount() - 1) {
-        // Temporarily move to next slide to get its data
-        Presentation tempPresentation = presentation;
-        tempPresentation.nextSlide();
-        Slide nextSlide = tempPresentation.currentSlide();
-        confidenceMessage["nextSlide"] = nextSlide.toJson();
+    if (currentIndex < presentation->slideCount() - 1) {
+        confidenceMessage["nextSlide"] = presentation->getSlide(currentIndex + 1).toJson();
+    }
+
+    // Add item info for confidence monitor
+    PresentationItem* currentItem = presentation->currentItem();
+    if (currentItem) {
+        QJsonObject itemInfo;
+        itemInfo["itemType"] = currentItem->typeName();
+        itemInfo["itemName"] = currentItem->displayName();
+        itemInfo["slideInItem"] = presentation->currentSlideInItem();
+        itemInfo["slidesInItem"] = presentation->slidesInCurrentItem();
+        confidenceMessage["itemInfo"] = itemInfo;
     }
 
     m_ipcServer->sendToClientType("confidence", confidenceMessage);
@@ -505,9 +565,8 @@ void ControlWindow::broadcastCurrentSlide()
 
 void ControlWindow::onPrevSlide()
 {
-    Presentation presentation = m_presentationModel->presentation();
-    if (presentation.prevSlide()) {
-        m_presentationModel->setPresentation(presentation);
+    Presentation* presentation = m_presentationModel->presentation();
+    if (presentation && presentation->prevSlide()) {
         updateUI();
         broadcastCurrentSlide();
     }
@@ -515,9 +574,8 @@ void ControlWindow::onPrevSlide()
 
 void ControlWindow::onNextSlide()
 {
-    Presentation presentation = m_presentationModel->presentation();
-    if (presentation.nextSlide()) {
-        m_presentationModel->setPresentation(presentation);
+    Presentation* presentation = m_presentationModel->presentation();
+    if (presentation && presentation->nextSlide()) {
         updateUI();
         broadcastCurrentSlide();
     }
@@ -558,9 +616,14 @@ void ControlWindow::onSlideClicked(const QModelIndex& index)
         return;
     }
 
-    Presentation presentation = m_presentationModel->presentation();
-    if (presentation.gotoSlide(index.row())) {
-        m_presentationModel->setPresentation(presentation);
+    // Map from proxy index to source index
+    QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(index);
+    if (!sourceIndex.isValid()) {
+        return;
+    }
+
+    Presentation* presentation = m_presentationModel->presentation();
+    if (presentation && presentation->gotoSlide(sourceIndex.row())) {
         updateUI();
         broadcastCurrentSlide();
     }
@@ -650,6 +713,43 @@ void ControlWindow::onSlideDoubleClicked(const QModelIndex& index)
     }
 }
 
+void ControlWindow::onItemClicked(const QModelIndex& index)
+{
+    if (!index.isValid()) {
+        return;
+    }
+
+    // When an item is clicked, navigate to its first slide
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) {
+        return;
+    }
+
+    int itemIndex = index.row();
+
+    // Update the slide filter to show this item's slides (unless showing all)
+    if (!m_settingsManager->showAllSlidesInGrid()) {
+        m_slideFilterProxy->setFilterItemIndex(itemIndex);
+        // Invalidate delegate cache when filter changes
+        m_slideDelegate->invalidateCache();
+        m_slideGridView->viewport()->update();
+    }
+
+    int firstSlideIndex = presentation->flatIndexForPosition(itemIndex, 0);
+
+    if (firstSlideIndex >= 0 && presentation->gotoSlide(firstSlideIndex)) {
+        updateUI();
+        broadcastCurrentSlide();
+    }
+}
+
+void ControlWindow::onItemDoubleClicked(const QModelIndex& index)
+{
+    // Double-click on item - for now, just navigate to it
+    // In the future, could open an item editor
+    onItemClicked(index);
+}
+
 void ControlWindow::onAddSlide()
 {
     // Create a new slide with default values
@@ -682,7 +782,9 @@ void ControlWindow::onEditSlide()
         return;
     }
 
-    int index = currentIndex.row();
+    // Map from proxy index to source index
+    QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(currentIndex);
+    int index = sourceIndex.isValid() ? sourceIndex.row() : currentIndex.row();
     Slide currentSlide = m_presentationModel->getSlide(index);
 
     // Open editor dialog
@@ -708,7 +810,9 @@ void ControlWindow::onDeleteSlide()
         return;
     }
 
-    int index = currentIndex.row();
+    // Map from proxy index to source index
+    QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(currentIndex);
+    int index = sourceIndex.isValid() ? sourceIndex.row() : currentIndex.row();
 
     // Confirm deletion
     QMessageBox::StandardButton reply = QMessageBox::question(
@@ -724,7 +828,6 @@ void ControlWindow::onDeleteSlide()
         // Update UI to select next available slide
         if (m_presentationModel->rowCount() > 0) {
             int newIndex = qMin(index, m_presentationModel->rowCount() - 1);
-            m_slideGridView->setCurrentIndex(m_presentationModel->index(newIndex, 0));
             m_presentationModel->setCurrentSlideIndex(newIndex);
             broadcastCurrentSlide();
         } else {
@@ -743,21 +846,24 @@ void ControlWindow::onMoveSlideUp()
         return;
     }
 
-    int index = currentIndex.row();
-    if (index <= 0) {
+    // Get the source model index if using proxy
+    int sourceIndex = currentIndex.row();
+    if (m_slideGridView->model() == m_slideFilterProxy) {
+        QModelIndex sourceModelIndex = m_slideFilterProxy->mapToSource(currentIndex);
+        sourceIndex = sourceModelIndex.row();
+    }
+
+    if (sourceIndex <= 0) {
         return; // Already at top
     }
 
     // Move slide up (swap with previous)
-    m_presentationModel->moveSlide(index, index - 1);
+    m_presentationModel->moveSlide(sourceIndex, sourceIndex - 1);
 
-    // The moved slide is now at index - 1, make it the current displayed slide
-    m_presentationModel->setCurrentSlideIndex(index - 1);
+    // The moved slide is now at sourceIndex - 1, make it the current displayed slide
+    m_presentationModel->setCurrentSlideIndex(sourceIndex - 1);
 
     updateUI();
-
-    // Set selection AFTER updateUI so the moved slide stays selected
-    m_slideGridView->setCurrentIndex(m_presentationModel->index(index - 1, 0));
 
     // Broadcast updated slide to output and confidence monitor
     broadcastCurrentSlide();
@@ -770,25 +876,29 @@ void ControlWindow::onMoveSlideDown()
         return;
     }
 
-    int index = currentIndex.row();
-    if (index >= m_presentationModel->rowCount() - 1) {
+    // Get the source model index if using proxy
+    int sourceIndex = currentIndex.row();
+    if (m_slideGridView->model() == m_slideFilterProxy) {
+        QModelIndex sourceModelIndex = m_slideFilterProxy->mapToSource(currentIndex);
+        sourceIndex = sourceModelIndex.row();
+    }
+
+    if (sourceIndex >= m_presentationModel->rowCount() - 1) {
         return; // Already at bottom
     }
 
     // Move slide down (swap with next)
-    m_presentationModel->moveSlide(index, index + 1);
+    m_presentationModel->moveSlide(sourceIndex, sourceIndex + 1);
 
-    // The moved slide is now at index + 1, make it the current displayed slide
-    m_presentationModel->setCurrentSlideIndex(index + 1);
+    // The moved slide is now at sourceIndex + 1, make it the current displayed slide
+    m_presentationModel->setCurrentSlideIndex(sourceIndex + 1);
 
     updateUI();
-
-    // Set selection AFTER updateUI so the moved slide stays selected
-    m_slideGridView->setCurrentIndex(m_presentationModel->index(index + 1, 0));
 
     // Broadcast updated slide to output and confidence monitor
     broadcastCurrentSlide();
 }
+
 
 void ControlWindow::onStartTimer()
 {
@@ -850,10 +960,15 @@ void ControlWindow::newPresentation()
     }
 
     // Create a new blank presentation
-    Presentation newPres("Untitled");
-    newPres.addSlide(Slide("New Slide", QColor("#1e3a8a"), QColor("#ffffff")));
+    Presentation* newPres = new Presentation("Untitled");
+    newPres->addSlide(Slide("New Slide", QColor("#1e3a8a"), QColor("#ffffff")));
 
     m_presentationModel->setPresentation(newPres);
+    m_itemListModel->setPresentation(newPres);
+
+    // Reset filter to first item
+    m_slideFilterProxy->setFilterItemIndex(0);
+
     m_currentFilePath.clear();
     m_isDirty = false;
     updateWindowTitle();
@@ -895,8 +1010,14 @@ void ControlWindow::openPresentation()
         return;
     }
 
-    Presentation loaded = Presentation::fromJson(doc.object());
+    // Load presentation with song library and bible database for item resolution
+    Presentation* loaded = Presentation::fromJson(doc.object(), m_songLibrary, m_bibleDatabase);
     m_presentationModel->setPresentation(loaded);
+    m_itemListModel->setPresentation(loaded);
+
+    // Reset filter to first item
+    m_slideFilterProxy->setFilterItemIndex(0);
+
     m_currentFilePath = filePath;
     m_isDirty = false;
     updateWindowTitle();
@@ -921,8 +1042,7 @@ void ControlWindow::savePresentation()
         return;
     }
 
-    Presentation presentation = m_presentationModel->presentation();
-    QJsonObject json = presentation.toJson();
+    QJsonObject json = m_presentationModel->presentationToJson();
     QJsonDocument doc(json);
 
     qint64 written = file.write(doc.toJson(QJsonDocument::Indented));
@@ -1014,9 +1134,9 @@ void ControlWindow::onInsertScripture()
     ScriptureDialog dialog(m_bibleDatabase, this);
 
     // Set default style based on current presentation theme
-    Presentation presentation = m_presentationModel->presentation();
-    if (presentation.slideCount() > 0) {
-        Slide currentSlide = presentation.currentSlide();
+    Presentation* presentation = m_presentationModel->presentation();
+    if (presentation && presentation->slideCount() > 0) {
+        Slide currentSlide = presentation->currentSlide();
         dialog.setDefaultStyle(
             currentSlide.backgroundColor(),
             currentSlide.textColor(),
@@ -1026,28 +1146,43 @@ void ControlWindow::onInsertScripture()
     }
 
     if (dialog.exec() == QDialog::Accepted) {
-        QList<Slide> slides = dialog.getSlides();
-
-        if (slides.isEmpty()) {
+        QString reference = dialog.reference();
+        if (reference.isEmpty()) {
             return;
         }
 
-        // Insert slides after current position
-        int insertPos = m_presentationModel->currentSlideIndex() + 1;
+        // Create a ScriptureItem with the selected passage
+        ScriptureItem* scriptureItem = new ScriptureItem(
+            reference,
+            dialog.translation(),
+            m_bibleDatabase
+        );
+        scriptureItem->setOneVersePerSlide(dialog.oneVersePerSlide());
+        scriptureItem->setIncludeVerseReferences(dialog.includeVerseReferences());
+        scriptureItem->setIncludeHeaderSlide(true);
 
-        for (const Slide& slide : slides) {
-            m_presentationModel->insertSlide(insertPos, slide);
-            insertPos++;
+        // Apply custom style if set
+        SlideStyle style = dialog.slideStyle();
+        scriptureItem->setItemStyle(style);
+
+        // Calculate insertion position - after current item
+        SlidePosition currentPos = presentation->positionForFlatIndex(presentation->currentSlideIndex());
+        int insertItemIndex = currentPos.isValid() ? currentPos.itemIndex + 1 : presentation->itemCount();
+
+        // Insert the scripture item
+        m_presentationModel->insertItem(insertItemIndex, scriptureItem);
+
+        // Navigate to first slide of the new item (re-fetch presentation after insert)
+        Presentation* updatedPres = m_presentationModel->presentation();
+        int firstSlideIndex = updatedPres->flatIndexForPosition(insertItemIndex, 0);
+        if (firstSlideIndex >= 0) {
+            m_slideGridView->setCurrentIndex(m_presentationModel->index(firstSlideIndex, 0));
+            m_presentationModel->setCurrentSlideIndex(firstSlideIndex);
         }
-
-        // Select the first inserted slide
-        int firstInsertedIndex = m_presentationModel->currentSlideIndex() + 1;
-        m_slideGridView->setCurrentIndex(m_presentationModel->index(firstInsertedIndex, 0));
-        m_presentationModel->setCurrentSlideIndex(firstInsertedIndex);
         broadcastCurrentSlide();
         updateUI();
 
-        qDebug() << "Inserted" << slides.count() << "scripture slide(s)";
+        qDebug() << "Inserted scripture item:" << scriptureItem->displayName();
     }
 }
 
@@ -1056,9 +1191,9 @@ void ControlWindow::onInsertSong()
     SongLibraryDialog dialog(m_songLibrary, this);
 
     // Set default style based on current presentation theme
-    Presentation presentation = m_presentationModel->presentation();
-    if (presentation.slideCount() > 0) {
-        Slide currentSlide = presentation.currentSlide();
+    Presentation* presentation = m_presentationModel->presentation();
+    if (presentation && presentation->slideCount() > 0) {
+        Slide currentSlide = presentation->currentSlide();
         dialog.setDefaultStyle(
             currentSlide.backgroundColor(),
             currentSlide.textColor(),
@@ -1068,35 +1203,43 @@ void ControlWindow::onInsertSong()
     }
 
     if (dialog.exec() == QDialog::Accepted) {
-        QList<Slide> slides = dialog.getSlides();
-
-        if (slides.isEmpty()) {
+        int songId = dialog.selectedSongId();
+        if (songId <= 0) {
             return;
         }
 
         // Mark the song as used
-        int songId = dialog.selectedSongId();
-        if (songId > 0) {
-            m_songLibrary->markAsUsed(songId);
-            m_songLibrary->saveLibrary();
+        m_songLibrary->markAsUsed(songId);
+        m_songLibrary->saveLibrary();
+
+        // Create a SongItem with the selected song
+        SongItem* songItem = new SongItem(songId, m_songLibrary);
+        songItem->setIncludeTitleSlide(true);
+        songItem->setIncludeSectionLabels(dialog.includeSectionLabels());
+        songItem->setMaxLinesPerSlide(dialog.maxLinesPerSlide());
+
+        // Apply custom style if set
+        SlideStyle style = dialog.slideStyle();
+        songItem->setItemStyle(style);
+
+        // Calculate insertion position - after current item
+        SlidePosition currentPos = presentation->positionForFlatIndex(presentation->currentSlideIndex());
+        int insertItemIndex = currentPos.isValid() ? currentPos.itemIndex + 1 : presentation->itemCount();
+
+        // Insert the song item
+        m_presentationModel->insertItem(insertItemIndex, songItem);
+
+        // Navigate to first slide of the new item (re-fetch presentation after insert)
+        Presentation* updatedPres = m_presentationModel->presentation();
+        int firstSlideIndex = updatedPres->flatIndexForPosition(insertItemIndex, 0);
+        if (firstSlideIndex >= 0) {
+            m_slideGridView->setCurrentIndex(m_presentationModel->index(firstSlideIndex, 0));
+            m_presentationModel->setCurrentSlideIndex(firstSlideIndex);
         }
-
-        // Insert slides after current position
-        int insertPos = m_presentationModel->currentSlideIndex() + 1;
-
-        for (const Slide& slide : slides) {
-            m_presentationModel->insertSlide(insertPos, slide);
-            insertPos++;
-        }
-
-        // Select the first inserted slide
-        int firstInsertedIndex = m_presentationModel->currentSlideIndex() + 1;
-        m_slideGridView->setCurrentIndex(m_presentationModel->index(firstInsertedIndex, 0));
-        m_presentationModel->setCurrentSlideIndex(firstInsertedIndex);
         broadcastCurrentSlide();
         updateUI();
 
-        qDebug() << "Inserted" << slides.count() << "song slide(s)";
+        qDebug() << "Inserted song item:" << songItem->displayName();
     }
 }
 
@@ -1110,16 +1253,17 @@ void ControlWindow::onApplyTheme()
 
         if (applyToAll) {
             // Apply theme to all slides
-            Presentation presentation = m_presentationModel->presentation();
-            int slideCount = presentation.slideCount();
+            Presentation* presentation = m_presentationModel->presentation();
+            if (!presentation) return;
+
+            int slideCount = presentation->slideCount();
 
             for (int i = 0; i < slideCount; i++) {
-                Slide slide = presentation.getSlide(i);
+                Slide slide = presentation->getSlide(i);
                 theme.applyToSlide(slide);
-                presentation.updateSlide(i, slide);
+                presentation->updateSlide(i, slide);
             }
 
-            m_presentationModel->setPresentation(presentation);
             broadcastCurrentSlide();
             markDirty();
 
@@ -1128,7 +1272,9 @@ void ControlWindow::onApplyTheme()
             // Apply to current slide only
             QModelIndex currentIndex = m_slideGridView->currentIndex();
             if (currentIndex.isValid()) {
-                int index = currentIndex.row();
+                // Map from proxy index to source index
+                QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(currentIndex);
+                int index = sourceIndex.isValid() ? sourceIndex.row() : currentIndex.row();
                 Slide slide = m_presentationModel->getSlide(index);
                 theme.applyToSlide(slide);
                 m_presentationModel->updateSlide(index, slide);
@@ -1159,7 +1305,9 @@ void ControlWindow::onApplyThemeToSlide()
     if (dialog.exec() == QDialog::Accepted && dialog.hasSelection()) {
         Theme theme = dialog.selectedTheme();
 
-        int index = currentIndex.row();
+        // Map from proxy index to source index
+        QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(currentIndex);
+        int index = sourceIndex.isValid() ? sourceIndex.row() : currentIndex.row();
         Slide slide = m_presentationModel->getSlide(index);
         theme.applyToSlide(slide);
         m_presentationModel->updateSlide(index, slide);
@@ -1249,9 +1397,8 @@ void ControlWindow::gotoFirstSlide()
         return;
     }
 
-    Presentation presentation = m_presentationModel->presentation();
-    if (presentation.gotoSlide(0)) {
-        m_presentationModel->setPresentation(presentation);
+    Presentation* presentation = m_presentationModel->presentation();
+    if (presentation && presentation->gotoSlide(0)) {
         updateUI();
         broadcastCurrentSlide();
     }
@@ -1264,9 +1411,8 @@ void ControlWindow::gotoLastSlide()
         return;
     }
 
-    Presentation presentation = m_presentationModel->presentation();
-    if (presentation.gotoSlide(lastIndex)) {
-        m_presentationModel->setPresentation(presentation);
+    Presentation* presentation = m_presentationModel->presentation();
+    if (presentation && presentation->gotoSlide(lastIndex)) {
         updateUI();
         broadcastCurrentSlide();
     }
@@ -1278,9 +1424,8 @@ void ControlWindow::gotoSlide(int index)
         return;
     }
 
-    Presentation presentation = m_presentationModel->presentation();
-    if (presentation.gotoSlide(index)) {
-        m_presentationModel->setPresentation(presentation);
+    Presentation* presentation = m_presentationModel->presentation();
+    if (presentation && presentation->gotoSlide(index)) {
         updateUI();
         broadcastCurrentSlide();
     }
@@ -1535,19 +1680,23 @@ void ControlWindow::updateRemoteServer()
         return;
     }
 
-    Presentation pres = m_presentationModel->presentation();
-    int currentIndex = pres.currentSlideIndex();
-    int totalSlides = pres.slideCount();
+    Presentation* pres = m_presentationModel->presentation();
+    if (!pres) {
+        return;
+    }
+
+    int currentIndex = pres->currentSlideIndex();
+    int totalSlides = pres->slideCount();
 
     QString currentText;
     QString nextText;
 
     if (currentIndex >= 0 && currentIndex < totalSlides) {
-        currentText = pres.getSlide(currentIndex).text();
+        currentText = pres->getSlide(currentIndex).text();
     }
 
     if (currentIndex + 1 < totalSlides) {
-        nextText = pres.getSlide(currentIndex + 1).text();
+        nextText = pres->getSlide(currentIndex + 1).text();
     }
 
     m_remoteServer->broadcastSlideUpdate(currentIndex, totalSlides, currentText, nextText);

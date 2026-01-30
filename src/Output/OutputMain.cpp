@@ -1,6 +1,7 @@
 #include "OutputMain.h"
 #include "OutputDisplay.h"
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QCommandLineParser>
@@ -18,6 +19,7 @@ int OutputMain::run(int argc, char* argv[])
     app.setOrganizationName("Clarity");
     app.setApplicationName("Clarity");
     app.setApplicationVersion("1.0.0");
+    app.setWindowIcon(QIcon(":/icons/clarity.ico"));
 
     // Parse command line arguments
     QCommandLineParser parser;

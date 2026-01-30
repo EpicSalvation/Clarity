@@ -29,6 +29,7 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_transitionTypeComboBox(nullptr)
     , m_transitionDurationComboBox(nullptr)
     , m_scrollWheelChangesInputsCheckBox(nullptr)
+    , m_showAllSlidesInGridCheckBox(nullptr)
     , m_languageComboBox(nullptr)
     , m_remoteControlEnabledCheckBox(nullptr)
     , m_remoteControlPortSpinBox(nullptr)
@@ -127,10 +128,13 @@ void SettingsDialog::createGeneralPage()
         tr("Scroll wheel changes dropdown and number inputs without clicking"), uiBehaviorGroup);
     uiBehaviorLayout->addWidget(m_scrollWheelChangesInputsCheckBox);
 
+    m_showAllSlidesInGridCheckBox = new QCheckBox(
+        tr("Show all slides in grid (instead of just the selected item's slides)"), uiBehaviorGroup);
+    uiBehaviorLayout->addWidget(m_showAllSlidesInGridCheckBox);
+
     QLabel* uiBehaviorHelpLabel = new QLabel(
-        tr("When disabled (default), you must click on dropdowns and number inputs "
-           "before the scroll wheel will change their values. This prevents accidental changes "
-           "when scrolling through dialogs."),
+        tr("By default, the slide grid shows only slides from the currently selected item. "
+           "Enable 'Show all slides' to see all presentation slides at once."),
         uiBehaviorGroup);
     uiBehaviorHelpLabel->setWordWrap(true);
     uiBehaviorHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
@@ -466,6 +470,7 @@ void SettingsDialog::loadSettings()
 
     // Load UI behavior settings
     m_scrollWheelChangesInputsCheckBox->setChecked(m_settingsManager->scrollWheelChangesInputs());
+    m_showAllSlidesInGridCheckBox->setChecked(m_settingsManager->showAllSlidesInGrid());
 
     // Load language setting
     QString languageCode = m_settingsManager->language();
@@ -516,6 +521,7 @@ void SettingsDialog::saveSettings()
 
     // Save UI behavior settings
     m_settingsManager->setScrollWheelChangesInputs(m_scrollWheelChangesInputsCheckBox->isChecked());
+    m_settingsManager->setShowAllSlidesInGrid(m_showAllSlidesInGridCheckBox->isChecked());
 
     // Save language setting
     QString languageCode = m_languageComboBox->currentData().toString();

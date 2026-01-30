@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Slide.h"
+#include "Core/Song.h"  // For SlideStyle
 #include "Core/BibleDatabase.h"
 #include <QDialog>
 #include <QLineEdit>
@@ -39,6 +40,31 @@ public:
      * @return List of slides (empty if cancelled or no selection)
      */
     QList<Slide> getSlides() const;
+
+    /**
+     * @brief Get the scripture reference string (e.g., "John 3:16-17")
+     */
+    QString reference() const;
+
+    /**
+     * @brief Get the translation identifier (e.g., "KJV")
+     */
+    QString translation() const;
+
+    /**
+     * @brief Get whether one verse per slide is selected
+     */
+    bool oneVersePerSlide() const;
+
+    /**
+     * @brief Get whether to include verse references on slides
+     */
+    bool includeVerseReferences() const;
+
+    /**
+     * @brief Get the slide style settings
+     */
+    SlideStyle slideStyle() const;
 
     /**
      * @brief Set default slide style for generated slides

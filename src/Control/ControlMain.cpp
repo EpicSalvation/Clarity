@@ -2,6 +2,7 @@
 #include "ControlWindow.h"
 #include "Core/SettingsManager.h"
 #include <QApplication>
+#include <QIcon>
 #include <QTranslator>
 #include <QLocale>
 #include <QLibraryInfo>
@@ -15,6 +16,7 @@ int ControlMain::run(int argc, char* argv[])
     app.setApplicationName("Clarity");
     app.setApplicationVersion("1.0.0");
     app.setOrganizationName("Clarity");
+    app.setWindowIcon(QIcon(":/icons/clarity.ico"));
 
     // Load translations
     QTranslator qtTranslator;

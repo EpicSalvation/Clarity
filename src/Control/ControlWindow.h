@@ -2,6 +2,8 @@
 
 #include "Core/Presentation.h"
 #include "Core/PresentationModel.h"
+#include "Core/ItemListModel.h"
+#include "Core/SlideFilterProxyModel.h"
 #include "Core/IpcServer.h"
 #include "Core/SettingsManager.h"
 #include "Core/BibleDatabase.h"
@@ -55,6 +57,8 @@ private slots:
     void onLaunchConfidence();
     void onSlideClicked(const QModelIndex& index);
     void onSlideDoubleClicked(const QModelIndex& index);
+    void onItemClicked(const QModelIndex& index);
+    void onItemDoubleClicked(const QModelIndex& index);
     void onSettings();
     void onPresentationModified();
 
@@ -142,6 +146,8 @@ private:
 
     // Data
     PresentationModel* m_presentationModel;
+    ItemListModel* m_itemListModel;
+    SlideFilterProxyModel* m_slideFilterProxy;  ///< Filters slides by current item
     IpcServer* m_ipcServer;
     ProcessManager* m_processManager;
     SettingsManager* m_settingsManager;

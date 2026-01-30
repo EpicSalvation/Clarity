@@ -9,7 +9,11 @@ namespace Clarity {
 /**
  * @brief Qt Model adapter for Presentation to use with QListView
  *
- * Provides the data interface for displaying slides in the control window
+ * Provides the data interface for displaying slides in the control window.
+ * Works with the flat slide list from Presentation for backward compatibility.
+ *
+ * Note: This model exposes the flat slide list. For item-based views,
+ * a separate ItemModel should be created.
  */
 class PresentationModel : public QAbstractListModel {
     Q_OBJECT
@@ -21,10 +25,16 @@ public:
         TextColorRole,
         FontFamilyRole,
         FontSizeRole,
-        SlideObjectRole  ///< Returns the full Slide object as QVariant
+        SlideObjectRole,     ///< Returns the full Slide object as QVariant
+        ItemIndexRole,       ///< Item index containing this slide
+        SlideInItemRole,     ///< Position within the item (0-based)
+        ItemNameRole,        ///< Display name of containing item
+        ItemTypeRole,        ///< Type of containing item
+        FlatIndexRole        ///< The row index in the source model (for proxy model support)
     };
 
     explicit PresentationModel(QObject* parent = nullptr);
+    ~PresentationModel();
 
     // QAbstractItemModel interface
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
@@ -32,14 +42,32 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     // Presentation access
-    void setPresentation(const Presentation& presentation);
-    Presentation presentation() const { return m_presentation; }
+    /**
+     * @brief Set the presentation (takes ownership)
+     *
+     * The model takes ownership of the presentation and will delete it
+     * when a new one is set or the model is destroyed.
+     */
+    void setPresentation(Presentation* presentation);
+
+    /**
+     * @brief Get the presentation
+     */
+    Presentation* presentation() const { return m_presentation; }
+
+    /**
+     * @brief Create a copy of the presentation data for serialization
+     *
+     * This is used when saving - it returns a JSON object representing
+     * the current state.
+     */
+    QJsonObject presentationToJson() const;
 
     // Navigation helpers
-    int currentSlideIndex() const { return m_presentation.currentSlideIndex(); }
+    int currentSlideIndex() const;
     void setCurrentSlideIndex(int index);
 
-    // Slide manipulation
+    // Slide manipulation (flat index based)
     void addSlide(const Slide& slide);
     void insertSlide(int index, const Slide& slide);
     void updateSlide(int index, const Slide& slide);
@@ -47,12 +75,45 @@ public:
     void moveSlide(int fromIndex, int toIndex);
     Slide getSlide(int index) const;
 
+    // Item management (for new item-based UI)
+    /**
+     * @brief Add an item to the presentation
+     */
+    void addItem(PresentationItem* item);
+
+    /**
+     * @brief Insert an item at a specific position
+     */
+    void insertItem(int index, PresentationItem* item);
+
+    /**
+     * @brief Remove an item
+     */
+    void removeItem(int index);
+
+    /**
+     * @brief Get item count
+     */
+    int itemCount() const;
+
+    /**
+     * @brief Get an item by index
+     */
+    PresentationItem* itemAt(int index) const;
+
 signals:
     void currentSlideChanged(int index);
     void presentationModified();
+    void itemsChanged();
+
+private slots:
+    void onSlidesChanged();
+    void onCurrentSlideChanged(int index);
+    void onPresentationModified();
 
 private:
-    Presentation m_presentation;
+    Presentation* m_presentation;
+    bool m_ownsPresentation;
 };
 
 } // namespace Clarity

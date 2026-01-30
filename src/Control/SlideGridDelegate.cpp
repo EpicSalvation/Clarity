@@ -30,7 +30,10 @@ void SlideGridDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
     }
 
     Slide slide = slideVar.value<Slide>();
-    int slideIndex = index.row();
+
+    // Get the flat index from the source model (works correctly with proxy models)
+    QVariant flatIndexVar = index.data(PresentationModel::FlatIndexRole);
+    int slideIndex = flatIndexVar.isValid() ? flatIndexVar.toInt() : index.row();
 
     // Calculate the thumbnail rect centered in the item rect
     QRect itemRect = option.rect;
@@ -41,7 +44,7 @@ void SlideGridDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
         m_thumbnailSize.height()
     );
 
-    // Check cache for existing thumbnail
+    // Check cache for existing thumbnail (keyed by flat index)
     QPixmap thumbnail;
     if (m_thumbnailCache.contains(slideIndex)) {
         thumbnail = m_thumbnailCache.value(slideIndex);

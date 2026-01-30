@@ -51,6 +51,9 @@ public:
     bool scrollWheelChangesInputs() const;  // Whether mouse wheel changes combo boxes/spin boxes without focus
     void setScrollWheelChangesInputs(bool enabled);
 
+    bool showAllSlidesInGrid() const;  // Whether to show all slides or just selected item's slides
+    void setShowAllSlidesInGrid(bool showAll);
+
     // Remote control settings
     bool remoteControlEnabled() const;
     void setRemoteControlEnabled(bool enabled);
@@ -78,6 +81,7 @@ signals:
     void transitionSettingsChanged();
     void remoteControlSettingsChanged();
     void languageChanged(const QString& languageCode);
+    void slideGridModeChanged(bool showAll);
 
 private:
     QSettings* m_settings;

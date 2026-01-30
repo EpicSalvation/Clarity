@@ -1,0 +1,4 @@
+// Windows resource file for Clarity application icon
+// This embeds the icon in the executable for Windows Explorer and taskbar
+
+IDI_ICON1 ICON "clarity.ico"

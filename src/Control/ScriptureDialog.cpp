@@ -422,6 +422,50 @@ QList<Slide> ScriptureDialog::getSlides() const
     return createSlidesFromVerses();
 }
 
+QString ScriptureDialog::reference() const
+{
+    // Build reference string from the selected verses
+    if (m_selectedVerses.isEmpty()) {
+        return m_searchEdit->text();
+    }
+
+    const BibleVerse& first = m_selectedVerses.first();
+    const BibleVerse& last = m_selectedVerses.last();
+
+    if (m_selectedVerses.count() == 1) {
+        return first.reference();
+    } else if (first.book == last.book && first.chapter == last.chapter) {
+        return QString("%1 %2:%3-%4")
+            .arg(first.book).arg(first.chapter).arg(first.verse).arg(last.verse);
+    } else if (first.book == last.book) {
+        return QString("%1 %2:%3-%4:%5")
+            .arg(first.book).arg(first.chapter).arg(first.verse)
+            .arg(last.chapter).arg(last.verse);
+    } else {
+        return QString("%1 - %2").arg(first.reference(), last.reference());
+    }
+}
+
+QString ScriptureDialog::translation() const
+{
+    return m_translationCombo->currentText();
+}
+
+bool ScriptureDialog::oneVersePerSlide() const
+{
+    return m_onePerSlideCheck->isChecked();
+}
+
+bool ScriptureDialog::includeVerseReferences() const
+{
+    return m_includeReferenceCheck->isChecked();
+}
+
+SlideStyle ScriptureDialog::slideStyle() const
+{
+    return SlideStyle(m_backgroundColor, m_textColor, m_fontFamily, m_fontSizeSpinBox->value());
+}
+
 QList<Slide> ScriptureDialog::createSlidesFromVerses() const
 {
     QList<Slide> slides;

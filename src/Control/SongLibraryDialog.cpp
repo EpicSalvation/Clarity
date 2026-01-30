@@ -469,6 +469,21 @@ int SongLibraryDialog::selectedSongId() const
     return m_selectedSongId;
 }
 
+bool SongLibraryDialog::includeSectionLabels() const
+{
+    return m_includeLabelCheck->isChecked();
+}
+
+int SongLibraryDialog::maxLinesPerSlide() const
+{
+    return m_maxLinesSpinBox->value();
+}
+
+SlideStyle SongLibraryDialog::slideStyle() const
+{
+    return SlideStyle(m_backgroundColor, m_textColor, m_fontFamily, m_fontSizeSpinBox->value());
+}
+
 QList<Slide> SongLibraryDialog::getSlides() const
 {
     if (m_selectedSongId <= 0) {

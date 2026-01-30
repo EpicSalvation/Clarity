@@ -49,6 +49,21 @@ public:
     int selectedSongId() const;
 
     /**
+     * @brief Get whether to include section labels
+     */
+    bool includeSectionLabels() const;
+
+    /**
+     * @brief Get the maximum lines per slide setting
+     */
+    int maxLinesPerSlide() const;
+
+    /**
+     * @brief Get the slide style settings
+     */
+    SlideStyle slideStyle() const;
+
+    /**
      * @brief Set default slide style for generated slides
      */
     void setDefaultStyle(const QColor& bgColor, const QColor& textColor,

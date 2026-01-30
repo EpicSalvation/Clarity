@@ -260,6 +260,22 @@ void SettingsManager::setRemoteControlPin(const QString& pin)
     }
 }
 
+bool SettingsManager::showAllSlidesInGrid() const
+{
+    // Default is false - show only the selected item's slides
+    return m_settings->value("UI/ShowAllSlidesInGrid", false).toBool();
+}
+
+void SettingsManager::setShowAllSlidesInGrid(bool showAll)
+{
+    if (showAllSlidesInGrid() != showAll) {
+        m_settings->setValue("UI/ShowAllSlidesInGrid", showAll);
+        m_settings->sync();
+        emit slideGridModeChanged(showAll);
+        qDebug() << "SettingsManager: Show all slides in grid set to" << showAll;
+    }
+}
+
 QString SettingsManager::language() const
 {
     return m_settings->value("General/Language", "system").toString();

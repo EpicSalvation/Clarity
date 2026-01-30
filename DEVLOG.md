@@ -4,6 +4,155 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-30 - Application Icon and Slide Grid Filtering
+
+### Summary
+Added application icon for Windows and implemented slide grid filtering to show only the selected item's slides by default, with a settings option to toggle between filtered and all-slides view.
+
+### Work Completed
+
+#### Application Icon
+- Added `clarity.ico` to `resources/` folder
+- Created Windows resource file (`resources/app.rc`) to embed icon in executable
+- Added icon to Qt resources (`Resources.qrc`) at `:/icons/clarity.ico`
+- Updated CMakeLists.txt to include .rc file on Windows builds
+- Set window icon in all three application modes:
+  - ControlMain.cpp (Control window)
+  - OutputMain.cpp (Output display)
+  - ConfidenceMain.cpp (Confidence monitor)
+
+#### Slide Grid Filtering
+- Created `SlideFilterProxyModel` (`src/Core/SlideFilterProxyModel.h/.cpp`):
+  - Filters slides by item index using `QSortFilterProxyModel`
+  - `setFilterItemIndex()` to filter to specific item
+  - `setShowAllSlides()` to toggle between filtered and all-slides view
+
+- Added `showAllSlidesInGrid` setting to SettingsManager:
+  - Default is `false` (show only selected item's slides)
+  - Setting saved to persistent storage
+  - `slideGridModeChanged` signal for reactive updates
+
+- Updated SettingsDialog:
+  - Added checkbox in General > UI Behavior section
+  - "Show all slides in grid (instead of just the selected item's slides)"
+
+- Updated ControlWindow:
+  - Grid view now uses SlideFilterProxyModel
+  - Filter updates when clicking items in left panel
+  - Proper proxy-to-source index mapping for all operations
+  - Cache invalidation when filter changes
+
+- Added `FlatIndexRole` to PresentationModel:
+  - Returns source model row index
+  - Enables SlideGridDelegate to work correctly with proxy model
+  - Fixed "stuck preview" bug when switching between items
+
+### Technical Decisions
+- Used QSortFilterProxyModel for filtering rather than modifying the source model
+- Added FlatIndexRole to solve proxy model index mapping issues in the delegate
+- Moved filter toggle from main UI button to Settings dialog for cleaner interface
+- Cache invalidation on filter change prevents stale thumbnails
+
+### Files Modified
+- `resources/Resources.qrc` - Added icon resource
+- `resources/app.rc` - New Windows resource file
+- `CMakeLists.txt` - Added .rc file for Windows
+- `src/Core/SettingsManager.h/.cpp` - Added showAllSlidesInGrid setting
+- `src/Core/SlideFilterProxyModel.h/.cpp` - New proxy model class
+- `src/Core/PresentationModel.h/.cpp` - Added FlatIndexRole
+- `src/Control/ControlWindow.h/.cpp` - Integrated proxy model
+- `src/Control/SettingsDialog.h/.cpp` - Added filter setting checkbox
+- `src/Control/SlideGridDelegate.cpp` - Use FlatIndexRole for correct indexing
+- `src/Control/ControlMain.cpp` - Set window icon
+- `src/Output/OutputMain.cpp` - Set window icon
+- `src/Confidence/ConfidenceMain.cpp` - Set window icon
+
+### Commit(s)
+Branch: main
+
+---
+
+## 2026-01-30 - Presentation Structure Refactor (Playlist Model)
+
+### Summary
+Refactored the presentation structure from a flat list of slides to a hierarchical playlist of "items" (songs, scripture, custom slides, slide groups). This enables item-level theming, source tracking, and logical grouping in the UI.
+
+### Work Completed
+
+#### New Core Classes
+- **PresentationItem** (`src/Core/PresentationItem.h/.cpp`): Abstract base class for presentation items with:
+  - ItemType enum (SongItemType, ScriptureItemType, CustomSlideItemType, SlideGroupItemType)
+  - Virtual methods for `generateSlides()`, `displayName()`, `displaySubtitle()`
+  - Slide caching with invalidation
+  - Per-item theming via `SlideStyle`
+  - JSON serialization with polymorphic deserialization
+
+- **CustomSlideItem** (`src/Core/CustomSlideItem.h/.cpp`): Single custom slide item
+
+- **SlideGroupItem** (`src/Core/SlideGroupItem.h/.cpp`): Group of arbitrary slides (used for v1.0 migration)
+
+- **SongItem** (`src/Core/SongItem.h/.cpp`): References song by ID, generates slides from SongLibrary
+  - Options: includeTitleSlide, includeSectionLabels, maxLinesPerSlide
+  - Connects to SongLibrary signals for cache invalidation
+
+- **ScriptureItem** (`src/Core/ScriptureItem.h/.cpp`): References scripture passage + translation
+  - Options: oneVersePerSlide, includeVerseReferences, includeHeaderSlide
+
+- **ItemListModel** (`src/Core/ItemListModel.h/.cpp`): Qt model for displaying items in the left panel
+
+#### Refactored Presentation Class
+- Changed from `class Presentation` to `class Presentation : public QObject`
+- Uses `QList<PresentationItem*>` instead of `QList<Slide>`
+- New methods: `items()`, `addItem()`, `insertItem()`, `removeItem()`, `moveItem()`, `clearItems()`
+- Flat slide access: `totalSlideCount()`, `slideAt()`, `positionForFlatIndex()`, `flatIndexForPosition()`
+- Current item info: `currentItem()`, `currentSlideInItem()`, `slidesInCurrentItem()`
+- Signals: `itemAdded`, `itemRemoved`, `itemMoved`, `itemsChanged`, `slidesChanged`
+- Backward-compatible legacy API: `slides()`, `slideCount()`, `addSlide()`, etc.
+
+#### File Format v2.0
+- New JSON format with `"items"` array instead of flat `"slides"`
+- Each item has `type`, `uuid`, type-specific fields, and optional `style` override
+- Automatic v1.0 migration: wraps all slides in a single SlideGroupItem
+
+#### UI Updates
+- Left panel now shows items (songs, scriptures, groups) via ItemListModel
+- Center grid still shows individual slides (flat view)
+- `onInsertSong()` creates SongItem instead of flat slides
+- `onInsertScripture()` creates ScriptureItem instead of flat slides
+- Navigation still works globally (next/prev across all slides)
+
+#### Dialog Enhancements
+- SongLibraryDialog: Added `includeSectionLabels()`, `maxLinesPerSlide()`, `slideStyle()` getters
+- ScriptureDialog: Added `reference()`, `translation()`, `oneVersePerSlide()`, `includeVerseReferences()`, `slideStyle()` getters
+
+#### IPC Updates
+- Enhanced `confidenceData` message includes `itemInfo` with item type, name, and position
+
+### Technical Decisions
+- Used mutable members for slide caching to allow const methods
+- Binary search for O(log n) flat index to item lookup
+- Items are QObject children of Presentation for automatic memory management
+- Legacy API maintained for backward compatibility during transition
+
+### Testing
+- Manual testing needed:
+  1. Open v1.0 .cly file - should load as single SlideGroupItem
+  2. Insert song - left panel shows song item, grid shows slides
+  3. Insert scripture - left panel shows scripture item
+  4. Navigate with Next/Prev - moves through all slides globally
+  5. Click item in left pane - navigates to first slide of item
+
+### Next Steps
+- Add item context menu (apply style, delete, move)
+- Update confidence monitor to display item info
+- Add item editing dialogs
+- Handle edge cases (empty items, missing songs)
+
+### Commit(s)
+Branch: main (pending commit)
+
+---
+
 ## 2026-01-29 - Multi-Language Support (Phase 3 Task 9)
 
 ### Summary
