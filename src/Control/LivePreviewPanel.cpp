@@ -12,7 +12,7 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     layout->setSpacing(10);
 
     // Panel title
-    QLabel* titleLabel = new QLabel("Live Preview", this);
+    QLabel* titleLabel = new QLabel(tr("Live Preview"), this);
     titleLabel->setAlignment(Qt::AlignCenter);
     QFont titleFont = titleLabel->font();
     titleFont.setBold(true);
@@ -20,7 +20,7 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     layout->addWidget(titleLabel);
 
     // Output preview
-    m_outputPreview = new LivePreviewWidget("Output", this);
+    m_outputPreview = new LivePreviewWidget(tr("Output"), this);
     layout->addWidget(m_outputPreview);
 
     // Confidence preview (shows current + next slide)

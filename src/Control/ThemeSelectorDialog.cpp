@@ -34,7 +34,7 @@ ThemeSelectorDialog::ThemeSelectorDialog(ThemeManager* themeManager, SettingsMan
 
 void ThemeSelectorDialog::setupUI()
 {
-    setWindowTitle("Select Theme");
+    setWindowTitle(tr("Select Theme"));
     setMinimumSize(600, 500);
 
     // Main vertical layout for the dialog

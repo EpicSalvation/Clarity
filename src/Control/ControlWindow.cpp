@@ -93,9 +93,9 @@ ControlWindow::ControlWindow(QWidget* parent)
 
     // Start IPC server
     if (m_ipcServer->start()) {
-        m_statusLabel->setText("IPC Server: Running");
+        m_statusLabel->setText(tr("IPC Server: Running"));
     } else {
-        m_statusLabel->setText("IPC Server: Failed to start");
+        m_statusLabel->setText(tr("IPC Server: Failed to start"));
     }
 
     // Connect IPC signals
@@ -110,7 +110,7 @@ ControlWindow::ControlWindow(QWidget* parent)
                                m_settingsManager->remoteControlPin());
         if (m_remoteServer->start()) {
             qDebug() << "Remote control server started at" << m_remoteServer->serverUrl();
-            m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
+            m_remoteStatusLabel->setText(tr("Remote: %1").arg(m_remoteServer->serverUrl()));
         }
     }
 
@@ -121,25 +121,21 @@ ControlWindow::ControlWindow(QWidget* parent)
         updateRemoteServer();
         // Update status label with client count
         int clients = m_remoteServer->connectedClientCount();
-        m_remoteStatusLabel->setText(QString("Remote: %1 (%2 client%3)")
-            .arg(m_remoteServer->serverUrl())
-            .arg(clients)
-            .arg(clients == 1 ? "" : "s"));
+        m_remoteStatusLabel->setText(tr("Remote: %1 (%n client(s))", "", clients)
+            .arg(m_remoteServer->serverUrl()));
     });
     connect(m_remoteServer, &RemoteServer::clientDisconnected, this, [this]() {
         int clients = m_remoteServer->connectedClientCount();
         if (clients > 0) {
-            m_remoteStatusLabel->setText(QString("Remote: %1 (%2 client%3)")
-                .arg(m_remoteServer->serverUrl())
-                .arg(clients)
-                .arg(clients == 1 ? "" : "s"));
+            m_remoteStatusLabel->setText(tr("Remote: %1 (%n client(s))", "", clients)
+                .arg(m_remoteServer->serverUrl()));
         } else {
-            m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
+            m_remoteStatusLabel->setText(tr("Remote: %1").arg(m_remoteServer->serverUrl()));
         }
     });
     connect(m_remoteServer, &RemoteServer::runningChanged, this, [this](bool running) {
         if (running) {
-            m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
+            m_remoteStatusLabel->setText(tr("Remote: %1").arg(m_remoteServer->serverUrl()));
         } else {
             m_remoteStatusLabel->setText("");
         }
@@ -161,7 +157,7 @@ ControlWindow::ControlWindow(QWidget* parent)
                                        m_settingsManager->remoteControlPin());
                 if (m_remoteServer->start()) {
                     qDebug() << "Remote control server started at" << m_remoteServer->serverUrl();
-                    m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
+                    m_remoteStatusLabel->setText(tr("Remote: %1").arg(m_remoteServer->serverUrl()));
                 }
             } else if (currentPort != newPort) {
                 // Port changed - restart on new port
@@ -171,7 +167,7 @@ ControlWindow::ControlWindow(QWidget* parent)
                                        m_settingsManager->remoteControlPin());
                 if (m_remoteServer->start()) {
                     qDebug() << "Remote control server restarted at" << m_remoteServer->serverUrl();
-                    m_remoteStatusLabel->setText(QString("Remote: %1").arg(m_remoteServer->serverUrl()));
+                    m_remoteStatusLabel->setText(tr("Remote: %1").arg(m_remoteServer->serverUrl()));
                 }
             } else {
                 // Just update PIN settings
@@ -217,39 +213,39 @@ ControlWindow::~ControlWindow()
 
 void ControlWindow::setupUI()
 {
-    setWindowTitle("Clarity - Control");
+    setWindowTitle(tr("Clarity - Control"));
     resize(1000, 700);  // Larger default size for new layout
 
     // Menu bar
     QMenuBar* menuBar = new QMenuBar(this);
-    QMenu* fileMenu = menuBar->addMenu("&File");
+    QMenu* fileMenu = menuBar->addMenu(tr("&File"));
 
-    fileMenu->addAction("&New", QKeySequence::New, this, &ControlWindow::newPresentation);
-    fileMenu->addAction("&Open...", QKeySequence::Open, this, &ControlWindow::openPresentation);
-    fileMenu->addAction("&Save", QKeySequence::Save, this, &ControlWindow::savePresentation);
-    fileMenu->addAction("Save &As...", QKeySequence::SaveAs, this, &ControlWindow::saveAsPresentation);
+    fileMenu->addAction(tr("&New"), QKeySequence::New, this, &ControlWindow::newPresentation);
+    fileMenu->addAction(tr("&Open..."), QKeySequence::Open, this, &ControlWindow::openPresentation);
+    fileMenu->addAction(tr("&Save"), QKeySequence::Save, this, &ControlWindow::savePresentation);
+    fileMenu->addAction(tr("Save &As..."), QKeySequence::SaveAs, this, &ControlWindow::saveAsPresentation);
     fileMenu->addSeparator();
-    fileMenu->addAction("E&xit", QKeySequence::Quit, this, &QWidget::close);
+    fileMenu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
 
     // Slide menu
-    QMenu* slideMenu = menuBar->addMenu("&Slide");
-    slideMenu->addAction("&Add Slide", QKeySequence("Ctrl+Shift+N"), this, &ControlWindow::onAddSlide);
-    slideMenu->addAction("&Edit Slide", QKeySequence("Ctrl+E"), this, &ControlWindow::onEditSlide);
-    slideMenu->addAction("&Delete Slide", QKeySequence::Delete, this, &ControlWindow::onDeleteSlide);
+    QMenu* slideMenu = menuBar->addMenu(tr("&Slide"));
+    slideMenu->addAction(tr("&Add Slide"), QKeySequence("Ctrl+Shift+N"), this, &ControlWindow::onAddSlide);
+    slideMenu->addAction(tr("&Edit Slide"), QKeySequence("Ctrl+E"), this, &ControlWindow::onEditSlide);
+    slideMenu->addAction(tr("&Delete Slide"), QKeySequence::Delete, this, &ControlWindow::onDeleteSlide);
     slideMenu->addSeparator();
-    slideMenu->addAction("Insert &Scripture...", QKeySequence("Ctrl+B"), this, &ControlWindow::onInsertScripture);
-    slideMenu->addAction("Insert S&ong...", QKeySequence("Ctrl+L"), this, &ControlWindow::onInsertSong);
+    slideMenu->addAction(tr("Insert &Scripture..."), QKeySequence("Ctrl+B"), this, &ControlWindow::onInsertScripture);
+    slideMenu->addAction(tr("Insert S&ong..."), QKeySequence("Ctrl+L"), this, &ControlWindow::onInsertSong);
     slideMenu->addSeparator();
-    slideMenu->addAction("Apply &Theme...", QKeySequence("Ctrl+T"), this, &ControlWindow::onApplyTheme);
-    slideMenu->addAction("Apply Theme to Current Slide...", this, &ControlWindow::onApplyThemeToSlide);
+    slideMenu->addAction(tr("Apply &Theme..."), QKeySequence("Ctrl+T"), this, &ControlWindow::onApplyTheme);
+    slideMenu->addAction(tr("Apply Theme to Current Slide..."), this, &ControlWindow::onApplyThemeToSlide);
 
     // Format menu (for theme management)
-    QMenu* formatMenu = menuBar->addMenu("F&ormat");
-    formatMenu->addAction("&Manage Themes...", this, &ControlWindow::onManageThemes);
+    QMenu* formatMenu = menuBar->addMenu(tr("F&ormat"));
+    formatMenu->addAction(tr("&Manage Themes..."), this, &ControlWindow::onManageThemes);
 
     // Help menu
-    QMenu* helpMenu = menuBar->addMenu("&Help");
-    helpMenu->addAction("&Keyboard Shortcuts...", QKeySequence("F1"), this, &ControlWindow::showKeyboardShortcuts);
+    QMenu* helpMenu = menuBar->addMenu(tr("&Help"));
+    helpMenu->addAction(tr("&Keyboard Shortcuts..."), QKeySequence("F1"), this, &ControlWindow::showKeyboardShortcuts);
 
     setMenuBar(menuBar);
 
@@ -306,11 +302,11 @@ void ControlWindow::setupUI()
     // Slide editing buttons
     QHBoxLayout* editLayout = new QHBoxLayout();
 
-    m_addSlideButton = new QPushButton("Add", this);
-    m_editSlideButton = new QPushButton("Edit", this);
-    m_deleteSlideButton = new QPushButton("Delete", this);
-    m_moveUpButton = new QPushButton("Move Up", this);
-    m_moveDownButton = new QPushButton("Move Down", this);
+    m_addSlideButton = new QPushButton(tr("Add"), this);
+    m_editSlideButton = new QPushButton(tr("Edit"), this);
+    m_deleteSlideButton = new QPushButton(tr("Delete"), this);
+    m_moveUpButton = new QPushButton(tr("Move Up"), this);
+    m_moveDownButton = new QPushButton(tr("Move Down"), this);
 
     connect(m_addSlideButton, &QPushButton::clicked, this, &ControlWindow::onAddSlide);
     connect(m_editSlideButton, &QPushButton::clicked, this, &ControlWindow::onEditSlide);
@@ -330,14 +326,14 @@ void ControlWindow::setupUI()
     // Control buttons
     QHBoxLayout* buttonLayout = new QHBoxLayout();
 
-    m_prevButton = new QPushButton("Prev", this);
-    m_nextButton = new QPushButton("Next", this);
-    m_clearButton = new QPushButton("Clear", this);
+    m_prevButton = new QPushButton(tr("Prev"), this);
+    m_nextButton = new QPushButton(tr("Next"), this);
+    m_clearButton = new QPushButton(tr("Clear"), this);
 
     // Output disable toggle - checkable button that stays pressed when output is disabled
-    m_outputDisabledButton = new QPushButton("Disable Output", this);
+    m_outputDisabledButton = new QPushButton(tr("Disable Output"), this);
     m_outputDisabledButton->setCheckable(true);
-    m_outputDisabledButton->setToolTip("When enabled, blacks out the output display and keeps it disabled during navigation");
+    m_outputDisabledButton->setToolTip(tr("When enabled, blacks out the output display and keeps it disabled during navigation"));
 
     connect(m_prevButton, &QPushButton::clicked, this, &ControlWindow::onPrevSlide);
     connect(m_nextButton, &QPushButton::clicked, this, &ControlWindow::onNextSlide);
@@ -356,9 +352,9 @@ void ControlWindow::setupUI()
     buttonLayout->addWidget(separator);
 
     // Timer control buttons
-    m_timerStartButton = new QPushButton("Start", this);
-    m_timerPauseButton = new QPushButton("Pause", this);
-    m_timerResetButton = new QPushButton("Reset", this);
+    m_timerStartButton = new QPushButton(tr("Start"), this);
+    m_timerPauseButton = new QPushButton(tr("Pause"), this);
+    m_timerResetButton = new QPushButton(tr("Reset"), this);
 
     connect(m_timerStartButton, &QPushButton::clicked, this, &ControlWindow::onStartTimer);
     connect(m_timerPauseButton, &QPushButton::clicked, this, &ControlWindow::onPauseTimer);
@@ -374,9 +370,9 @@ void ControlWindow::setupUI()
     // Process management buttons
     QHBoxLayout* processLayout = new QHBoxLayout();
 
-    m_launchOutputButton = new QPushButton("Launch Output", this);
-    m_launchConfidenceButton = new QPushButton("Launch Confidence", this);
-    m_settingsButton = new QPushButton("Settings", this);
+    m_launchOutputButton = new QPushButton(tr("Launch Output"), this);
+    m_launchConfidenceButton = new QPushButton(tr("Launch Confidence"), this);
+    m_settingsButton = new QPushButton(tr("Settings"), this);
 
     connect(m_launchOutputButton, &QPushButton::clicked, this, &ControlWindow::onLaunchOutput);
     connect(m_launchConfidenceButton, &QPushButton::clicked, this, &ControlWindow::onLaunchConfidence);
@@ -390,14 +386,14 @@ void ControlWindow::setupUI()
     mainLayout->addLayout(processLayout);
 
     // Status bar
-    m_statusLabel = new QLabel("Ready", this);
+    m_statusLabel = new QLabel(tr("Ready"), this);
     statusBar()->addWidget(m_statusLabel);
 
     // Remote server status label (right side of status bar) - clickable for QR code
     m_remoteStatusLabel = new QLabel("", this);
     m_remoteStatusLabel->setOpenExternalLinks(false);
     m_remoteStatusLabel->setCursor(Qt::PointingHandCursor);
-    m_remoteStatusLabel->setToolTip("Click to show QR code for mobile remote control");
+    m_remoteStatusLabel->setToolTip(tr("Click to show QR code for mobile remote control"));
     m_remoteStatusLabel->setStyleSheet("QLabel { color: #0066cc; } QLabel:hover { text-decoration: underline; }");
     m_remoteStatusLabel->installEventFilter(this);
     statusBar()->addPermanentWidget(m_remoteStatusLabel);
@@ -573,14 +569,14 @@ void ControlWindow::onSlideClicked(const QModelIndex& index)
 void ControlWindow::onClientConnected(QLocalSocket* client)
 {
     Q_UNUSED(client);
-    m_statusLabel->setText("IPC Server: Client connected");
+    m_statusLabel->setText(tr("IPC Server: Client connected"));
     // Note: Current slide is sent when client identifies itself in onMessageReceived
 }
 
 void ControlWindow::onClientDisconnected(QLocalSocket* client)
 {
     Q_UNUSED(client);
-    m_statusLabel->setText("IPC Server: Client disconnected");
+    m_statusLabel->setText(tr("IPC Server: Client disconnected"));
 }
 
 void ControlWindow::onMessageReceived(QLocalSocket* client, const QJsonObject& message)
@@ -682,7 +678,7 @@ void ControlWindow::onEditSlide()
 {
     QModelIndex currentIndex = m_slideGridView->currentIndex();
     if (!currentIndex.isValid()) {
-        QMessageBox::information(this, "No Slide Selected", "Please select a slide to edit.");
+        QMessageBox::information(this, tr("No Slide Selected"), tr("Please select a slide to edit."));
         return;
     }
 
@@ -708,7 +704,7 @@ void ControlWindow::onDeleteSlide()
 {
     QModelIndex currentIndex = m_slideGridView->currentIndex();
     if (!currentIndex.isValid()) {
-        QMessageBox::information(this, "No Slide Selected", "Please select a slide to delete.");
+        QMessageBox::information(this, tr("No Slide Selected"), tr("Please select a slide to delete."));
         return;
     }
 
@@ -717,8 +713,8 @@ void ControlWindow::onDeleteSlide()
     // Confirm deletion
     QMessageBox::StandardButton reply = QMessageBox::question(
         this,
-        "Delete Slide",
-        "Are you sure you want to delete this slide?",
+        tr("Delete Slide"),
+        tr("Are you sure you want to delete this slide?"),
         QMessageBox::Yes | QMessageBox::No
     );
 
@@ -823,8 +819,8 @@ bool ControlWindow::promptSaveIfDirty()
 
     QMessageBox::StandardButton reply = QMessageBox::question(
         this,
-        "Unsaved Changes",
-        "Presentation has unsaved changes. Save before continuing?",
+        tr("Unsaved Changes"),
+        tr("Presentation has unsaved changes. Save before continuing?"),
         QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel
     );
 
@@ -872,9 +868,9 @@ void ControlWindow::openPresentation()
 
     QString filePath = QFileDialog::getOpenFileName(
         this,
-        "Open Presentation",
+        tr("Open Presentation"),
         QDir::homePath(),
-        "Clarity Presentations (*.cly);;All Files (*.*)"
+        tr("Clarity Presentations (*.cly);;All Files (*.*)")
     );
 
     if (filePath.isEmpty()) {
@@ -883,7 +879,7 @@ void ControlWindow::openPresentation()
 
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
-        QMessageBox::critical(this, "Error", "Could not open file: " + file.errorString());
+        QMessageBox::critical(this, tr("Error"), tr("Could not open file: %1").arg(file.errorString()));
         qCritical() << "Failed to open file:" << filePath << file.errorString();
         return;
     }
@@ -894,7 +890,7 @@ void ControlWindow::openPresentation()
     QJsonDocument doc = QJsonDocument::fromJson(data);
 
     if (doc.isNull() || !doc.isObject()) {
-        QMessageBox::critical(this, "Error", "Invalid presentation file format.");
+        QMessageBox::critical(this, tr("Error"), tr("Invalid presentation file format."));
         qCritical() << "Invalid JSON in file:" << filePath;
         return;
     }
@@ -920,7 +916,7 @@ void ControlWindow::savePresentation()
 
     QFile file(m_currentFilePath);
     if (!file.open(QIODevice::WriteOnly)) {
-        QMessageBox::critical(this, "Error", "Could not save file: " + file.errorString());
+        QMessageBox::critical(this, tr("Error"), tr("Could not save file: %1").arg(file.errorString()));
         qCritical() << "Failed to open file for writing:" << m_currentFilePath << file.errorString();
         return;
     }
@@ -933,7 +929,7 @@ void ControlWindow::savePresentation()
     file.close();
 
     if (written == -1) {
-        QMessageBox::critical(this, "Error", "Failed to write to file.");
+        QMessageBox::critical(this, tr("Error"), tr("Failed to write to file."));
         qCritical() << "Failed to write to file:" << m_currentFilePath;
         return;
     }
@@ -946,9 +942,9 @@ void ControlWindow::saveAsPresentation()
 {
     QString filePath = QFileDialog::getSaveFileName(
         this,
-        "Save Presentation As",
+        tr("Save Presentation As"),
         QDir::homePath(),
-        "Clarity Presentations (*.cly);;All Files (*.*)"
+        tr("Clarity Presentations (*.cly);;All Files (*.*)")
     );
 
     if (filePath.isEmpty()) {
@@ -1005,12 +1001,12 @@ void ControlWindow::onInsertScripture()
     if (!m_bibleDatabase->isValid()) {
         QMessageBox::warning(
             this,
-            "Bible Database Not Available",
-            "The Bible database could not be loaded.\n\n"
-            "Please ensure the bible.db file is present in one of the following locations:\n"
-            "- <app directory>/data/bible.db\n"
-            "- <app data>/Clarity/data/bible.db\n\n"
-            "You can download the database from the Clarity releases page."
+            tr("Bible Database Not Available"),
+            tr("The Bible database could not be loaded.\n\n"
+               "Please ensure the bible.db file is present in one of the following locations:\n"
+               "- <app directory>/data/bible.db\n"
+               "- <app data>/Clarity/data/bible.db\n\n"
+               "You can download the database from the Clarity releases page.")
         );
         return;
     }
@@ -1151,7 +1147,7 @@ void ControlWindow::onApplyThemeToSlide()
 {
     QModelIndex currentIndex = m_slideGridView->currentIndex();
     if (!currentIndex.isValid()) {
-        QMessageBox::information(this, "No Slide Selected", "Please select a slide to apply a theme to.");
+        QMessageBox::information(this, tr("No Slide Selected"), tr("Please select a slide to apply a theme to."));
         return;
     }
 
@@ -1181,7 +1177,7 @@ void ControlWindow::onManageThemes()
     // Open the theme selector dialog in management mode
     // User can create, edit, duplicate, and delete custom themes
     ThemeSelectorDialog dialog(m_themeManager, m_settingsManager, this);
-    dialog.setWindowTitle("Manage Themes");
+    dialog.setWindowTitle(tr("Manage Themes"));
     dialog.exec();
 
     // No need to apply - this is just for theme management
@@ -1300,8 +1296,8 @@ void ControlWindow::promptGotoSlide()
     bool ok;
     int slideNumber = QInputDialog::getInt(
         this,
-        "Go to Slide",
-        QString("Enter slide number (1-%1):").arg(slideCount),
+        tr("Go to Slide"),
+        tr("Enter slide number (1-%1):").arg(slideCount),
         m_presentationModel->currentSlideIndex() + 1,  // Default to current slide (1-indexed)
         1,         // Minimum
         slideCount, // Maximum
@@ -1499,7 +1495,7 @@ void ControlWindow::showKeyboardShortcuts()
 )";
 
     QMessageBox msgBox(this);
-    msgBox.setWindowTitle("Keyboard Shortcuts");
+    msgBox.setWindowTitle(tr("Keyboard Shortcuts"));
     msgBox.setTextFormat(Qt::RichText);
     msgBox.setText(shortcuts);
     msgBox.setIcon(QMessageBox::Information);
@@ -1583,7 +1579,7 @@ void ControlWindow::showQrCode()
 
     // Create a dialog to show the QR code
     QDialog* dialog = new QDialog(this);
-    dialog->setWindowTitle("Remote Control QR Code");
+    dialog->setWindowTitle(tr("Remote Control QR Code"));
     dialog->setAttribute(Qt::WA_DeleteOnClose);
 
     QVBoxLayout* layout = new QVBoxLayout(dialog);
@@ -1591,7 +1587,7 @@ void ControlWindow::showQrCode()
     layout->setContentsMargins(24, 24, 24, 24);
 
     // Title
-    QLabel* titleLabel = new QLabel("Scan to connect", dialog);
+    QLabel* titleLabel = new QLabel(tr("Scan to connect"), dialog);
     titleLabel->setAlignment(Qt::AlignCenter);
     QFont titleFont = titleLabel->font();
     titleFont.setPointSize(14);
@@ -1619,15 +1615,15 @@ void ControlWindow::showQrCode()
 
     // Instructions
     QLabel* instructionsLabel = new QLabel(
-        "Open this URL on your phone or tablet to control\n"
-        "the presentation remotely from the same network.",
+        tr("Open this URL on your phone or tablet to control\n"
+           "the presentation remotely from the same network."),
         dialog);
     instructionsLabel->setAlignment(Qt::AlignCenter);
     instructionsLabel->setStyleSheet("color: gray;");
     layout->addWidget(instructionsLabel);
 
     // Close button
-    QPushButton* closeButton = new QPushButton("Close", dialog);
+    QPushButton* closeButton = new QPushButton(tr("Close"), dialog);
     connect(closeButton, &QPushButton::clicked, dialog, &QDialog::accept);
     layout->addWidget(closeButton);
 

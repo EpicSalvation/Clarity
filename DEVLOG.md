@@ -4,6 +4,111 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-29 - Multi-Language Support (Phase 3 Task 9)
+
+### Summary
+Implemented internationalization (i18n) infrastructure for Clarity, enabling the UI to be translated into multiple languages. Added language selection in Settings with support for English, Spanish, German, and French. Created Spanish translation file with translations for key UI elements.
+
+### Work Completed
+
+#### Translation Infrastructure
+- Added Qt6::LinguistTools to CMakeLists.txt
+- Configured qt_add_translations() for automatic .ts to .qm file generation
+- Created translations directory with .ts files for Spanish, German, and French
+
+#### Settings Integration
+- Added language() and setLanguage() methods to SettingsManager
+- Added languageChanged signal for reactive UI updates
+- Language options: "system" (auto-detect), "en", "es", "de", "fr"
+
+#### Translation Loading
+- Updated ControlMain.cpp to load translations at startup
+- Loads Qt's built-in translations (qtbase) for standard dialogs
+- Loads Clarity's translations from resources or translations directory
+- Falls back to English if translation not found
+
+#### Language Selector UI
+- Added Language group to Settings > General page
+- Dropdown with System Default, English, Spanish, German, French options
+- Help text noting restart requirement for changes to take effect
+
+#### String Wrapping (tr() calls)
+Wrapped user-facing strings in tr() across key UI files:
+- ControlWindow.cpp - menus, buttons, status messages, dialogs, QR code dialog
+- SettingsDialog.cpp - all labels, group boxes, help text
+- SlideEditorDialog.cpp - main labels and group boxes
+- ScriptureDialog.cpp, SongLibraryDialog.cpp - window titles
+- ThemeSelectorDialog.cpp, ThemeEditorDialog.cpp - window titles
+- SongEditorDialog.cpp - window title and group boxes
+- LivePreviewPanel.cpp - "Live Preview", "Output" labels
+- LivePreviewWidget.cpp - "No Signal" text
+- ConfidencePreviewWidget.cpp - "Confidence", "CURRENT", "NEXT", "END", "NOTES", etc.
+- RemoteServer.cpp - All strings in mobile web interface (HTML and JavaScript)
+
+#### Translation Files Created
+- `translations/clarity_es.ts` - Spanish (comprehensive, ~200 strings)
+- `translations/clarity_de.ts` - German (skeleton with key strings)
+- `translations/clarity_fr.ts` - French (skeleton with key strings)
+
+### Technical Decisions
+
+1. **Qt Linguist Tools**: Used Qt's built-in translation system (lupdate/lrelease) for industry-standard i18n workflow.
+
+2. **Language Setting Storage**: Stored as language code ("en", "es", etc.) in QSettings for portability.
+
+3. **System Default Option**: Reads QLocale::system() at startup when "system" is selected, allowing automatic language detection.
+
+4. **Partial String Coverage**: Focused tr() wrapping on most visible UI elements. Full coverage requires running lupdate to extract all strings.
+
+### Files Modified
+- `CMakeLists.txt` - Added LinguistTools, translation configuration
+- `src/Core/SettingsManager.h` - Added language methods and signal
+- `src/Core/SettingsManager.cpp` - Language setting implementation
+- `src/Core/RemoteServer.cpp` - tr() calls for mobile web interface strings
+- `src/Control/ControlMain.cpp` - Translation loading at startup
+- `src/Control/SettingsDialog.h` - Added language combo box member
+- `src/Control/SettingsDialog.cpp` - Language UI and all tr() calls
+- `src/Control/ControlWindow.cpp` - tr() calls for menus, buttons, dialogs
+- `src/Control/SlideEditorDialog.cpp` - tr() calls for key labels
+- `src/Control/ScriptureDialog.cpp` - tr() for window title
+- `src/Control/SongLibraryDialog.cpp` - tr() for window title
+- `src/Control/SongEditorDialog.cpp` - tr() for title and groups
+- `src/Control/ThemeSelectorDialog.cpp` - tr() for window title
+- `src/Control/ThemeEditorDialog.cpp` - tr() for window titles
+- `src/Control/LivePreviewPanel.cpp` - tr() for panel labels
+- `src/Control/LivePreviewWidget.cpp` - tr() for "No Signal" text
+- `src/Control/ConfidencePreviewWidget.cpp` - tr() for all display text
+
+### Files Created
+- `translations/clarity_es.ts` - Spanish translations
+- `translations/clarity_de.ts` - German translations (skeleton)
+- `translations/clarity_fr.ts` - French translations (skeleton)
+
+### Testing
+- Build system compiles with LinguistTools
+- Language setting persists correctly
+- Translation loading logic tested
+
+### Next Steps (Future Enhancement)
+- Run `lupdate` to extract all translatable strings
+- Complete German and French translations
+- Add more languages (Portuguese, Korean, etc.)
+- Consider community translation contributions
+
+### Phase 3 Status
+With this implementation, **all Phase 3 tasks are now complete**:
+1. ✅ Scripture/Bible Integration
+2. ✅ Song Lyrics Database
+3. ✅ Slide Transitions
+4. ✅ Themes/Templates
+5. ✅ Presenter Notes
+6. ✅ Keyboard Shortcuts
+7. ✅ Media Support (video backgrounds; audio deferred to Phase 4)
+8. ✅ Remote Control
+9. ✅ Multi-Language Support
+
+---
+
 ## 2026-01-28 - Remote Control QR Code and PIN Security
 
 ### Summary

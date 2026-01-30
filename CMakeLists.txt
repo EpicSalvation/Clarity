@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find Qt6 packages
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql Multimedia WebSockets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql Multimedia WebSockets LinguistTools)
 
 # Core library (shared between all modes)
 add_library(ClarityCore STATIC
@@ -132,6 +132,32 @@ if(WIN32)
         WIN32_EXECUTABLE TRUE
     )
 endif()
+
+# Translation files
+set(TS_FILES
+    translations/clarity_es.ts
+    translations/clarity_de.ts
+    translations/clarity_fr.ts
+)
+
+# Create translations directory if it doesn't exist
+file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/translations)
+
+# Generate .qm files from .ts files and embed them as resources
+qt_add_translations(Clarity
+    TS_FILES ${TS_FILES}
+    QM_FILES_OUTPUT_VARIABLE QM_FILES
+    LUPDATE_OPTIONS -no-obsolete
+    INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/src
+)
+
+# Also copy .qm files to build directory for debugging/development
+set(TRANSLATIONS_DEST_DIR "$<TARGET_FILE_DIR:Clarity>/translations")
+add_custom_command(TARGET Clarity POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${TRANSLATIONS_DEST_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${QM_FILES} "${TRANSLATIONS_DEST_DIR}"
+    COMMENT "Copying translation files to build directory"
+)
 
 # Copy Bible database to build directory
 set(BIBLE_DB_SOURCE "${CMAKE_SOURCE_DIR}/data/bible.db")

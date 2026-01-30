@@ -20,7 +20,7 @@ ScriptureDialog::ScriptureDialog(BibleDatabase* bible, QWidget* parent)
     setupUI();
     populateTranslations();
 
-    setWindowTitle("Insert Scripture");
+    setWindowTitle(tr("Insert Scripture"));
     resize(700, 550);
 
     // Set focus to search field
@@ -32,7 +32,7 @@ void ScriptureDialog::setupUI()
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
 
     // Search section
-    QGroupBox* searchGroup = new QGroupBox("Search Scripture", this);
+    QGroupBox* searchGroup = new QGroupBox(tr("Search Scripture"), this);
     QVBoxLayout* searchLayout = new QVBoxLayout(searchGroup);
 
     // Search type and translation row

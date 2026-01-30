@@ -64,6 +64,10 @@ public:
     QString remoteControlPin() const;
     void setRemoteControlPin(const QString& pin);
 
+    // Language settings
+    QString language() const;  // Language code: "en", "es", "de", "fr", or "system"
+    void setLanguage(const QString& languageCode);
+
     // Reset all settings to defaults
     void resetToDefaults();
 
@@ -73,6 +77,7 @@ signals:
     void confidenceDisplaySettingsChanged();
     void transitionSettingsChanged();
     void remoteControlSettingsChanged();
+    void languageChanged(const QString& languageCode);
 
 private:
     QSettings* m_settings;

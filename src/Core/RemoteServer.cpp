@@ -444,33 +444,34 @@ void RemoteServer::onWebSocketDisconnected()
 
 QByteArray RemoteServer::getIndexHtml()
 {
-    return R"HTML(<!DOCTYPE html>
+    // Build HTML with translated strings
+    QString html = QString(R"HTML(<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Clarity Remote</title>
+    <title>%1</title>
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
     <!-- PIN Entry Dialog -->
     <div id="pinOverlay" class="pin-overlay" style="display: none;">
         <div class="pin-dialog">
-            <h2>Enter PIN</h2>
-            <p>A PIN is required to access the remote control.</p>
+            <h2>%2</h2>
+            <p>%3</p>
             <input type="password" id="pinInput" class="pin-input" maxlength="8"
-                   pattern="[0-9]*" inputmode="numeric" placeholder="Enter PIN">
-            <div id="pinError" class="pin-error" style="display: none;">Incorrect PIN</div>
-            <button id="pinSubmit" class="pin-submit" onclick="submitPin()">Connect</button>
+                   pattern="[0-9]*" inputmode="numeric" placeholder="%4">
+            <div id="pinError" class="pin-error" style="display: none;">%5</div>
+            <button id="pinSubmit" class="pin-submit" onclick="submitPin()">%6</button>
         </div>
     </div>
 
     <div id="mainContent" class="container">
         <header>
-            <h1>Clarity Remote</h1>
-            <div id="status" class="status disconnected">Connecting...</div>
+            <h1>%1</h1>
+            <div id="status" class="status disconnected">%7</div>
         </header>
 
         <div class="slide-info">
@@ -481,11 +482,11 @@ QByteArray RemoteServer::getIndexHtml()
 
         <div class="preview-section">
             <div class="preview-card current">
-                <div class="preview-label">Current Slide</div>
+                <div class="preview-label">%8</div>
                 <div id="currentSlide" class="preview-content">-</div>
             </div>
             <div class="preview-card next">
-                <div class="preview-label">Next Slide</div>
+                <div class="preview-label">%9</div>
                 <div id="nextSlide" class="preview-content">-</div>
             </div>
         </div>
@@ -494,35 +495,54 @@ QByteArray RemoteServer::getIndexHtml()
             <div class="nav-row">
                 <button id="prevBtn" class="nav-btn" onclick="send('prev')">
                     <span class="arrow">&#9664;</span>
-                    <span class="label">Previous</span>
+                    <span class="label">%10</span>
                 </button>
                 <button id="nextBtn" class="nav-btn primary" onclick="send('next')">
-                    <span class="label">Next</span>
+                    <span class="label">%11</span>
                     <span class="arrow">&#9654;</span>
                 </button>
             </div>
             <div class="action-row">
-                <button class="action-btn" onclick="send('first')">First</button>
-                <button class="action-btn" onclick="send('last')">Last</button>
-                <button class="action-btn warning" onclick="send('black')">Black</button>
-                <button class="action-btn" onclick="send('clear')">Clear</button>
+                <button class="action-btn" onclick="send('first')">%12</button>
+                <button class="action-btn" onclick="send('last')">%13</button>
+                <button class="action-btn warning" onclick="send('black')">%14</button>
+                <button class="action-btn" onclick="send('clear')">%15</button>
             </div>
         </div>
 
         <div class="connection-info">
             <div class="conn-item">
-                <span class="conn-label">Output:</span>
+                <span class="conn-label">%16</span>
                 <span id="outputStatus" class="conn-status off">-</span>
             </div>
             <div class="conn-item">
-                <span class="conn-label">Confidence:</span>
+                <span class="conn-label">%17</span>
                 <span id="confStatus" class="conn-status off">-</span>
             </div>
         </div>
     </div>
     <script src="/app.js"></script>
 </body>
-</html>)HTML";
+</html>)HTML")
+        .arg(tr("Clarity Remote"))           // %1 - Title
+        .arg(tr("Enter PIN"))                // %2 - PIN dialog title
+        .arg(tr("A PIN is required to access the remote control."))  // %3
+        .arg(tr("Enter PIN"))                // %4 - PIN placeholder
+        .arg(tr("Incorrect PIN"))            // %5 - PIN error
+        .arg(tr("Connect"))                  // %6 - Connect button
+        .arg(tr("Connecting..."))            // %7 - Status
+        .arg(tr("Current Slide"))            // %8 - Current slide label
+        .arg(tr("Next Slide"))               // %9 - Next slide label
+        .arg(tr("Previous"))                 // %10 - Previous button
+        .arg(tr("Next"))                     // %11 - Next button
+        .arg(tr("First"))                    // %12 - First button
+        .arg(tr("Last"))                     // %13 - Last button
+        .arg(tr("Black"))                    // %14 - Black button
+        .arg(tr("Clear"))                    // %15 - Clear button
+        .arg(tr("Output:"))                  // %16 - Output label
+        .arg(tr("Confidence:"));             // %17 - Confidence label
+
+    return html.toUtf8();
 }
 
 QByteArray RemoteServer::getStyleCss()
@@ -845,13 +865,24 @@ QByteArray RemoteServer::getAppJs()
     // Get WebSocket port (HTTP port + 1)
     QString wsPort = QString::number(m_port + 1);
 
-    return QString(R"JS(
+    // Build JavaScript with translated strings
+    QString js = QString(R"JS(
+// Translated strings injected from server
+const i18n = {
+    connected: '%1',
+    disconnected: '%2',
+    noSlide: '%3',
+    endOfPresentation: '%4',
+    incorrectPin: '%5',
+    off: '%6'
+};
+
 let ws = null;
 let reconnectTimer = null;
 let authenticated = false;
 
 function connect() {
-    const wsUrl = 'ws://' + location.hostname + ':%1';
+    const wsUrl = 'ws://' + location.hostname + ':%7';
     ws = new WebSocket(wsUrl);
 
     ws.onopen = function() {
@@ -861,7 +892,7 @@ function connect() {
 
     ws.onclose = function() {
         document.getElementById('status').className = 'status disconnected';
-        document.getElementById('status').textContent = 'Disconnected';
+        document.getElementById('status').textContent = i18n.disconnected;
         authenticated = false;
         // Reconnect after 2 seconds
         if (!reconnectTimer) {
@@ -888,7 +919,7 @@ function handleMessage(data) {
             hidePinDialog();
             authenticated = true;
             document.getElementById('status').className = 'status connected';
-            document.getElementById('status').textContent = 'Connected';
+            document.getElementById('status').textContent = i18n.connected;
             if (reconnectTimer) {
                 clearTimeout(reconnectTimer);
                 reconnectTimer = null;
@@ -903,14 +934,14 @@ function handleMessage(data) {
             hidePinDialog();
             authenticated = true;
             document.getElementById('status').className = 'status connected';
-            document.getElementById('status').textContent = 'Connected';
+            document.getElementById('status').textContent = i18n.connected;
             if (reconnectTimer) {
                 clearTimeout(reconnectTimer);
                 reconnectTimer = null;
             }
         } else {
             document.getElementById('pinError').style.display = 'block';
-            document.getElementById('pinError').textContent = data.error || 'Incorrect PIN';
+            document.getElementById('pinError').textContent = data.error || i18n.incorrectPin;
             document.getElementById('pinInput').value = '';
             document.getElementById('pinInput').focus();
         }
@@ -931,18 +962,18 @@ function handleMessage(data) {
         document.getElementById('totalNum').textContent =
             data.totalSlides > 0 ? data.totalSlides : '-';
         document.getElementById('currentSlide').textContent =
-            data.currentText || '(No slide)';
+            data.currentText || i18n.noSlide;
         document.getElementById('nextSlide').textContent =
-            data.nextText || '(End of presentation)';
+            data.nextText || i18n.endOfPresentation;
     }
 
     if (data.type === 'init' || data.type === 'status') {
         const outputEl = document.getElementById('outputStatus');
-        outputEl.textContent = data.outputConnected ? 'Connected' : 'Off';
+        outputEl.textContent = data.outputConnected ? i18n.connected : i18n.off;
         outputEl.className = 'conn-status ' + (data.outputConnected ? 'on' : 'off');
 
         const confEl = document.getElementById('confStatus');
-        confEl.textContent = data.confidenceConnected ? 'Connected' : 'Off';
+        confEl.textContent = data.confidenceConnected ? i18n.connected : i18n.off;
         confEl.className = 'conn-status ' + (data.confidenceConnected ? 'on' : 'off');
     }
 }
@@ -991,7 +1022,16 @@ document.addEventListener('click', function(e) {
 
 // Start connection
 connect();
-)JS").arg(wsPort).toUtf8();
+)JS")
+        .arg(tr("Connected"))                // %1
+        .arg(tr("Disconnected"))             // %2
+        .arg(tr("(No slide)"))               // %3
+        .arg(tr("(End of presentation)"))    // %4
+        .arg(tr("Incorrect PIN"))            // %5
+        .arg(tr("Off"))                      // %6
+        .arg(wsPort);                        // %7
+
+    return js.toUtf8();
 }
 
 } // namespace Clarity

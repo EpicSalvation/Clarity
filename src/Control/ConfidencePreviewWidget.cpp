@@ -79,7 +79,7 @@ void ConfidencePreviewWidget::paintEvent(QPaintEvent* event)
     titleFont.setBold(true);
     painter.setFont(titleFont);
     painter.setPen(Qt::white);
-    painter.drawText(titleRect, Qt::AlignCenter, "Confidence");
+    painter.drawText(titleRect, Qt::AlignCenter, tr("Confidence"));
 
     // Content area - render the confidence monitor layout
     QRect contentRect(0, titleHeight, width(), height() - titleHeight);
@@ -121,7 +121,7 @@ void ConfidencePreviewWidget::renderConfidenceMonitor(QPainter& painter, const Q
         QFont noSlideFont("Arial", 7);
         painter.setFont(noSlideFont);
         painter.setPen(grayColor);
-        painter.drawText(rect, Qt::AlignCenter, "No slide displayed");
+        painter.drawText(rect, Qt::AlignCenter, tr("No slide displayed"));
         return;
     }
 
@@ -159,7 +159,7 @@ void ConfidencePreviewWidget::renderConfidenceMonitor(QPainter& painter, const Q
         headerFont.setBold(true);
         painter.setFont(headerFont);
         painter.setPen(Qt::black);
-        QString headerText = QString("CURRENT (%1/%2)").arg(m_currentIndex + 1).arg(m_totalSlides);
+        QString headerText = tr("CURRENT (%1/%2)").arg(m_currentIndex + 1).arg(m_totalSlides);
         painter.drawText(headerRect, Qt::AlignCenter, headerText);
 
         // Content area
@@ -197,7 +197,7 @@ void ConfidencePreviewWidget::renderConfidenceMonitor(QPainter& painter, const Q
         headerFont.setBold(true);
         painter.setFont(headerFont);
         painter.setPen(Qt::black);
-        painter.drawText(headerRect, Qt::AlignCenter, m_hasNextSlide ? "NEXT" : "END");
+        painter.drawText(headerRect, Qt::AlignCenter, m_hasNextSlide ? tr("NEXT") : tr("END"));
 
         // Content area
         QRect slideRect(rightRect.left() + 1, rightRect.top() + rightHeaderHeight,
@@ -221,7 +221,7 @@ void ConfidencePreviewWidget::renderConfidenceMonitor(QPainter& painter, const Q
             QFont italicFont("Arial", 4);
             italicFont.setItalic(true);
             painter.setFont(italicFont);
-            painter.drawText(textRect, Qt::AlignCenter, "End");
+            painter.drawText(textRect, Qt::AlignCenter, tr("End"));
         }
     }
 
@@ -237,7 +237,7 @@ void ConfidencePreviewWidget::renderConfidenceMonitor(QPainter& painter, const Q
         QFont notesFont("Arial", 4);
         painter.setFont(notesFont);
         painter.setPen(QColor("#4a90d9"));
-        painter.drawText(notesRect.adjusted(2, 0, 0, 0), Qt::AlignLeft | Qt::AlignVCenter, "NOTES");
+        painter.drawText(notesRect.adjusted(2, 0, 0, 0), Qt::AlignLeft | Qt::AlignVCenter, tr("NOTES"));
 
         // Draw border
         painter.setPen(QColor("#4a90d9"));

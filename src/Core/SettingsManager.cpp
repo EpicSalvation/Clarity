@@ -260,6 +260,27 @@ void SettingsManager::setRemoteControlPin(const QString& pin)
     }
 }
 
+QString SettingsManager::language() const
+{
+    return m_settings->value("General/Language", "system").toString();
+}
+
+void SettingsManager::setLanguage(const QString& languageCode)
+{
+    QStringList validLanguages = {"system", "en", "es", "de", "fr"};
+    if (!validLanguages.contains(languageCode)) {
+        qWarning() << "SettingsManager: Invalid language code:" << languageCode;
+        return;
+    }
+
+    if (language() != languageCode) {
+        m_settings->setValue("General/Language", languageCode);
+        m_settings->sync();
+        emit languageChanged(languageCode);
+        qDebug() << "SettingsManager: Language set to" << languageCode;
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";
@@ -269,6 +290,7 @@ void SettingsManager::resetToDefaults()
     emit confidenceDisplaySettingsChanged();
     emit transitionSettingsChanged();
     emit remoteControlSettingsChanged();
+    emit languageChanged("system");
 }
 
 } // namespace Clarity

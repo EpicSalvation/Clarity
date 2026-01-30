@@ -23,7 +23,7 @@ SongLibraryDialog::SongLibraryDialog(SongLibrary* library, QWidget* parent)
 {
     setupUI();
 
-    setWindowTitle("Song Library");
+    setWindowTitle(tr("Song Library"));
     resize(800, 600);
 
     // Prevent the dialog from auto-resizing based on content

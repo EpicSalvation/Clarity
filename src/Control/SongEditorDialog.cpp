@@ -15,7 +15,7 @@ SongEditorDialog::SongEditorDialog(QWidget* parent)
     , m_currentSectionIndex(-1)
 {
     setupUI();
-    setWindowTitle("Song Editor");
+    setWindowTitle(tr("Song Editor"));
     resize(700, 600);
 }
 
@@ -24,7 +24,7 @@ void SongEditorDialog::setupUI()
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
 
     // Metadata section
-    QGroupBox* metadataGroup = new QGroupBox("Song Information", this);
+    QGroupBox* metadataGroup = new QGroupBox(tr("Song Information"), this);
     QFormLayout* metadataLayout = new QFormLayout(metadataGroup);
 
     m_titleEdit = new QLineEdit(this);

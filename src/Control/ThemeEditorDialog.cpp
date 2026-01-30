@@ -86,7 +86,7 @@ void ThemeEditorDialog::installWheelFilter(QWidget* widget)
 
 void ThemeEditorDialog::setupUI()
 {
-    setWindowTitle(m_isNewTheme ? "Create New Theme" : "Edit Theme");
+    setWindowTitle(m_isNewTheme ? tr("Create New Theme") : tr("Edit Theme"));
     setMinimumSize(500, 600);
 
     QVBoxLayout* mainLayout = new QVBoxLayout(this);

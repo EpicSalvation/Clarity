@@ -26,7 +26,7 @@ SlideEditorDialog::SlideEditorDialog(SettingsManager* settings, MediaLibrary* me
     , m_thumbnailGen(thumbnailGen)
 {
     setupUI();
-    setWindowTitle("Edit Slide");
+    setWindowTitle(tr("Edit Slide"));
     resize(900, 600);
     setMinimumSize(700, 400);  // Allow resizing but set minimum for two columns
 }
@@ -69,47 +69,47 @@ void SlideEditorDialog::setupUI()
     // === LEFT COLUMN ===
 
     // Text content section
-    QGroupBox* textGroup = new QGroupBox("Slide Content", leftColumn);
+    QGroupBox* textGroup = new QGroupBox(tr("Slide Content"), leftColumn);
     QVBoxLayout* textLayout = new QVBoxLayout(textGroup);
 
     m_textEdit = new QTextEdit(this);
-    m_textEdit->setPlaceholderText("Enter slide text here...");
+    m_textEdit->setPlaceholderText(tr("Enter slide text here..."));
     m_textEdit->setMinimumHeight(120);
     textLayout->addWidget(m_textEdit);
 
     leftLayout->addWidget(textGroup);
 
     // Text styling section
-    QGroupBox* textStyleGroup = new QGroupBox("Text Style", leftColumn);
+    QGroupBox* textStyleGroup = new QGroupBox(tr("Text Style"), leftColumn);
     QFormLayout* textStyleLayout = new QFormLayout(textStyleGroup);
 
-    m_textColorButton = new QPushButton("Choose Color", this);
+    m_textColorButton = new QPushButton(tr("Choose Color"), this);
     connect(m_textColorButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseTextColor);
-    textStyleLayout->addRow("Text Color:", m_textColorButton);
+    textStyleLayout->addRow(tr("Text Color:"), m_textColorButton);
 
     m_fontFamilyCombo = new QComboBox(this);
     m_fontFamilyCombo->addItems({"Arial", "Helvetica", "Georgia", "Verdana", "Times New Roman"});
     installWheelFilter(m_fontFamilyCombo);
-    textStyleLayout->addRow("Font Family:", m_fontFamilyCombo);
+    textStyleLayout->addRow(tr("Font Family:"), m_fontFamilyCombo);
 
     m_fontSizeSpinBox = new QSpinBox(this);
     m_fontSizeSpinBox->setRange(12, 144);
     m_fontSizeSpinBox->setValue(48);
-    m_fontSizeSpinBox->setSuffix(" pt");
+    m_fontSizeSpinBox->setSuffix(tr(" pt"));
     installWheelFilter(m_fontSizeSpinBox);
-    textStyleLayout->addRow("Font Size:", m_fontSizeSpinBox);
+    textStyleLayout->addRow(tr("Font Size:"), m_fontSizeSpinBox);
 
     leftLayout->addWidget(textStyleGroup);
 
     // Background section
-    QGroupBox* backgroundGroup = new QGroupBox("Background", leftColumn);
+    QGroupBox* backgroundGroup = new QGroupBox(tr("Background"), leftColumn);
     QVBoxLayout* backgroundLayout = new QVBoxLayout(backgroundGroup);
 
     m_backgroundTypeCombo = new QComboBox(this);
-    m_backgroundTypeCombo->addItem("Solid Color", "solidColor");
-    m_backgroundTypeCombo->addItem("Gradient", "gradient");
-    m_backgroundTypeCombo->addItem("Image", "image");
-    m_backgroundTypeCombo->addItem("Video", "video");
+    m_backgroundTypeCombo->addItem(tr("Solid Color"), "solidColor");
+    m_backgroundTypeCombo->addItem(tr("Gradient"), "gradient");
+    m_backgroundTypeCombo->addItem(tr("Image"), "image");
+    m_backgroundTypeCombo->addItem(tr("Video"), "video");
     installWheelFilter(m_backgroundTypeCombo);
     connect(m_backgroundTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &SlideEditorDialog::onBackgroundTypeChanged);

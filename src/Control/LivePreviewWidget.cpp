@@ -81,7 +81,7 @@ void LivePreviewWidget::paintEvent(QPaintEvent* event)
         QFont noSignalFont("Arial", 10);
         painter.setFont(noSignalFont);
         painter.setPen(QColor("#6b7280"));  // Gray text
-        painter.drawText(previewRect, Qt::AlignCenter, "No Signal");
+        painter.drawText(previewRect, Qt::AlignCenter, tr("No Signal"));
     }
 
     // Draw border around preview area

@@ -67,6 +67,9 @@ private:
     // UI behavior settings
     QCheckBox* m_scrollWheelChangesInputsCheckBox;
 
+    // Language settings
+    QComboBox* m_languageComboBox;
+
     // Remote control settings
     QCheckBox* m_remoteControlEnabledCheckBox;
     QSpinBox* m_remoteControlPortSpinBox;

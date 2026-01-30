@@ -45,6 +45,12 @@ Clarity now includes comprehensive presentation features suitable for worship se
 - **PIN protection** to prevent unauthorized access
 - Real-time slide preview and navigation controls
 
+#### Multi-Language Support
+- **Language selection** in Settings (General page)
+- Supported languages: English, Spanish, German, French
+- System language auto-detection option
+- Mobile remote control page also translated
+
 #### Additional Features
 - **Themes** for consistent slide styling
 - **Presenter notes** for each slide
