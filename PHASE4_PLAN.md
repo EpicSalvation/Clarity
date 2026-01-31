@@ -17,11 +17,10 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [x] IPC updates with item info for confidence monitor
   - [x] Settings option to toggle between showing all slides or item slides only
 
-- [ ] **Transition Refinements**
-  - [ ] Interrupt active transitions when new slide change is requested
-  - [ ] Current behavior: transitions block new navigation until complete
-  - [ ] Desired behavior: new navigation interrupts current transition and starts transition to new slide
-  - [ ] Consider: immediate cut to new slide vs. smooth redirect to new target
+- [x] **Transition Refinements**
+  - [x] Interrupt active transitions when new slide change is requested
+  - [x] New navigation interrupts current transition and starts transition to new slide
+  - [x] Implementation: immediate snap to end state, then begin new transition (Option A)
 
 ### Medium Priority
 
