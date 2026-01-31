@@ -4,136 +4,85 @@
 
 Phase 4 focuses on polish, performance improvements, and advanced media features to enhance the presentation experience.
 
-## Planned Tasks
+## Task Checklist (sorted by priority)
 
-### 1. Transition Refinements
-**Priority: High**
+### High Priority
 
-Improve slide transition behavior:
-- If a slide change is requested during an active transition, respect the new slide change instead of ignoring it
-- Current behavior: transitions block new navigation until complete
-- Desired behavior: new navigation interrupts current transition and starts transition to new slide
-- Consider: immediate cut to new slide vs. smooth redirect to new target
+- [x] **Presentation Structure Refactor (Playlist Model)**
+  - [x] PresentationItem base class with SongItem, ScriptureItem, CustomSlideItem, SlideGroupItem
+  - [x] Presentation refactored to use QList<PresentationItem*>
+  - [x] ItemListModel for left panel showing items
+  - [x] SlideFilterProxyModel for filtering grid by selected item
+  - [x] v2.0 file format with automatic v1.0 migration
+  - [x] IPC updates with item info for confidence monitor
+  - [x] Settings option to toggle between showing all slides or item slides only
 
-### 2. Audio Playback Support
-**Priority: Medium**
+- [ ] **Transition Refinements**
+  - [ ] Interrupt active transitions when new slide change is requested
+  - [ ] Current behavior: transitions block new navigation until complete
+  - [ ] Desired behavior: new navigation interrupts current transition and starts transition to new slide
+  - [ ] Consider: immediate cut to new slide vs. smooth redirect to new target
 
-Add audio playback capabilities:
-- Background music for slides
-- Audio cues/sound effects
-- Volume control
-- Fade in/out options
-- Continue across slides option
+### Medium Priority
 
-### 3. Background Blur Effects
-**Priority: Low**
+- [ ] **Audio Playback Support**
+  - [ ] Background music for slides
+  - [ ] Audio cues/sound effects
+  - [ ] Volume control
+  - [ ] Fade in/out options
+  - [ ] Continue across slides option
 
-Add blur effect options:
-- Blur behind text for legibility
-- Frosted glass effect for text containers
-- Variable blur radius
+- [ ] **Video Playback Controls**
+  - [ ] Start time / end time trimming
+  - [ ] Playback speed control
+  - [ ] Audio track enable/disable per slide
+  - [ ] Loop point configuration
 
-### 4. Ken Burns Effect
-**Priority: Low**
+- [ ] **Scripture Lookup Integration**
+  - [ ] Quick lookup by reference
+  - [ ] Multiple translation support
+  - [ ] Automatic verse formatting
+  - [ ] Scripture-specific themes
 
-Animated pan/zoom for image backgrounds:
-- Configurable start and end positions
-- Adjustable duration
-- Direction presets (zoom in, zoom out, pan left, etc.)
+- [ ] **Bible Enhancements**
+  - [ ] Full Bible Importer (OSIS, USFM, Zefania XML formats)
+  - [ ] Red Letter Edition (words of Jesus in red)
+    - [ ] Verse-level markup in database schema
+    - [ ] UI option to enable/disable red letters
+    - [ ] Rich text support in slides
 
-### 5. Video Playback Controls
-**Priority: Medium**
+- [ ] **SongSelect Integration**
+  - [ ] Search SongSelect catalog from within Clarity
+  - [ ] Download lyrics directly (requires CCLI subscription)
+  - [ ] Automatic CCLI reporting integration
+  - [ ] OAuth authentication with SongSelect API
+  - [ ] Cache downloaded songs in local library
 
-Enhanced video background options:
-- Start time / end time trimming
-- Playback speed control
-- Audio track enable/disable per slide
-- Loop point configuration
+### Low Priority
 
-### 6. Lower-Third Animations
-**Priority: Low**
+- [ ] **Background Blur Effects**
+  - [ ] Blur behind text for legibility
+  - [ ] Frosted glass effect for text containers
+  - [ ] Variable blur radius
 
-Animated text entry/exit:
-- Slide in from side
-- Fade in/out
-- Typewriter effect
-- Configurable timing
+- [ ] **Ken Burns Effect**
+  - [ ] Configurable start and end positions
+  - [ ] Adjustable duration
+  - [ ] Direction presets (zoom in, zoom out, pan left, etc.)
 
-### 7. Scripture Lookup Integration
-**Priority: Medium**
+- [ ] **Lower-Third Animations**
+  - [ ] Slide in from side
+  - [ ] Fade in/out
+  - [ ] Typewriter effect
+  - [ ] Configurable timing
 
-Improved scripture features:
-- Quick lookup by reference
-- Multiple translation support
-- Automatic verse formatting
-- Scripture-specific themes
-
-### 8. Bible Enhancements
-**Priority: Medium**
-
-- **Full Bible Importer**: Tool/UI to import complete Bible translations from standard formats (OSIS, USFM, Zefania XML)
-- **Red Letter Edition**: Format words of Jesus in red text on slides
-  - Requires verse-level markup in database schema
-  - UI option to enable/disable red letters
-  - May need rich text support in slides
-
-### 9. Song Library Enhancements
-**Priority: Medium**
-
-- **SongSelect Integration**: Direct integration with CCLI SongSelect service
-  - Search SongSelect catalog from within Clarity
-  - Download lyrics directly (requires CCLI subscription)
-  - Automatic CCLI reporting integration
-  - OAuth authentication with SongSelect API
-  - Cache downloaded songs in local library
-
-### 10. Presentation Structure Refactor (Playlist Model)
-**Priority: High** | **Status: ✅ COMPLETE**
-
-Restructure presentations to be playlists of "items" rather than flat slide lists.
-
-**Problem**: Currently presentations are flat lists of slides. This makes it difficult to:
-- Apply a theme to "all slides in this song" or "all slides in this scripture passage"
-- Reorder entire songs/scripture blocks as units
-- Track which slides belong together logically
-- Show song/scripture metadata in confidence monitor
-
-**Proposed Solution**: PresentationItem base class with derived types:
-- `SongItem` - references a Song from the library, generates slides on demand
-- `ScriptureItem` - references a scripture passage, generates slides on demand
-- `CustomSlideItem` - standalone slides (announcements, images, etc.)
-- `SlideGroupItem` - arbitrary group of slides that belong together
-
-**Benefits**:
-- Each item can have its own theme/style settings
-- Items track their source (song ID, scripture reference) for updates
-- "Apply theme to item" applies to all slides in that item
-- Drag-and-drop reorders entire items, not individual slides
-- Confidence monitor can show "Now playing: Amazing Grace (Verse 2 of 4)"
-
-**Migration path**:
-- Existing .cly files load as a single SlideGroupItem
-- New presentations use item-based structure
-- Version field in JSON handles format detection
-
-**Implemented**:
-- ✅ PresentationItem base class with SongItem, ScriptureItem, CustomSlideItem, SlideGroupItem
-- ✅ Presentation refactored to use QList<PresentationItem*>
-- ✅ ItemListModel for left panel showing items
-- ✅ SlideFilterProxyModel for filtering grid by selected item
-- ✅ v2.0 file format with automatic v1.0 migration
-- ✅ IPC updates with item info for confidence monitor
-- ✅ Settings option to toggle between showing all slides or item slides only
-
-### 11. Other Potential Features
-**Priority: Low**
-
-- Radial gradients
-- Multi-stop gradients
-- Drag-and-drop slide reordering (item-level and slide-level)
-- Undo/redo for edits
-- Cloud sync for presentations
-- Presentation templates marketplace
+- [ ] **Other Potential Features**
+  - [ ] Radial gradients
+  - [ ] Multi-stop gradients
+  - [ ] Drag-and-drop slide reordering (item-level and slide-level)
+  - [ ] Undo/redo for edits
+  - [ ] Cloud sync for presentations
+  - [ ] Presentation templates marketplace
 
 ## Technical Considerations
 
