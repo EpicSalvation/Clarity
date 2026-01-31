@@ -43,12 +43,20 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [ ] Automatic verse formatting
   - [ ] Scripture-specific themes
 
-- [ ] **Bible Enhancements**
-  - [ ] Full Bible Importer (OSIS, USFM, Zefania XML formats)
-  - [ ] Red Letter Edition (words of Jesus in red)
-    - [ ] Verse-level markup in database schema
-    - [ ] UI option to enable/disable red letters
-    - [ ] Rich text support in slides
+- [x] **Bible Translation Importer**
+  - [x] Multi-format support: OSIS XML, USFM, USX, USFX, Zefania XML, TSV
+  - [x] Auto-detection of format by file content
+  - [x] Folder import for multi-file USFM Bibles
+  - [x] Import dialog with preview and progress tracking
+  - [x] Translation management in Settings (import/delete)
+  - [x] Persistent translation preferences (preferred vs. remember last)
+  - [x] One verse per slide setting persistence
+
+- [ ] **Bible Enhancements (Red Letter Edition)**
+  - [ ] Words of Jesus displayed in red
+  - [ ] Verse-level markup in database schema
+  - [ ] UI option to enable/disable red letters
+  - [ ] Rich text support in slides
 
 - [ ] **SongSelect Integration**
   - [ ] Search SongSelect catalog from within Clarity
