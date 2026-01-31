@@ -60,6 +60,8 @@ add_library(ClarityCore STATIC
     src/Core/RemoteServer.cpp
     src/Core/QrCode.h
     src/Core/QrCode.cpp
+    src/Core/BibleImporter.h
+    src/Core/BibleImporter.cpp
 )
 
 target_link_libraries(ClarityCore
@@ -113,6 +115,8 @@ add_executable(Clarity
     src/Control/ConfidencePreviewWidget.cpp
     src/Control/MediaLibraryDialog.h
     src/Control/MediaLibraryDialog.cpp
+    src/Control/BibleImportDialog.h
+    src/Control/BibleImportDialog.cpp
 
     # Output display files
     src/Output/OutputMain.h

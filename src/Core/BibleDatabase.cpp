@@ -1,4 +1,5 @@
 #include "BibleDatabase.h"
+#include "BibleImporter.h"
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QRegularExpression>
@@ -515,6 +516,186 @@ int BibleDatabase::verseCount(const QString& book, int chapter) const
     }
 
     return 0;
+}
+
+// =============================================================================
+// Translation Import Methods
+// =============================================================================
+
+bool BibleDatabase::translationExists(const QString& code) const
+{
+    if (!isValid()) {
+        return false;
+    }
+
+    QSqlQuery query(m_database);
+    query.prepare("SELECT COUNT(*) FROM verses WHERE translation = :code LIMIT 1");
+    query.bindValue(":code", code);
+
+    if (query.exec() && query.next()) {
+        return query.value(0).toInt() > 0;
+    }
+
+    return false;
+}
+
+bool BibleDatabase::deleteTranslation(const QString& code)
+{
+    if (!isValid()) {
+        qWarning() << "BibleDatabase: Cannot delete translation - database not initialized";
+        return false;
+    }
+
+    QSqlQuery query(m_database);
+
+    // Start transaction for consistency
+    m_database.transaction();
+
+    // Delete all verses for this translation
+    query.prepare("DELETE FROM verses WHERE translation = :code");
+    query.bindValue(":code", code);
+
+    if (!query.exec()) {
+        qWarning() << "BibleDatabase: Failed to delete translation" << code << ":" << query.lastError().text();
+        m_database.rollback();
+        return false;
+    }
+
+    int rowsDeleted = query.numRowsAffected();
+    m_database.commit();
+
+    qDebug() << "BibleDatabase: Deleted" << rowsDeleted << "verses for translation" << code;
+    return true;
+}
+
+bool BibleDatabase::importTranslation(const TranslationInfo& translation, const QList<ImportedVerse>& verses)
+{
+    if (!isValid()) {
+        qWarning() << "BibleDatabase: Cannot import - database not initialized";
+        return false;
+    }
+
+    if (verses.isEmpty()) {
+        qWarning() << "BibleDatabase: No verses to import";
+        return false;
+    }
+
+    qDebug() << "BibleDatabase: Starting import of" << verses.size() << "verses for" << translation.code;
+
+    // Build book name to ID map from the books table
+    QMap<QString, int> bookIdMap;
+    QSqlQuery bookQuery(m_database);
+    bookQuery.prepare("SELECT id, name FROM books");
+    if (bookQuery.exec()) {
+        while (bookQuery.next()) {
+            bookIdMap[bookQuery.value(1).toString()] = bookQuery.value(0).toInt();
+        }
+    }
+
+    // Start transaction for bulk insert performance
+    if (!m_database.transaction()) {
+        qWarning() << "BibleDatabase: Failed to start transaction:" << m_database.lastError().text();
+        return false;
+    }
+
+    // Prepare insert statement (reused for all verses)
+    QSqlQuery insertQuery(m_database);
+    insertQuery.prepare(R"(
+        INSERT INTO verses (book_id, chapter, verse, text, translation)
+        VALUES (:book_id, :chapter, :verse, :text, :translation)
+    )");
+
+    int total = verses.size();
+    int imported = 0;
+    int skipped = 0;
+
+    for (int i = 0; i < total; ++i) {
+        const ImportedVerse& v = verses[i];
+
+        // Look up book ID
+        int bookId = bookIdMap.value(v.book, -1);
+        if (bookId < 0) {
+            // Try to find book by case-insensitive match
+            for (auto it = bookIdMap.constBegin(); it != bookIdMap.constEnd(); ++it) {
+                if (it.key().compare(v.book, Qt::CaseInsensitive) == 0) {
+                    bookId = it.value();
+                    break;
+                }
+            }
+        }
+
+        if (bookId < 0) {
+            qWarning() << "BibleDatabase: Unknown book" << v.book << "- skipping verse";
+            skipped++;
+            continue;
+        }
+
+        insertQuery.bindValue(":book_id", bookId);
+        insertQuery.bindValue(":chapter", v.chapter);
+        insertQuery.bindValue(":verse", v.verse);
+        insertQuery.bindValue(":text", v.text);
+        insertQuery.bindValue(":translation", translation.code);
+
+        if (!insertQuery.exec()) {
+            qWarning() << "BibleDatabase: Failed to insert verse" << v.book << v.chapter << ":" << v.verse
+                       << "-" << insertQuery.lastError().text();
+            skipped++;
+            continue;
+        }
+
+        imported++;
+
+        // Emit progress every 1000 verses
+        if (imported % 1000 == 0) {
+            emit importProgress(imported, total);
+        }
+    }
+
+    // Commit transaction
+    if (!m_database.commit()) {
+        qWarning() << "BibleDatabase: Failed to commit transaction:" << m_database.lastError().text();
+        m_database.rollback();
+        return false;
+    }
+
+    // Rebuild FTS index if it exists
+    QStringList tables = m_database.tables();
+    if (tables.contains("verses_fts")) {
+        QSqlQuery ftsQuery(m_database);
+        if (ftsQuery.exec("INSERT INTO verses_fts(verses_fts) VALUES('rebuild')")) {
+            qDebug() << "BibleDatabase: Rebuilt FTS index";
+        } else {
+            qWarning() << "BibleDatabase: Failed to rebuild FTS index:" << ftsQuery.lastError().text();
+        }
+    }
+
+    qDebug() << "BibleDatabase: Import complete -" << imported << "verses imported," << skipped << "skipped";
+    emit importProgress(total, total);
+
+    return imported > 0;
+}
+
+QList<QPair<QString, QString>> BibleDatabase::translationInfo() const
+{
+    QList<QPair<QString, QString>> result;
+
+    if (!isValid()) {
+        return result;
+    }
+
+    QSqlQuery query(m_database);
+    query.prepare("SELECT DISTINCT translation FROM verses ORDER BY translation");
+
+    if (query.exec()) {
+        while (query.next()) {
+            QString code = query.value(0).toString();
+            // For now, use code as name since we don't store full names
+            // A future enhancement could add a translations table
+            result.append(qMakePair(code, code));
+        }
+    }
+
+    return result;
 }
 
 } // namespace Clarity

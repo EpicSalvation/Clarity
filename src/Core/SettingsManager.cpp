@@ -297,6 +297,66 @@ void SettingsManager::setLanguage(const QString& languageCode)
     }
 }
 
+QString SettingsManager::preferredBibleTranslation() const
+{
+    return m_settings->value("Bible/PreferredTranslation", "KJV").toString();
+}
+
+void SettingsManager::setPreferredBibleTranslation(const QString& translationCode)
+{
+    if (preferredBibleTranslation() != translationCode) {
+        m_settings->setValue("Bible/PreferredTranslation", translationCode);
+        m_settings->sync();
+    }
+}
+
+bool SettingsManager::rememberLastBibleTranslation() const
+{
+    return m_settings->value("Bible/RememberLastTranslation", true).toBool();
+}
+
+void SettingsManager::setRememberLastBibleTranslation(bool remember)
+{
+    if (rememberLastBibleTranslation() != remember) {
+        m_settings->setValue("Bible/RememberLastTranslation", remember);
+        m_settings->sync();
+    }
+}
+
+QString SettingsManager::lastBibleTranslation() const
+{
+    return m_settings->value("Bible/LastTranslation", "KJV").toString();
+}
+
+void SettingsManager::setLastBibleTranslation(const QString& translationCode)
+{
+    if (lastBibleTranslation() != translationCode) {
+        m_settings->setValue("Bible/LastTranslation", translationCode);
+        m_settings->sync();
+    }
+}
+
+QString SettingsManager::effectiveBibleTranslation() const
+{
+    if (rememberLastBibleTranslation()) {
+        return lastBibleTranslation();
+    }
+    return preferredBibleTranslation();
+}
+
+bool SettingsManager::scriptureOneVersePerSlide() const
+{
+    return m_settings->value("Bible/OneVersePerSlide", false).toBool();
+}
+
+void SettingsManager::setScriptureOneVersePerSlide(bool onePerSlide)
+{
+    if (scriptureOneVersePerSlide() != onePerSlide) {
+        m_settings->setValue("Bible/OneVersePerSlide", onePerSlide);
+        m_settings->sync();
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";

@@ -71,6 +71,25 @@ public:
     QString language() const;  // Language code: "en", "es", "de", "fr", or "system"
     void setLanguage(const QString& languageCode);
 
+    // Bible settings
+    QString preferredBibleTranslation() const;  // Preferred/default translation code (e.g., "KJV")
+    void setPreferredBibleTranslation(const QString& translationCode);
+
+    bool rememberLastBibleTranslation() const;  // If true, use last used; if false, use preferred
+    void setRememberLastBibleTranslation(bool remember);
+
+    QString lastBibleTranslation() const;  // Last used translation code
+    void setLastBibleTranslation(const QString& translationCode);
+
+    /**
+     * @brief Get the translation to use (respects remember setting)
+     * @return Either last used or preferred translation based on settings
+     */
+    QString effectiveBibleTranslation() const;
+
+    bool scriptureOneVersePerSlide() const;  // Whether to create one slide per verse
+    void setScriptureOneVersePerSlide(bool onePerSlide);
+
     // Reset all settings to defaults
     void resetToDefaults();
 

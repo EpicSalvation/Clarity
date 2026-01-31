@@ -1,4 +1,5 @@
 #include "ScriptureDialog.h"
+#include "Core/SettingsManager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -9,9 +10,10 @@
 
 namespace Clarity {
 
-ScriptureDialog::ScriptureDialog(BibleDatabase* bible, QWidget* parent)
+ScriptureDialog::ScriptureDialog(BibleDatabase* bible, SettingsManager* settings, QWidget* parent)
     : QDialog(parent)
     , m_bible(bible)
+    , m_settings(settings)
     , m_backgroundColor(QColor("#1e3a8a"))
     , m_textColor(QColor("#ffffff"))
     , m_fontFamily("Arial")
@@ -123,14 +125,14 @@ void ScriptureDialog::setupUI()
     m_includeReferenceCheck = new QCheckBox("Include reference on slide", this);
     m_includeReferenceCheck->setChecked(true);
     m_includeReferenceCheck->setToolTip("Add the Bible reference (e.g., John 3:16) to each slide");
-    connect(m_includeReferenceCheck, &QCheckBox::stateChanged,
+    connect(m_includeReferenceCheck, &QCheckBox::checkStateChanged,
             this, &ScriptureDialog::onIncludeReferenceChanged);
     optionsLayout->addWidget(m_includeReferenceCheck);
 
     m_onePerSlideCheck = new QCheckBox("One verse per slide", this);
-    m_onePerSlideCheck->setChecked(false);
+    m_onePerSlideCheck->setChecked(m_settings ? m_settings->scriptureOneVersePerSlide() : false);
     m_onePerSlideCheck->setToolTip("Create separate slides for each verse");
-    connect(m_onePerSlideCheck, &QCheckBox::stateChanged,
+    connect(m_onePerSlideCheck, &QCheckBox::checkStateChanged,
             this, &ScriptureDialog::onOnePerSlideChanged);
     optionsLayout->addWidget(m_onePerSlideCheck);
 
@@ -178,15 +180,32 @@ void ScriptureDialog::populateTranslations()
         return;
     }
 
+    // Block signals while populating to avoid saving the wrong "last used" translation
+    m_translationCombo->blockSignals(true);
+
     for (const QString& translation : translations) {
         m_translationCombo->addItem(translation, translation);
     }
 
-    // Select default translation if available
-    int defaultIndex = m_translationCombo->findText(m_bible->defaultTranslation());
+    // Select translation based on settings (or fallback to database default)
+    QString preferredTranslation;
+    if (m_settings) {
+        preferredTranslation = m_settings->effectiveBibleTranslation();
+    } else {
+        preferredTranslation = m_bible->defaultTranslation();
+    }
+
+    int defaultIndex = m_translationCombo->findText(preferredTranslation);
     if (defaultIndex >= 0) {
         m_translationCombo->setCurrentIndex(defaultIndex);
+        m_bible->setDefaultTranslation(preferredTranslation);
+    } else if (m_translationCombo->count() > 0) {
+        // Fallback to first available translation
+        m_translationCombo->setCurrentIndex(0);
+        m_bible->setDefaultTranslation(m_translationCombo->currentData().toString());
     }
+
+    m_translationCombo->blockSignals(false);
 }
 
 void ScriptureDialog::onSearch()
@@ -316,6 +335,11 @@ void ScriptureDialog::onTranslationChanged(int index)
     QString translation = m_translationCombo->currentData().toString();
     if (!translation.isEmpty()) {
         m_bible->setDefaultTranslation(translation);
+
+        // Save the last used translation
+        if (m_settings) {
+            m_settings->setLastBibleTranslation(translation);
+        }
     }
 
     // Re-run search if there was one
@@ -324,15 +348,18 @@ void ScriptureDialog::onTranslationChanged(int index)
     }
 }
 
-void ScriptureDialog::onIncludeReferenceChanged(int state)
+void ScriptureDialog::onIncludeReferenceChanged(Qt::CheckState state)
 {
     Q_UNUSED(state)
     updatePreview();
 }
 
-void ScriptureDialog::onOnePerSlideChanged(int state)
+void ScriptureDialog::onOnePerSlideChanged(Qt::CheckState state)
 {
-    Q_UNUSED(state)
+    // Save the preference
+    if (m_settings) {
+        m_settings->setScriptureOneVersePerSlide(state == Qt::Checked);
+    }
     updatePreview();
 }
 

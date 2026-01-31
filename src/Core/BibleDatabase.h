@@ -7,6 +7,10 @@
 
 namespace Clarity {
 
+// Forward declarations for import types (defined in BibleImporter.h)
+struct ImportedVerse;
+struct TranslationInfo;
+
 /**
  * @brief Represents a single Bible verse
  */
@@ -137,6 +141,49 @@ public:
      * @brief Get the number of verses in a chapter
      */
     int verseCount(const QString& book, int chapter) const;
+
+    // =========================================================================
+    // Translation Import Methods
+    // =========================================================================
+
+    /**
+     * @brief Check if a translation already exists in the database
+     * @param code Translation code (e.g., "KJV")
+     * @return true if translation exists
+     */
+    bool translationExists(const QString& code) const;
+
+    /**
+     * @brief Delete a translation and all its verses
+     * @param code Translation code to delete
+     * @return true on success
+     */
+    bool deleteTranslation(const QString& code);
+
+    /**
+     * @brief Import a translation into the database
+     * @param translation Translation metadata
+     * @param verses List of verses to import
+     * @return true on success
+     *
+     * Uses a single transaction for performance. Emits importProgress signal.
+     * If the translation already exists, call deleteTranslation() first.
+     */
+    bool importTranslation(const TranslationInfo& translation, const QList<ImportedVerse>& verses);
+
+    /**
+     * @brief Get list of translation info (code and name)
+     * @return List of pairs: (code, name)
+     */
+    QList<QPair<QString, QString>> translationInfo() const;
+
+signals:
+    /**
+     * @brief Emitted during import to report progress
+     * @param current Current verse number
+     * @param total Total number of verses
+     */
+    void importProgress(int current, int total);
 
 private:
     /**

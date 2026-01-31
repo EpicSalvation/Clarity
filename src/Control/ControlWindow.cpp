@@ -663,6 +663,7 @@ void ControlWindow::onMessageReceived(QLocalSocket* client, const QJsonObject& m
 void ControlWindow::onSettings()
 {
     SettingsDialog dialog(m_settingsManager, this);
+    dialog.setBibleDatabase(m_bibleDatabase);
     dialog.exec();
 }
 
@@ -1131,7 +1132,7 @@ void ControlWindow::onInsertScripture()
         return;
     }
 
-    ScriptureDialog dialog(m_bibleDatabase, this);
+    ScriptureDialog dialog(m_bibleDatabase, m_settingsManager, this);
 
     // Set default style based on current presentation theme
     Presentation* presentation = m_presentationModel->presentation();

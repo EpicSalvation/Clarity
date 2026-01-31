@@ -1,4 +1,6 @@
 #include "SettingsDialog.h"
+#include "BibleImportDialog.h"
+#include "Core/BibleDatabase.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -9,6 +11,7 @@
 #include <QGuiApplication>
 #include <QColorDialog>
 #include <QRegularExpressionValidator>
+#include <QMessageBox>
 #include <QDebug>
 #include <climits>
 
@@ -33,10 +36,20 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_languageComboBox(nullptr)
     , m_remoteControlEnabledCheckBox(nullptr)
     , m_remoteControlPortSpinBox(nullptr)
+    , m_translationsListWidget(nullptr)
+    , m_importTranslationButton(nullptr)
+    , m_deleteTranslationButton(nullptr)
+    , m_bibleDatabase(nullptr)
     , m_settingsManager(settingsManager)
 {
     setupUI();
     loadSettings();
+}
+
+void SettingsDialog::setBibleDatabase(BibleDatabase* database)
+{
+    m_bibleDatabase = database;
+    refreshTranslationsList();
 }
 
 SettingsDialog::~SettingsDialog()
@@ -62,6 +75,7 @@ void SettingsDialog::setupUI()
     // Add categories
     m_categoryList->addItem(tr("General"));
     m_categoryList->addItem(tr("Display"));
+    m_categoryList->addItem(tr("Bible"));
     m_categoryList->addItem(tr("Remote Control"));
 
     connect(m_categoryList, &QListWidget::currentRowChanged,
@@ -76,6 +90,7 @@ void SettingsDialog::setupUI()
     // Create settings pages (order must match category list order)
     createGeneralPage();
     createDisplayPage();
+    createBiblePage();
     createRemoteControlPage();
 
     // Set initial selection
@@ -380,6 +395,176 @@ void SettingsDialog::createRemoteControlPage()
     m_pageStack->addWidget(remotePage);
 }
 
+void SettingsDialog::createBiblePage()
+{
+    QWidget* biblePage = new QWidget(this);
+    QVBoxLayout* pageLayout = new QVBoxLayout(biblePage);
+
+    // Default Translation group
+    QGroupBox* defaultGroup = new QGroupBox(tr("Default Translation"), biblePage);
+    QFormLayout* defaultLayout = new QFormLayout(defaultGroup);
+
+    m_preferredTranslationComboBox = new QComboBox(defaultGroup);
+    defaultLayout->addRow(tr("Preferred Translation:"), m_preferredTranslationComboBox);
+
+    m_rememberLastTranslationCheckBox = new QCheckBox(
+        tr("Remember last used translation instead"), defaultGroup);
+    defaultLayout->addRow(m_rememberLastTranslationCheckBox);
+
+    QLabel* defaultHelpLabel = new QLabel(
+        tr("When enabled, the Scripture dialog will remember and use the last translation you selected. "
+           "Otherwise, it will always start with the preferred translation above."),
+        defaultGroup);
+    defaultHelpLabel->setWordWrap(true);
+    defaultHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    defaultLayout->addRow(defaultHelpLabel);
+
+    pageLayout->addWidget(defaultGroup);
+
+    // Installed Translations group
+    QGroupBox* translationsGroup = new QGroupBox(tr("Installed Translations"), biblePage);
+    QVBoxLayout* translationsLayout = new QVBoxLayout(translationsGroup);
+
+    m_translationsListWidget = new QListWidget(translationsGroup);
+    m_translationsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_translationsListWidget->setMaximumHeight(150);
+    translationsLayout->addWidget(m_translationsListWidget);
+
+    // Buttons row
+    QHBoxLayout* buttonLayout = new QHBoxLayout();
+
+    m_importTranslationButton = new QPushButton(tr("Import Translation..."), translationsGroup);
+    connect(m_importTranslationButton, &QPushButton::clicked,
+            this, &SettingsDialog::onImportTranslationClicked);
+    buttonLayout->addWidget(m_importTranslationButton);
+
+    m_deleteTranslationButton = new QPushButton(tr("Delete"), translationsGroup);
+    m_deleteTranslationButton->setEnabled(false);
+    connect(m_deleteTranslationButton, &QPushButton::clicked,
+            this, &SettingsDialog::onDeleteTranslationClicked);
+    buttonLayout->addWidget(m_deleteTranslationButton);
+
+    buttonLayout->addStretch();
+
+    translationsLayout->addLayout(buttonLayout);
+
+    // Enable/disable delete button based on selection
+    connect(m_translationsListWidget, &QListWidget::itemSelectionChanged,
+            this, [this]() {
+        m_deleteTranslationButton->setEnabled(
+            m_translationsListWidget->currentItem() != nullptr);
+    });
+
+    pageLayout->addWidget(translationsGroup);
+
+    // Help text
+    QLabel* helpLabel = new QLabel(
+        tr("Import Bible translations from common formats: OSIS XML, USFM, USX, Zefania XML, or TSV.\n"
+           "Public domain translations like KJV and WEB can be downloaded from Crosswire Bible Society."),
+        biblePage);
+    helpLabel->setWordWrap(true);
+    helpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    pageLayout->addWidget(helpLabel);
+
+    pageLayout->addStretch(); // Push content to top
+
+    m_pageStack->addWidget(biblePage);
+}
+
+void SettingsDialog::refreshTranslationsList()
+{
+    if (!m_translationsListWidget) {
+        return;
+    }
+
+    m_translationsListWidget->clear();
+    m_preferredTranslationComboBox->clear();
+
+    if (!m_bibleDatabase || !m_bibleDatabase->isValid()) {
+        m_translationsListWidget->addItem(tr("(Database not available)"));
+        m_preferredTranslationComboBox->addItem(tr("(None available)"), "");
+        m_importTranslationButton->setEnabled(false);
+        return;
+    }
+
+    m_importTranslationButton->setEnabled(true);
+
+    QStringList translations = m_bibleDatabase->availableTranslations();
+    if (translations.isEmpty()) {
+        m_translationsListWidget->addItem(tr("(No translations installed)"));
+        m_preferredTranslationComboBox->addItem(tr("(None installed)"), "");
+        return;
+    }
+
+    for (const QString& code : translations) {
+        // Add to list widget
+        QListWidgetItem* item = new QListWidgetItem(code, m_translationsListWidget);
+        item->setData(Qt::UserRole, code);
+
+        // Add to combo box
+        m_preferredTranslationComboBox->addItem(code, code);
+    }
+
+    // Select the preferred translation in the combo box
+    if (m_settingsManager) {
+        QString preferred = m_settingsManager->preferredBibleTranslation();
+        int index = m_preferredTranslationComboBox->findData(preferred);
+        if (index >= 0) {
+            m_preferredTranslationComboBox->setCurrentIndex(index);
+        }
+
+        // Set the checkbox state
+        m_rememberLastTranslationCheckBox->setChecked(
+            m_settingsManager->rememberLastBibleTranslation());
+    }
+}
+
+void SettingsDialog::onImportTranslationClicked()
+{
+    if (!m_bibleDatabase) {
+        QMessageBox::warning(this, tr("Database Error"),
+            tr("Bible database is not available."));
+        return;
+    }
+
+    BibleImportDialog dialog(m_bibleDatabase, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        refreshTranslationsList();
+    }
+}
+
+void SettingsDialog::onDeleteTranslationClicked()
+{
+    QListWidgetItem* item = m_translationsListWidget->currentItem();
+    if (!item) {
+        return;
+    }
+
+    QString code = item->data(Qt::UserRole).toString();
+    if (code.isEmpty()) {
+        return;
+    }
+
+    int ret = QMessageBox::question(this, tr("Confirm Delete"),
+        tr("Are you sure you want to delete the '%1' translation?\n\n"
+           "This will remove all verses for this translation from the database.")
+            .arg(code),
+        QMessageBox::Yes | QMessageBox::No);
+
+    if (ret != QMessageBox::Yes) {
+        return;
+    }
+
+    if (m_bibleDatabase->deleteTranslation(code)) {
+        refreshTranslationsList();
+        QMessageBox::information(this, tr("Translation Deleted"),
+            tr("Translation '%1' has been deleted.").arg(code));
+    } else {
+        QMessageBox::critical(this, tr("Delete Failed"),
+            tr("Failed to delete translation '%1'.").arg(code));
+    }
+}
+
 void SettingsDialog::onCategoryChanged(int row)
 {
     m_pageStack->setCurrentIndex(row);
@@ -534,6 +719,13 @@ void SettingsDialog::saveSettings()
     // Save PIN settings
     m_settingsManager->setRemoteControlPinEnabled(m_remoteControlPinEnabledCheckBox->isChecked());
     m_settingsManager->setRemoteControlPin(m_remoteControlPinEdit->text());
+
+    // Save Bible translation settings
+    QString preferredTranslation = m_preferredTranslationComboBox->currentData().toString();
+    if (!preferredTranslation.isEmpty()) {
+        m_settingsManager->setPreferredBibleTranslation(preferredTranslation);
+    }
+    m_settingsManager->setRememberLastBibleTranslation(m_rememberLastTranslationCheckBox->isChecked());
 }
 
 void SettingsDialog::onOkClicked()

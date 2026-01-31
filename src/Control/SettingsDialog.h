@@ -13,6 +13,8 @@
 
 namespace Clarity {
 
+class BibleDatabase;
+
 /**
  * @brief Settings dialog with category sidebar
  *
@@ -28,21 +30,30 @@ public:
     explicit SettingsDialog(SettingsManager* settingsManager, QWidget* parent = nullptr);
     ~SettingsDialog();
 
+    /**
+     * @brief Set the Bible database for translation management
+     */
+    void setBibleDatabase(BibleDatabase* database);
+
 private slots:
     void onCategoryChanged(int row);
     void onOkClicked();
     void onCancelClicked();
     void onConfidenceTextColorClicked();
     void onConfidenceBackgroundColorClicked();
+    void onImportTranslationClicked();
+    void onDeleteTranslationClicked();
 
 private:
     void setupUI();
     void createGeneralPage();
     void createDisplayPage();
     void createRemoteControlPage();
+    void createBiblePage();
     void loadSettings();
     void saveSettings();
     void updateColorButtonStyle(QPushButton* button, const QColor& color);
+    void refreshTranslationsList();
 
     // UI components
     QListWidget* m_categoryList;
@@ -76,6 +87,14 @@ private:
     QSpinBox* m_remoteControlPortSpinBox;
     QCheckBox* m_remoteControlPinEnabledCheckBox;
     QLineEdit* m_remoteControlPinEdit;
+
+    // Bible translation management
+    QListWidget* m_translationsListWidget;
+    QPushButton* m_importTranslationButton;
+    QPushButton* m_deleteTranslationButton;
+    QComboBox* m_preferredTranslationComboBox;
+    QCheckBox* m_rememberLastTranslationCheckBox;
+    BibleDatabase* m_bibleDatabase;
 
     // Settings manager
     SettingsManager* m_settingsManager;

@@ -15,6 +15,8 @@
 
 namespace Clarity {
 
+class SettingsManager;
+
 /**
  * @brief Dialog for searching and inserting Bible scripture
  *
@@ -31,9 +33,10 @@ public:
     /**
      * @brief Construct scripture dialog
      * @param bible Pointer to BibleDatabase (must remain valid during dialog lifetime)
+     * @param settings Pointer to SettingsManager for remembering translation preference
      * @param parent Parent widget
      */
-    explicit ScriptureDialog(BibleDatabase* bible, QWidget* parent = nullptr);
+    explicit ScriptureDialog(BibleDatabase* bible, SettingsManager* settings = nullptr, QWidget* parent = nullptr);
 
     /**
      * @brief Get the slides created from selected scripture
@@ -78,8 +81,8 @@ private slots:
     void onKeywordSearch();
     void onResultSelectionChanged();
     void onTranslationChanged(int index);
-    void onIncludeReferenceChanged(int state);
-    void onOnePerSlideChanged(int state);
+    void onIncludeReferenceChanged(Qt::CheckState state);
+    void onOnePerSlideChanged(Qt::CheckState state);
     void updatePreview();
 
 private:
@@ -88,8 +91,9 @@ private:
     QList<Slide> createSlidesFromVerses() const;
     QString formatVerseText(const BibleVerse& verse, bool includeReference) const;
 
-    // Database reference
+    // Database and settings references
     BibleDatabase* m_bible;
+    SettingsManager* m_settings;
 
     // Search controls
     QLineEdit* m_searchEdit;

@@ -4,6 +4,106 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-31 - Bible Translation Importer
+
+### Summary
+Implemented a comprehensive Bible translation import system supporting multiple formats (OSIS XML, USFM, USX, USFX, Zefania XML, and TSV). Added import dialog with preview, progress tracking, and folder import for multi-file USFM Bibles. Extended SettingsManager with persistent Bible translation preferences.
+
+### Work Completed
+
+#### Core Import Infrastructure
+- **BibleImporter base class** (`src/Core/BibleImporter.h/.cpp`):
+  - Abstract base with `import()`, `canHandle()`, `formatName()` methods
+  - `progressChanged` signal for UI feedback
+  - Static `normalizeBookName()` with comprehensive mapping tables for OSIS IDs (Gen, Exod, etc.), USFM book codes (GEN, EXO, etc.), and Zefania numeric IDs (1-66)
+  - Data structures: `ImportedVerse`, `TranslationInfo`, `ImportResult`
+
+- **Format-specific importers**:
+  - `OsisImporter`: Parses `<verse osisID="Gen.1.1">` elements using QXmlStreamReader
+  - `UsfmImporter`: Line-by-line parsing for `\id`, `\c`, `\v` markers
+  - `UsxImporter`: XML format with `<verse number="1">` elements
+  - `UsfxImporter`: Similar XML structure with different element names
+  - `ZefaniaImporter`: `<VERS vnumber="1">` with `bnumber` book IDs
+  - `TsvImporter`: Tab-separated format with header detection (`orig_book_index`, `orig_chapter`, `orig_verse`, `text`)
+
+- **BibleImporterFactory**:
+  - Auto-detects format by examining file content (not just extension)
+  - Returns appropriate importer instance
+  - Provides file filter string for QFileDialog
+
+#### Database Extensions
+- Added to `BibleDatabase`:
+  - `translationExists(code)`: Check if translation already imported
+  - `deleteTranslation(code)`: Remove translation and all its verses
+  - `importTranslation(info, verses)`: Bulk insert with transaction wrapping
+  - `translationInfo()`: Returns list of (code, name) pairs
+  - `importProgress` signal for progress tracking
+- Bulk insert optimization: Uses prepared statement, commits every 1000 verses
+
+#### Import Dialog UI
+- **BibleImportDialog** (`src/Control/BibleImportDialog.h/.cpp`):
+  - File path input with Browse File and Browse Folder buttons
+  - Folder import collects all .usfm/.sfm files and combines verses
+  - Format auto-detection label
+  - Translation code and name input fields
+  - Duplicate handling combo box (Overwrite/Skip)
+  - Preview area showing first 10 verses
+  - Progress bar with status text during import
+  - Validation before enabling Import button
+
+#### Settings Integration
+- Added Bible settings page to SettingsDialog:
+  - List of installed translations with import/delete buttons
+  - Preferred translation combo box
+  - "Remember last used translation" checkbox
+  - Refreshes translation list after import/delete operations
+
+#### Scripture Dialog Enhancements
+- Updated `ScriptureDialog` constructor to accept `SettingsManager*`
+- Loads effective translation on dialog open (respects remember/preferred setting)
+- Saves last used translation when changed (with signal blocking during population)
+- "One verse per slide" checkbox state now persists via SettingsManager
+
+#### Settings Manager Additions
+- `preferredBibleTranslation()` / `setPreferredBibleTranslation()`
+- `rememberLastBibleTranslation()` / `setRememberLastBibleTranslation()`
+- `lastBibleTranslation()` / `setLastBibleTranslation()`
+- `effectiveBibleTranslation()`: Returns last or preferred based on setting
+- `scriptureOneVersePerSlide()` / `setScriptureOneVersePerSlide()`
+
+### Technical Decisions
+- Used signal blocking in ScriptureDialog to prevent saving during combo box population
+- TSV format detected by header content, not file extension (user had .usfm files that were actually TSV)
+- Folder import combines all USFM files before database insert to avoid overwriting previous books
+- Book name normalization centralizes ~200 ID mappings for cross-format compatibility
+- Transaction-based bulk insert for performance (~31,000 verses in under 5 seconds)
+
+### Files Created
+- `src/Core/BibleImporter.h` - Base class and data structures
+- `src/Core/BibleImporter.cpp` - All importer implementations (~1200 lines)
+- `src/Control/BibleImportDialog.h` - Import dialog header
+- `src/Control/BibleImportDialog.cpp` - Import dialog implementation
+
+### Files Modified
+- `CMakeLists.txt` - Added new source files
+- `src/Core/BibleDatabase.h/.cpp` - Import/delete/exists methods
+- `src/Core/SettingsManager.h/.cpp` - Bible translation preferences
+- `src/Control/SettingsDialog.h/.cpp` - Bible settings page with import UI
+- `src/Control/ScriptureDialog.h/.cpp` - Translation persistence, settings integration
+- `src/Control/ControlWindow.cpp` - Pass SettingsManager to dialogs
+
+### Testing
+- Tested OSIS XML import with sample files
+- Tested USFM single-file import (KJV, ASV)
+- Tested TSV format import (detected from header)
+- Verified translation persistence (remember last vs preferred)
+- Verified one-verse-per-slide setting persistence
+
+### Commit(s)
+Branch: main
+
+---
+
 ## 2026-01-30 - Application Icon and Slide Grid Filtering
 
 ### Summary
