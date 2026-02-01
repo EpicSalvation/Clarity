@@ -10,10 +10,12 @@
 
 namespace Clarity {
 
-ScriptureDialog::ScriptureDialog(BibleDatabase* bible, SettingsManager* settings, QWidget* parent)
+ScriptureDialog::ScriptureDialog(BibleDatabase* bible, SettingsManager* settings,
+                                   ThemeManager* themeManager, QWidget* parent)
     : QDialog(parent)
     , m_bible(bible)
     , m_settings(settings)
+    , m_themeManager(themeManager)
     , m_backgroundColor(QColor("#1e3a8a"))
     , m_textColor(QColor("#ffffff"))
     , m_fontFamily("Arial")
@@ -21,6 +23,7 @@ ScriptureDialog::ScriptureDialog(BibleDatabase* bible, SettingsManager* settings
 {
     setupUI();
     populateTranslations();
+    populateThemes();
 
     setWindowTitle(tr("Insert Scripture"));
     resize(700, 550);
@@ -120,32 +123,50 @@ void ScriptureDialog::setupUI()
 
     // Options section
     QGroupBox* optionsGroup = new QGroupBox("Options", this);
-    QHBoxLayout* optionsLayout = new QHBoxLayout(optionsGroup);
+    QVBoxLayout* optionsMainLayout = new QVBoxLayout(optionsGroup);
+
+    // First row: checkboxes
+    QHBoxLayout* optionsRow1 = new QHBoxLayout();
 
     m_includeReferenceCheck = new QCheckBox("Include reference on slide", this);
     m_includeReferenceCheck->setChecked(true);
     m_includeReferenceCheck->setToolTip("Add the Bible reference (e.g., John 3:16) to each slide");
     connect(m_includeReferenceCheck, &QCheckBox::checkStateChanged,
             this, &ScriptureDialog::onIncludeReferenceChanged);
-    optionsLayout->addWidget(m_includeReferenceCheck);
+    optionsRow1->addWidget(m_includeReferenceCheck);
 
     m_onePerSlideCheck = new QCheckBox("One verse per slide", this);
     m_onePerSlideCheck->setChecked(m_settings ? m_settings->scriptureOneVersePerSlide() : false);
     m_onePerSlideCheck->setToolTip("Create separate slides for each verse");
     connect(m_onePerSlideCheck, &QCheckBox::checkStateChanged,
             this, &ScriptureDialog::onOnePerSlideChanged);
-    optionsLayout->addWidget(m_onePerSlideCheck);
+    optionsRow1->addWidget(m_onePerSlideCheck);
 
-    optionsLayout->addSpacing(20);
+    optionsRow1->addStretch();
+    optionsMainLayout->addLayout(optionsRow1);
 
-    optionsLayout->addWidget(new QLabel("Font size:"));
+    // Second row: theme and font size
+    QHBoxLayout* optionsRow2 = new QHBoxLayout();
+
+    optionsRow2->addWidget(new QLabel("Theme:"));
+    m_themeCombo = new QComboBox(this);
+    m_themeCombo->setMinimumWidth(150);
+    m_themeCombo->setToolTip("Select a theme for scripture slides (Scripture themes are designed for Bible text)");
+    connect(m_themeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ScriptureDialog::onThemeChanged);
+    optionsRow2->addWidget(m_themeCombo);
+
+    optionsRow2->addSpacing(20);
+
+    optionsRow2->addWidget(new QLabel("Font size:"));
     m_fontSizeSpinBox = new QSpinBox(this);
     m_fontSizeSpinBox->setRange(12, 144);
     m_fontSizeSpinBox->setValue(48);
     m_fontSizeSpinBox->setSuffix(" pt");
-    optionsLayout->addWidget(m_fontSizeSpinBox);
+    optionsRow2->addWidget(m_fontSizeSpinBox);
 
-    optionsLayout->addStretch();
+    optionsRow2->addStretch();
+    optionsMainLayout->addLayout(optionsRow2);
 
     mainLayout->addWidget(optionsGroup);
 
@@ -206,6 +227,106 @@ void ScriptureDialog::populateTranslations()
     }
 
     m_translationCombo->blockSignals(false);
+}
+
+void ScriptureDialog::populateThemes()
+{
+    if (!m_themeManager) {
+        m_themeCombo->addItem("Default", "");
+        return;
+    }
+
+    m_themeCombo->blockSignals(true);
+
+    // Add a "Current Style" option to keep whatever was set via setDefaultStyle()
+    m_themeCombo->addItem("Current Style", "_current_");
+
+    // Add separator before scripture themes
+    m_themeCombo->insertSeparator(m_themeCombo->count());
+
+    // Add scripture-specific themes first (themes starting with "Scripture")
+    QList<Theme> allThemes = m_themeManager->allThemes();
+    int firstScriptureIndex = -1;
+
+    for (const Theme& theme : allThemes) {
+        if (theme.name().startsWith("Scripture")) {
+            if (firstScriptureIndex < 0) {
+                firstScriptureIndex = m_themeCombo->count();
+            }
+            m_themeCombo->addItem(theme.name(), theme.name());
+        }
+    }
+
+    // Add separator before other themes
+    if (firstScriptureIndex >= 0) {
+        m_themeCombo->insertSeparator(m_themeCombo->count());
+    }
+
+    // Add all other themes
+    for (const Theme& theme : allThemes) {
+        if (!theme.name().startsWith("Scripture")) {
+            m_themeCombo->addItem(theme.name(), theme.name());
+        }
+    }
+
+    // Default to first scripture theme if available
+    if (firstScriptureIndex >= 0) {
+        m_themeCombo->setCurrentIndex(firstScriptureIndex);
+        QString themeName = m_themeCombo->currentData().toString();
+        Theme theme = m_themeManager->getTheme(themeName);
+        applyTheme(theme);
+    }
+
+    m_themeCombo->blockSignals(false);
+}
+
+void ScriptureDialog::applyTheme(const Theme& theme)
+{
+    // Store the theme for slide creation
+    m_selectedTheme = theme;
+    m_useTheme = true;
+
+    // Extract colors for preview (use gradient start color for gradient backgrounds)
+    m_backgroundColor = theme.backgroundType() == Slide::SolidColor
+        ? theme.backgroundColor()
+        : theme.gradientStartColor();
+    m_textColor = theme.textColor();
+    m_fontFamily = theme.fontFamily();
+    m_fontSize = theme.bodyFontSize();
+    m_fontSizeSpinBox->setValue(m_fontSize);
+
+    // Update preview style
+    QString bgColor = m_backgroundColor.name();
+    QString textColor = m_textColor.name();
+
+    QString styleSheet = QString(
+        "QTextEdit { background-color: %1; color: %2; font-family: %3; font-size: 14pt; padding: 10px; }"
+    ).arg(bgColor, textColor, m_fontFamily);
+    m_previewEdit->setStyleSheet(styleSheet);
+
+    updatePreview();
+}
+
+void ScriptureDialog::onThemeChanged(int index)
+{
+    Q_UNUSED(index)
+
+    QString themeName = m_themeCombo->currentData().toString();
+
+    // "Current Style" keeps the existing settings (set via setDefaultStyle)
+    if (themeName == "_current_" || themeName.isEmpty()) {
+        m_useTheme = false;
+        return;
+    }
+
+    if (!m_themeManager) {
+        return;
+    }
+
+    Theme theme = m_themeManager->getTheme(themeName);
+    if (!theme.name().isEmpty()) {
+        applyTheme(theme);
+    }
 }
 
 void ScriptureDialog::onSearch()
@@ -509,11 +630,17 @@ QList<Slide> ScriptureDialog::createSlidesFromVerses() const
         // Create one slide per verse
         for (const BibleVerse& verse : m_selectedVerses) {
             Slide slide;
-            slide.setText(formatVerseText(verse, includeRef));
-            slide.setBackgroundColor(m_backgroundColor);
-            slide.setTextColor(m_textColor);
-            slide.setFontFamily(m_fontFamily);
-            slide.setFontSize(fontSize);
+            if (m_useTheme) {
+                // Use theme to create slide with proper background (including gradients)
+                slide = m_selectedTheme.createSlide(formatVerseText(verse, includeRef));
+                slide.setFontSize(fontSize);  // Override with user-selected font size
+            } else {
+                slide.setText(formatVerseText(verse, includeRef));
+                slide.setBackgroundColor(m_backgroundColor);
+                slide.setTextColor(m_textColor);
+                slide.setFontFamily(m_fontFamily);
+                slide.setFontSize(fontSize);
+            }
             slides.append(slide);
         }
     } else {
@@ -547,11 +674,17 @@ QList<Slide> ScriptureDialog::createSlidesFromVerses() const
         }
 
         Slide slide;
-        slide.setText(combinedText);
-        slide.setBackgroundColor(m_backgroundColor);
-        slide.setTextColor(m_textColor);
-        slide.setFontFamily(m_fontFamily);
-        slide.setFontSize(fontSize);
+        if (m_useTheme) {
+            // Use theme to create slide with proper background (including gradients)
+            slide = m_selectedTheme.createSlide(combinedText);
+            slide.setFontSize(fontSize);  // Override with user-selected font size
+        } else {
+            slide.setText(combinedText);
+            slide.setBackgroundColor(m_backgroundColor);
+            slide.setTextColor(m_textColor);
+            slide.setFontFamily(m_fontFamily);
+            slide.setFontSize(fontSize);
+        }
         slides.append(slide);
     }
 

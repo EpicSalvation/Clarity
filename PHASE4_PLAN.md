@@ -37,11 +37,11 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [ ] Audio track enable/disable per slide
   - [ ] Loop point configuration
 
-- [ ] **Scripture Lookup Integration**
+- [x] **Scripture Lookup Integration**
   - [x] Quick lookup by reference
   - [x] Multiple translation support
   - [x] Automatic verse formatting
-  - [ ] Scripture-specific themes
+  - [x] Scripture-specific themes
 
 - [x] **Bible Translation Importer**
   - [x] Multi-format support: OSIS XML, USFM, USX, USFX, Zefania XML, TSV

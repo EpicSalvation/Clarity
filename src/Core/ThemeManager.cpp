@@ -139,6 +139,56 @@ void ThemeManager::initBuiltInThemes()
         m_builtInThemes.append(theme);
     }
 
+    // =========================================================================
+    // Scripture-Specific Themes
+    // =========================================================================
+
+    // Theme 9: Scripture Parchment
+    {
+        Theme theme("Scripture Parchment", "Classic parchment look with serif font - ideal for Bible verses");
+        theme.setBuiltIn(true);
+        theme.setBackgroundType(Slide::Gradient);
+        theme.setGradientStartColor(QColor("#f5e6d3"));  // Warm parchment
+        theme.setGradientEndColor(QColor("#e8d4b8"));    // Slightly darker edge
+        theme.setGradientAngle(180);
+        theme.setTextColor(QColor("#3d2914"));           // Dark brown ink
+        theme.setAccentColor(QColor("#8b4513"));         // Saddle brown
+        theme.setFontFamily("Georgia");
+        theme.setTitleFontSize(64);
+        theme.setBodyFontSize(44);
+        m_builtInThemes.append(theme);
+    }
+
+    // Theme 10: Scripture Classic
+    {
+        Theme theme("Scripture Classic", "Traditional cream page with elegant typography");
+        theme.setBuiltIn(true);
+        theme.setBackgroundType(Slide::SolidColor);
+        theme.setBackgroundColor(QColor("#fdf8f0"));     // Cream/off-white
+        theme.setTextColor(QColor("#1a1a1a"));           // Near-black
+        theme.setAccentColor(QColor("#8b0000"));         // Dark red for references
+        theme.setFontFamily("Times New Roman");
+        theme.setTitleFontSize(64);
+        theme.setBodyFontSize(44);
+        m_builtInThemes.append(theme);
+    }
+
+    // Theme 11: Scripture Night
+    {
+        Theme theme("Scripture Night", "Dark theme for scripture - easy on the eyes in dim rooms");
+        theme.setBuiltIn(true);
+        theme.setBackgroundType(Slide::Gradient);
+        theme.setGradientStartColor(QColor("#1a1a2e"));  // Deep navy
+        theme.setGradientEndColor(QColor("#16213e"));    // Slightly lighter
+        theme.setGradientAngle(180);
+        theme.setTextColor(QColor("#eae7dc"));           // Warm off-white
+        theme.setAccentColor(QColor("#d4a574"));         // Warm gold
+        theme.setFontFamily("Georgia");
+        theme.setTitleFontSize(64);
+        theme.setBodyFontSize(44);
+        m_builtInThemes.append(theme);
+    }
+
     qDebug() << "Initialized" << m_builtInThemes.count() << "built-in themes";
 }
 

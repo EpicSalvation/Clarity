@@ -4,6 +4,40 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-01 - Scripture-Specific Themes
+
+### Summary
+Added three built-in scripture-specific themes and integrated theme selection into the Scripture Dialog, completing the Scripture Lookup Integration feature from Phase 4.
+
+### Work Completed
+
+#### Built-in Scripture Themes
+Added three new themes designed specifically for Bible verse display:
+- **Scripture Parchment**: Warm parchment gradient background with dark brown text and Georgia font - evokes classic Bible pages
+- **Scripture Classic**: Clean cream background with near-black text and Times New Roman font - traditional printed Bible look
+- **Scripture Night**: Deep navy gradient with warm off-white text and Georgia font - easy on eyes in dim rooms
+
+#### Scripture Dialog Theme Selector
+- Added theme dropdown in Scripture Dialog options section
+- Themes are organized with scripture-specific themes listed first, separated from general themes
+- "Current Style" option preserves styling set by the current presentation
+- Theme selection properly applies gradient backgrounds (not just solid colors)
+- Font size can be adjusted independently of selected theme
+
+### Files Modified
+- `src/Core/ThemeManager.cpp` - Added three scripture-specific themes in `initBuiltInThemes()`
+- `src/Control/ScriptureDialog.h` - Added theme combo box, ThemeManager pointer, theme storage
+- `src/Control/ScriptureDialog.cpp` - Added `populateThemes()`, `applyTheme()`, `onThemeChanged()`, updated `createSlidesFromVerses()` to use theme's `createSlide()` method
+- `src/Control/ControlWindow.cpp` - Pass ThemeManager to ScriptureDialog constructor
+- `PHASE4_PLAN.md` - Marked Scripture Lookup Integration as complete
+
+### Technical Notes
+- Theme application uses `Theme::createSlide()` to properly handle gradient backgrounds
+- User-selected font size overrides theme's default body font size
+- When no theme is selected ("Current Style"), falls back to simple color/font settings
+
+---
+
 ## 2026-01-31 - SongSelect Integration and CCLI Reporting
 
 ### Summary

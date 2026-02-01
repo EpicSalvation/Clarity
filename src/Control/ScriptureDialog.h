@@ -3,6 +3,7 @@
 #include "Core/Slide.h"
 #include "Core/Song.h"  // For SlideStyle
 #include "Core/BibleDatabase.h"
+#include "Core/ThemeManager.h"
 #include <QDialog>
 #include <QLineEdit>
 #include <QComboBox>
@@ -34,9 +35,11 @@ public:
      * @brief Construct scripture dialog
      * @param bible Pointer to BibleDatabase (must remain valid during dialog lifetime)
      * @param settings Pointer to SettingsManager for remembering translation preference
+     * @param themeManager Pointer to ThemeManager for theme selection
      * @param parent Parent widget
      */
-    explicit ScriptureDialog(BibleDatabase* bible, SettingsManager* settings = nullptr, QWidget* parent = nullptr);
+    explicit ScriptureDialog(BibleDatabase* bible, SettingsManager* settings = nullptr,
+                            ThemeManager* themeManager = nullptr, QWidget* parent = nullptr);
 
     /**
      * @brief Get the slides created from selected scripture
@@ -81,6 +84,7 @@ private slots:
     void onKeywordSearch();
     void onResultSelectionChanged();
     void onTranslationChanged(int index);
+    void onThemeChanged(int index);
     void onIncludeReferenceChanged(Qt::CheckState state);
     void onOnePerSlideChanged(Qt::CheckState state);
     void updatePreview();
@@ -88,18 +92,22 @@ private slots:
 private:
     void setupUI();
     void populateTranslations();
+    void populateThemes();
+    void applyTheme(const Theme& theme);
     QList<Slide> createSlidesFromVerses() const;
     QString formatVerseText(const BibleVerse& verse, bool includeReference) const;
 
     // Database and settings references
     BibleDatabase* m_bible;
     SettingsManager* m_settings;
+    ThemeManager* m_themeManager;
 
     // Search controls
     QLineEdit* m_searchEdit;
     QPushButton* m_searchButton;
     QComboBox* m_searchTypeCombo;  // Reference or Keyword search
     QComboBox* m_translationCombo;
+    QComboBox* m_themeCombo;
 
     // Results display
     QListWidget* m_resultsList;
@@ -126,6 +134,10 @@ private:
     QColor m_textColor;
     QString m_fontFamily;
     int m_fontSize;
+
+    // Selected theme (if any)
+    Theme m_selectedTheme;
+    bool m_useTheme = false;
 };
 
 } // namespace Clarity

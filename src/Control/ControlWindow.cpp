@@ -1158,9 +1158,9 @@ void ControlWindow::onInsertScripture()
         return;
     }
 
-    ScriptureDialog dialog(m_bibleDatabase, m_settingsManager, this);
+    ScriptureDialog dialog(m_bibleDatabase, m_settingsManager, m_themeManager, this);
 
-    // Set default style based on current presentation theme
+    // Set default style based on current presentation theme (used if "Current Style" is selected)
     Presentation* presentation = m_presentationModel->presentation();
     if (presentation && presentation->slideCount() > 0) {
         Slide currentSlide = presentation->currentSlide();
