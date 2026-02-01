@@ -4,6 +4,80 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-31 - SongSelect Integration and CCLI Reporting
+
+### Summary
+Enhanced Clarity's song import capabilities to better support CCLI SongSelect files and assist with CCLI usage reporting. Added USR file format support, batch import with duplicate detection, drag & drop import, usage tracking for CCLI reporting, and a SongSelect search feature.
+
+### Work Completed
+
+#### Phase 1: Format Support
+- **USR File Parser** (`Song::fromUsrFile()`): Parses SongSelect's INI-style USR format with tab-delimited lyrics, supporting Title, Author, Copyright, CCLI number, and section markers (Vers, Chorus, Bridge, etc.)
+- **Auto-Detection**: `SongLibrary::importFromFile()` now auto-detects format by content (USR starts with `[File]`, XML with `<?xml`/`<song>`)
+- **Duplicate Detection**: Added `SongLibrary::findByCcliNumber()` for identifying existing songs
+
+#### Phase 2: Import Workflow
+- **Drag & Drop**: SongLibraryDialog accepts file drops with visual feedback overlay
+- **BatchImportDialog**: New dialog for importing multiple files at once with:
+  - Preview list of songs to import
+  - Duplicate detection by CCLI number (highlighted in orange)
+  - Options: Skip duplicates / Update existing / Import as new
+  - Select/deselect individual songs
+
+#### Phase 3: CCLI Reporting
+- **SongUsage Struct**: Added to Song class with `dateTime` and `eventName` fields
+- **Usage History**: Songs now track full usage history with `usageHistory()`, `addUsage()`, `usageCountInRange()`, `usageInRange()`
+- **Usage Recording**: `ControlWindow::broadcastCurrentSlide()` automatically records song usage when slides are displayed (once per song per session)
+- **CCLIReportDialog**: Generates usage reports with:
+  - Date range presets (This Month, Quarter, Year, Last 30/90 Days, Custom)
+  - Table showing Title, CCLI#, Author, Uses, Dates
+  - Export to CSV or plain text
+  - Copy to clipboard
+- **Settings**: Added `usageTrackingEnabled`, `promptForEventName`, `defaultEventName` to SettingsManager
+
+#### Phase 4: UI Polish
+- **Song List**: Now shows CCLI# in list items with usage info in tooltips
+- **Song Details Panel**: Added "Times Used" and "Last Used" fields with relative time display
+- **Quick Filters**: Added filter dropdown (All Songs, Used This Month, Used This Year, Never Used, Has CCLI#)
+- **CCLI Report Button**: Added to song library toolbar
+
+#### SongSelect Search
+- **SongSelectSearchDialog**: Opens browser searches for finding songs on SongSelect
+- Two search options: Google (site-restricted to songselect.ccli.com) or direct SongSelect search
+- Browser-based approach chosen for reliability (automated search scraping triggered bot detection)
+- User can download lyrics from SongSelect once logged in to their CCLI account
+
+### Files Created
+- `src/Control/BatchImportDialog.h/.cpp`
+- `src/Control/CCLIReportDialog.h/.cpp`
+- `src/Control/SongSelectSearchDialog.h/.cpp`
+
+### Files Modified
+- `src/Core/Song.h/.cpp` - USR parser, SongUsage struct, usage tracking methods
+- `src/Core/SongLibrary.h/.cpp` - Format auto-detection, duplicate detection, usage recording
+- `src/Core/SettingsManager.h/.cpp` - Usage tracking settings
+- `src/Control/SongLibraryDialog.h/.cpp` - Drag & drop, filters, CCLI display, report button
+- `src/Control/ControlWindow.h/.cpp` - Song usage recording on slide display
+- `CMakeLists.txt` - Added new source files
+
+### Technical Decisions
+- Usage is recorded only once per song per session to prevent duplicate CCLI reports from navigating back and forth
+- Event name defaults to presentation title if available, otherwise uses setting default
+- Batch import uses preview-before-commit pattern for user control
+
+### Testing Notes
+- Test USR import with real SongSelect .usr files
+- Test drag & drop with multiple file types
+- Verify CCLI reports show accurate usage counts
+- Test duplicate detection with same CCLI# songs
+
+### Next Steps
+- Consider adding settings UI for usage tracking options
+- Add ability to edit/delete individual usage records
+- Consider direct CCLI API integration (requires CCLI developer account)
+
+---
+
 ## 2026-01-31 - Red Letter Edition Bible Support
 
 ### Summary

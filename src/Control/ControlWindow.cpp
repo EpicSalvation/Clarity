@@ -559,6 +559,28 @@ void ControlWindow::broadcastCurrentSlide()
         itemInfo["slideInItem"] = presentation->currentSlideInItem();
         itemInfo["slidesInItem"] = presentation->slidesInCurrentItem();
         confidenceMessage["itemInfo"] = itemInfo;
+
+        // Record song usage for CCLI reporting (only once per song per session)
+        if (currentItem->type() == PresentationItem::SongItemType &&
+            m_settingsManager->usageTrackingEnabled() &&
+            !m_isOutputDisabled) {
+            SongItem* songItem = qobject_cast<SongItem*>(currentItem);
+            if (songItem && songItem->songId() > 0) {
+                int songId = songItem->songId();
+                if (!m_recordedSongUsage.contains(songId)) {
+                    m_recordedSongUsage.insert(songId);
+
+                    // Get event name from presentation title or default setting
+                    QString eventName = m_settingsManager->defaultEventName();
+                    if (presentation->title() != "Untitled" && !presentation->title().isEmpty()) {
+                        eventName = presentation->title();
+                    }
+
+                    m_songLibrary->recordUsage(songId, eventName);
+                    m_songLibrary->saveLibrary();
+                }
+            }
+        }
     }
 
     m_ipcServer->sendToClientType("confidence", confidenceMessage);

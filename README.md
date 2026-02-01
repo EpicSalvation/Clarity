@@ -51,6 +51,23 @@ Clarity now includes comprehensive presentation features suitable for worship se
 - System language auto-detection option
 - Mobile remote control page also translated
 
+#### Song Library
+- **Song management** with title, author, copyright, CCLI number
+- **Multiple import formats**: OpenLyrics XML, SongSelect TXT, SongSelect USR
+- **Batch import** with duplicate detection by CCLI number
+- **Drag & drop** import support
+- **Search** by title, author, lyrics, or CCLI number
+- **Usage tracking** for CCLI reporting
+- **CCLI Report generator** with date range filtering and CSV/text export
+- **SongSelect search** opens browser search on Google or SongSelect directly
+
+#### Scripture Support
+- **Built-in Bible database** with multiple translations
+- **Quick verse lookup** by book, chapter, verse
+- **Import additional translations** (OSIS, USFM, USX, USFX, Zefania, TSV)
+- **Red Letter Edition** - words of Jesus in red (configurable)
+- **One verse per slide** option
+
 #### Additional Features
 - **Themes** for consistent slide styling
 - **Presenter notes** for each slide

@@ -103,15 +103,35 @@ public:
     void markAsUsed(int id);
 
     /**
+     * @brief Record a song usage for CCLI reporting
+     * @param id Song ID
+     * @param eventName Optional event name (e.g., "Sunday Service")
+     *
+     * This adds a SongUsage record to the song's usage history,
+     * which can be used for generating CCLI reports.
+     */
+    void recordUsage(int id, const QString& eventName = QString());
+
+    /**
      * @brief Import a song from a file
      * @param filePath Path to the file
      * @return Imported song (empty title if import failed)
      *
      * Supported formats:
      * - .xml (OpenLyrics)
-     * - .txt (plain text with section markers)
+     * - .txt (plain text with section markers, including SongSelect format)
+     * - .usr (SongSelect USR format)
+     *
+     * Format is auto-detected by content when possible.
      */
     Song importFromFile(const QString& filePath);
+
+    /**
+     * @brief Find songs by CCLI number
+     * @param ccliNumber CCLI number to search for
+     * @return List of songs with matching CCLI number (usually 0 or 1)
+     */
+    QList<Song> findByCcliNumber(const QString& ccliNumber) const;
 
     /**
      * @brief Get the library file path

@@ -26,6 +26,26 @@ SongSection SongSection::fromJson(const QJsonObject& json)
     return section;
 }
 
+// SongUsage implementation
+
+QJsonObject SongUsage::toJson() const
+{
+    QJsonObject json;
+    json["dateTime"] = dateTime.toString(Qt::ISODate);
+    if (!eventName.isEmpty()) {
+        json["eventName"] = eventName;
+    }
+    return json;
+}
+
+SongUsage SongUsage::fromJson(const QJsonObject& json)
+{
+    SongUsage usage;
+    usage.dateTime = QDateTime::fromString(json["dateTime"].toString(), Qt::ISODate);
+    usage.eventName = json["eventName"].toString();
+    return usage;
+}
+
 // Song implementation
 
 Song::Song()
@@ -41,6 +61,39 @@ QString Song::allLyrics() const
         lyrics.append(section.text);
     }
     return lyrics.join("\n");
+}
+
+void Song::addUsage(const SongUsage& usage)
+{
+    m_usageHistory.append(usage);
+    // Also update lastUsed if this usage is more recent
+    if (!m_lastUsed.isValid() || usage.dateTime > m_lastUsed) {
+        m_lastUsed = usage.dateTime;
+    }
+}
+
+int Song::usageCountInRange(const QDate& from, const QDate& to) const
+{
+    int count = 0;
+    for (const SongUsage& usage : m_usageHistory) {
+        QDate usageDate = usage.dateTime.date();
+        if (usageDate >= from && usageDate <= to) {
+            count++;
+        }
+    }
+    return count;
+}
+
+QList<SongUsage> Song::usageInRange(const QDate& from, const QDate& to) const
+{
+    QList<SongUsage> results;
+    for (const SongUsage& usage : m_usageHistory) {
+        QDate usageDate = usage.dateTime.date();
+        if (usageDate >= from && usageDate <= to) {
+            results.append(usage);
+        }
+    }
+    return results;
 }
 
 QList<Slide> Song::toSlides(const SlideStyle& style, bool includeTitleSlide, bool includeSectionLabels, int maxLinesPerSlide) const
@@ -134,6 +187,15 @@ QJsonObject Song::toJson() const
     }
     json["sections"] = sectionsArray;
 
+    // Usage history for CCLI reporting
+    if (!m_usageHistory.isEmpty()) {
+        QJsonArray usageArray;
+        for (const SongUsage& usage : m_usageHistory) {
+            usageArray.append(usage.toJson());
+        }
+        json["usageHistory"] = usageArray;
+    }
+
     return json;
 }
 
@@ -156,6 +218,14 @@ Song Song::fromJson(const QJsonObject& json)
     QJsonArray sectionsArray = json["sections"].toArray();
     for (const QJsonValue& value : sectionsArray) {
         song.m_sections.append(SongSection::fromJson(value.toObject()));
+    }
+
+    // Load usage history
+    if (json.contains("usageHistory")) {
+        QJsonArray usageArray = json["usageHistory"].toArray();
+        for (const QJsonValue& value : usageArray) {
+            song.m_usageHistory.append(SongUsage::fromJson(value.toObject()));
+        }
     }
 
     return song;
@@ -417,6 +487,160 @@ Song Song::fromPlainText(const QString& text, const QString& title)
             SongSection section("verse", "Verse 1", content);
             song.m_sections.append(section);
         }
+    }
+
+    return song;
+}
+
+Song Song::fromUsrFile(const QString& content)
+{
+    Song song;
+
+    // USR files are INI-style with sections like [File] and [S <CCLI#>]
+    // The song data is in the [S <number>] section
+    QStringList lines = content.split('\n');
+
+    bool inSongSection = false;
+    QString ccliNumber;
+
+    // Temporary storage for parsing
+    QString fieldsLine;
+    QString wordsLine;
+
+    for (const QString& rawLine : lines) {
+        QString line = rawLine.trimmed();
+
+        // Check for section headers
+        if (line.startsWith('[') && line.endsWith(']')) {
+            QString sectionName = line.mid(1, line.length() - 2);
+
+            // Check for song section: [S <CCLI#>]
+            if (sectionName.startsWith("S ") || sectionName.startsWith("s ")) {
+                inSongSection = true;
+                ccliNumber = sectionName.mid(2).trimmed();
+                song.setCcliNumber(ccliNumber);
+            } else {
+                inSongSection = false;
+            }
+            continue;
+        }
+
+        if (!inSongSection) {
+            continue;
+        }
+
+        // Parse key=value pairs in song section
+        int equalsPos = line.indexOf('=');
+        if (equalsPos <= 0) {
+            continue;
+        }
+
+        QString key = line.left(equalsPos).trimmed();
+        QString value = line.mid(equalsPos + 1);
+
+        if (key.compare("Title", Qt::CaseInsensitive) == 0) {
+            song.setTitle(value);
+        }
+        else if (key.compare("Author", Qt::CaseInsensitive) == 0) {
+            // Authors are pipe-delimited
+            QStringList authors = value.split('|', Qt::SkipEmptyParts);
+            song.setAuthor(authors.join(", "));
+        }
+        else if (key.compare("Copyright", Qt::CaseInsensitive) == 0) {
+            // Copyright entries are pipe-delimited
+            QStringList copyrights = value.split('|', Qt::SkipEmptyParts);
+            song.setCopyright(copyrights.join("; "));
+        }
+        else if (key.compare("Fields", Qt::CaseInsensitive) == 0) {
+            fieldsLine = value;
+        }
+        else if (key.compare("Words", Qt::CaseInsensitive) == 0) {
+            wordsLine = value;
+        }
+    }
+
+    // Parse sections from Fields and Words
+    // Fields: tab-delimited section names like "Vers 1\tChorus 1\tVers 2"
+    // Words: tab-delimited lyrics, /n for newlines within each section
+    if (!fieldsLine.isEmpty() && !wordsLine.isEmpty()) {
+        QStringList sectionNames = fieldsLine.split('\t', Qt::KeepEmptyParts);
+        QStringList sectionLyrics = wordsLine.split('\t', Qt::KeepEmptyParts);
+
+        for (int i = 0; i < sectionNames.count() && i < sectionLyrics.count(); ++i) {
+            QString name = sectionNames[i].trimmed();
+            QString lyrics = sectionLyrics[i];
+
+            // Convert /n to actual newlines
+            lyrics.replace("/n", "\n");
+            lyrics = lyrics.trimmed();
+
+            if (name.isEmpty() || lyrics.isEmpty()) {
+                continue;
+            }
+
+            // Determine section type from name
+            // USR uses "Vers" not "Verse", "Chor" for chorus
+            QString type = "verse";
+            QString label = name;
+
+            QString nameLower = name.toLower();
+            if (nameLower.startsWith("vers") || nameLower.startsWith("verse")) {
+                type = "verse";
+                // Extract number if present
+                static QRegularExpression versNum(R"(\d+$)");
+                QRegularExpressionMatch match = versNum.match(name);
+                if (match.hasMatch()) {
+                    label = "Verse " + match.captured(0);
+                } else {
+                    label = "Verse";
+                }
+            }
+            else if (nameLower.startsWith("chor") || nameLower.startsWith("chorus")) {
+                type = "chorus";
+                static QRegularExpression chorusNum(R"(\d+$)");
+                QRegularExpressionMatch match = chorusNum.match(name);
+                if (match.hasMatch()) {
+                    label = "Chorus " + match.captured(0);
+                } else {
+                    label = "Chorus";
+                }
+            }
+            else if (nameLower.startsWith("bridge")) {
+                type = "bridge";
+                label = "Bridge";
+            }
+            else if (nameLower.startsWith("pre-chorus") || nameLower.startsWith("prechorus")) {
+                type = "pre-chorus";
+                label = "Pre-Chorus";
+            }
+            else if (nameLower.startsWith("tag")) {
+                type = "tag";
+                label = "Tag";
+            }
+            else if (nameLower.startsWith("intro")) {
+                type = "intro";
+                label = "Intro";
+            }
+            else if (nameLower.startsWith("outro") || nameLower.startsWith("ending")) {
+                type = "outro";
+                label = "Outro";
+            }
+            else if (nameLower.startsWith("interlude")) {
+                type = "interlude";
+                label = "Interlude";
+            }
+            else if (nameLower.startsWith("vamp") || nameLower.startsWith("misc")) {
+                type = "misc";
+                // Keep original label for misc sections
+            }
+
+            SongSection section(type, label, lyrics);
+            song.addSection(section);
+        }
+    }
+
+    if (song.title().isEmpty()) {
+        qWarning() << "USR file parsing: No title found";
     }
 
     return song;

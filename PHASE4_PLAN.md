@@ -58,12 +58,17 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [x] UI option to enable/disable red letters
   - [x] Rich text support in slides
 
-- [ ] **SongSelect Integration**
-  - [ ] Search SongSelect catalog from within Clarity
-  - [ ] Download lyrics directly (requires CCLI subscription)
-  - [ ] Automatic CCLI reporting integration
-  - [ ] OAuth authentication with SongSelect API
-  - [ ] Cache downloaded songs in local library
+- [x] **SongSelect Integration**
+  - [x] USR file format import (SongSelect's native format)
+  - [x] Plain text import with SongSelect format auto-detection
+  - [x] Batch import with duplicate detection by CCLI number
+  - [x] Drag & drop file import
+  - [x] SongSelect search (opens browser to Google or SongSelect)
+  - [x] CCLI usage tracking when songs are displayed
+  - [x] CCLI Report dialog with date range, CSV/text export
+  - [x] Usage statistics in song library (times used, last used)
+  - [x] Quick filters (used this month/year, never used, has CCLI#)
+  - [ ] Direct API integration (requires CCLI developer account - future)
 
 ### Low Priority
 

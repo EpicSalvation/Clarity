@@ -1,5 +1,8 @@
 #include "SongLibraryDialog.h"
 #include "SongEditorDialog.h"
+#include "BatchImportDialog.h"
+#include "CCLIReportDialog.h"
+#include "SongSelectSearchDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -8,6 +11,9 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QSizePolicy>
+#include <QMimeData>
+#include <QUrl>
+#include <QDate>
 #include <QDebug>
 
 namespace Clarity {
@@ -20,11 +26,15 @@ SongLibraryDialog::SongLibraryDialog(SongLibrary* library, QWidget* parent)
     , m_textColor(QColor("#ffffff"))
     , m_fontFamily("Arial")
     , m_fontSize(48)
+    , m_dropOverlay(nullptr)
 {
     setupUI();
 
     setWindowTitle(tr("Song Library"));
     resize(800, 600);
+
+    // Enable drag & drop
+    setAcceptDrops(true);
 
     // Prevent the dialog from auto-resizing based on content
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -54,6 +64,26 @@ void SongLibraryDialog::setupUI()
     connect(m_searchButton, &QPushButton::clicked, this, &SongLibraryDialog::onSearch);
     searchLayout->addWidget(m_searchButton);
 
+    searchLayout->addSpacing(10);
+
+    searchLayout->addWidget(new QLabel("Filter:"));
+    m_filterCombo = new QComboBox(this);
+    m_filterCombo->addItem("All Songs", "all");
+    m_filterCombo->addItem("Used This Month", "month");
+    m_filterCombo->addItem("Used This Year", "year");
+    m_filterCombo->addItem("Never Used", "never");
+    m_filterCombo->addItem("Has CCLI#", "ccli");
+    connect(m_filterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &SongLibraryDialog::onFilterChanged);
+    searchLayout->addWidget(m_filterCombo);
+
+    searchLayout->addStretch();
+
+    m_ccliReportButton = new QPushButton("CCLI Report...", this);
+    m_ccliReportButton->setToolTip("Generate CCLI usage report for licensing");
+    connect(m_ccliReportButton, &QPushButton::clicked, this, &SongLibraryDialog::onCCLIReport);
+    searchLayout->addWidget(m_ccliReportButton);
+
     mainLayout->addLayout(searchLayout);
 
     // Main content splitter
@@ -78,9 +108,19 @@ void SongLibraryDialog::setupUI()
     QHBoxLayout* libButtonLayout = new QHBoxLayout();
 
     m_importButton = new QPushButton("Import...", this);
-    m_importButton->setToolTip("Import song from file (OpenLyrics XML or plain text)");
+    m_importButton->setToolTip("Import song from file (OpenLyrics XML, SongSelect TXT/USR)");
     connect(m_importButton, &QPushButton::clicked, this, &SongLibraryDialog::onImport);
     libButtonLayout->addWidget(m_importButton);
+
+    m_batchImportButton = new QPushButton("Batch Import...", this);
+    m_batchImportButton->setToolTip("Import multiple songs at once with duplicate detection");
+    connect(m_batchImportButton, &QPushButton::clicked, this, &SongLibraryDialog::onBatchImport);
+    libButtonLayout->addWidget(m_batchImportButton);
+
+    QPushButton* searchSongSelectButton = new QPushButton("Search SongSelect...", this);
+    searchSongSelectButton->setToolTip("Search CCLI SongSelect to find and download songs");
+    connect(searchSongSelectButton, &QPushButton::clicked, this, &SongLibraryDialog::onSearchSongSelect);
+    libButtonLayout->addWidget(searchSongSelectButton);
 
     m_newButton = new QPushButton("New", this);
     m_newButton->setToolTip("Create a new song");
@@ -133,6 +173,14 @@ void SongLibraryDialog::setupUI()
     m_ccliLabel = new QLabel("-", this);
     setupDetailLabel(m_ccliLabel);
     metadataLayout->addRow("CCLI #:", m_ccliLabel);
+
+    m_usageLabel = new QLabel("-", this);
+    setupDetailLabel(m_usageLabel);
+    metadataLayout->addRow("Times Used:", m_usageLabel);
+
+    m_lastUsedLabel = new QLabel("-", this);
+    setupDetailLabel(m_lastUsedLabel);
+    metadataLayout->addRow("Last Used:", m_lastUsedLabel);
 
     detailsLayout->addWidget(metadataGroup);
 
@@ -209,6 +257,8 @@ void SongLibraryDialog::setupUI()
 void SongLibraryDialog::refreshSongList()
 {
     QString query = m_searchEdit->text().trimmed();
+    QString filter = m_filterCombo->currentData().toString();
+
     QList<Song> songs;
 
     if (query.isEmpty()) {
@@ -217,7 +267,58 @@ void SongLibraryDialog::refreshSongList()
         songs = m_library->search(query);
     }
 
+    // Apply filter
+    if (filter != "all") {
+        QList<Song> filtered;
+        QDate today = QDate::currentDate();
+
+        for (const Song& song : songs) {
+            if (filter == "month") {
+                // Used this month
+                QDate monthStart(today.year(), today.month(), 1);
+                if (song.usageCountInRange(monthStart, today) > 0) {
+                    filtered.append(song);
+                }
+            } else if (filter == "year") {
+                // Used this year
+                QDate yearStart(today.year(), 1, 1);
+                if (song.usageCountInRange(yearStart, today) > 0) {
+                    filtered.append(song);
+                }
+            } else if (filter == "never") {
+                // Never used
+                if (song.usageCount() == 0) {
+                    filtered.append(song);
+                }
+            } else if (filter == "ccli") {
+                // Has CCLI number
+                if (!song.ccliNumber().isEmpty()) {
+                    filtered.append(song);
+                }
+            }
+        }
+        songs = filtered;
+    }
+
     populateSongList(songs);
+}
+
+void SongLibraryDialog::onFilterChanged(int index)
+{
+    Q_UNUSED(index)
+    refreshSongList();
+}
+
+void SongLibraryDialog::onCCLIReport()
+{
+    CCLIReportDialog dialog(m_library, this);
+    dialog.exec();
+}
+
+void SongLibraryDialog::onSearchSongSelect()
+{
+    SongSelectSearchDialog dialog(this);
+    dialog.exec();
 }
 
 void SongLibraryDialog::populateSongList(const QList<Song>& songs)
@@ -230,9 +331,24 @@ void SongLibraryDialog::populateSongList(const QList<Song>& songs)
         if (!song.author().isEmpty()) {
             itemText += " - " + song.author();
         }
+        // Add CCLI# if available
+        if (!song.ccliNumber().isEmpty()) {
+            itemText += QString(" [#%1]").arg(song.ccliNumber());
+        }
 
         QListWidgetItem* item = new QListWidgetItem(itemText);
         item->setData(Qt::UserRole, song.id());
+
+        // Add tooltip with usage info
+        QString tooltip = song.title();
+        if (!song.ccliNumber().isEmpty()) {
+            tooltip += QString("\nCCLI #: %1").arg(song.ccliNumber());
+        }
+        if (song.usageCount() > 0) {
+            tooltip += QString("\nUsed %1 time(s)").arg(song.usageCount());
+        }
+        item->setToolTip(tooltip);
+
         m_songList->addItem(item);
     }
 
@@ -293,6 +409,10 @@ void SongLibraryDialog::showSongDetails(const Song& song)
         m_copyrightLabel->setToolTip("");
         m_ccliLabel->setText("-");
         m_ccliLabel->setToolTip("");
+        m_usageLabel->setText("-");
+        m_usageLabel->setToolTip("");
+        m_lastUsedLabel->setText("-");
+        m_lastUsedLabel->setToolTip("");
         m_lyricsPreview->clear();
         return;
     }
@@ -310,6 +430,52 @@ void SongLibraryDialog::showSongDetails(const Song& song)
 
     m_ccliLabel->setText(song.ccliNumber().isEmpty() ? "-" : song.ccliNumber());
     m_ccliLabel->setToolTip(song.ccliNumber().isEmpty() ? "" : song.ccliNumber());
+
+    // Usage statistics
+    int usageCount = song.usageCount();
+    m_usageLabel->setText(QString::number(usageCount));
+    if (usageCount > 0) {
+        // Show recent usage dates in tooltip
+        QStringList recentDates;
+        QList<SongUsage> history = song.usageHistory();
+        int limit = qMin(5, history.count());
+        for (int i = history.count() - 1; i >= history.count() - limit; --i) {
+            QString dateStr = history[i].dateTime.toString("yyyy-MM-dd");
+            if (!history[i].eventName.isEmpty()) {
+                dateStr += " (" + history[i].eventName + ")";
+            }
+            recentDates.append(dateStr);
+        }
+        m_usageLabel->setToolTip("Recent uses:\n" + recentDates.join("\n"));
+    } else {
+        m_usageLabel->setToolTip("");
+    }
+
+    // Last used date
+    if (song.lastUsed().isValid()) {
+        QDateTime lastUsed = song.lastUsed();
+        QString lastUsedStr = lastUsed.date().toString("MMM d, yyyy");
+
+        // Add relative time
+        qint64 daysAgo = lastUsed.date().daysTo(QDate::currentDate());
+        if (daysAgo == 0) {
+            lastUsedStr += " (today)";
+        } else if (daysAgo == 1) {
+            lastUsedStr += " (yesterday)";
+        } else if (daysAgo < 7) {
+            lastUsedStr += QString(" (%1 days ago)").arg(daysAgo);
+        } else if (daysAgo < 30) {
+            lastUsedStr += QString(" (%1 weeks ago)").arg(daysAgo / 7);
+        } else if (daysAgo < 365) {
+            lastUsedStr += QString(" (%1 months ago)").arg(daysAgo / 30);
+        }
+
+        m_lastUsedLabel->setText(lastUsedStr);
+        m_lastUsedLabel->setToolTip(lastUsed.toString("yyyy-MM-dd hh:mm"));
+    } else {
+        m_lastUsedLabel->setText("Never");
+        m_lastUsedLabel->setToolTip("");
+    }
 
     // Build lyrics preview with section labels
     QStringList previewLines;
@@ -501,6 +667,157 @@ QList<Slide> SongLibraryDialog::createSlidesFromSong(const Song& song) const
     bool includeLabels = m_includeLabelCheck->isChecked();
     int maxLines = m_maxLinesSpinBox->value();
     return song.toSlides(style, includeTitleSlide, includeLabels, maxLines);
+}
+
+void SongLibraryDialog::onBatchImport()
+{
+    BatchImportDialog dialog(m_library, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        refreshSongList();
+
+        int importedCount = dialog.importedCount();
+        if (importedCount > 0) {
+            QMessageBox::information(this, "Import Complete",
+                QString("%1 song(s) imported successfully.").arg(importedCount));
+        }
+    }
+}
+
+void SongLibraryDialog::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (event->mimeData()->hasUrls()) {
+        // Check if any files have supported extensions
+        bool hasValidFile = false;
+        for (const QUrl& url : event->mimeData()->urls()) {
+            if (url.isLocalFile()) {
+                QString path = url.toLocalFile();
+                QString ext = path.section('.', -1).toLower();
+                if (ext == "xml" || ext == "txt" || ext == "usr") {
+                    hasValidFile = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasValidFile) {
+            event->acceptProposedAction();
+            showDropIndicator(true);
+        }
+    }
+}
+
+void SongLibraryDialog::dragLeaveEvent(QDragLeaveEvent* event)
+{
+    Q_UNUSED(event)
+    showDropIndicator(false);
+}
+
+void SongLibraryDialog::dropEvent(QDropEvent* event)
+{
+    showDropIndicator(false);
+
+    QStringList filePaths;
+    for (const QUrl& url : event->mimeData()->urls()) {
+        if (url.isLocalFile()) {
+            QString path = url.toLocalFile();
+            QString ext = path.section('.', -1).toLower();
+            if (ext == "xml" || ext == "txt" || ext == "usr") {
+                filePaths.append(path);
+            }
+        }
+    }
+
+    if (!filePaths.isEmpty()) {
+        event->acceptProposedAction();
+        importFiles(filePaths);
+    }
+}
+
+void SongLibraryDialog::importFiles(const QStringList& filePaths)
+{
+    if (filePaths.count() == 1) {
+        // Single file - use regular import flow with editor
+        Song song = m_library->importFromFile(filePaths.first());
+
+        if (song.title().isEmpty() && song.sectionCount() == 0) {
+            QMessageBox::warning(this, "Import Failed",
+                "Could not import song from file.\nPlease check the file format.");
+            return;
+        }
+
+        // Open editor to review/modify before adding
+        SongEditorDialog editor(this);
+        editor.setSong(song);
+        editor.setWindowTitle("Review Imported Song");
+
+        if (editor.exec() == QDialog::Accepted) {
+            Song editedSong = editor.song();
+
+            // Check for duplicates by CCLI number
+            if (!editedSong.ccliNumber().isEmpty()) {
+                QList<Song> existing = m_library->findByCcliNumber(editedSong.ccliNumber());
+                if (!existing.isEmpty()) {
+                    QMessageBox::StandardButton reply = QMessageBox::question(
+                        this,
+                        "Duplicate Found",
+                        QString("A song with CCLI# %1 already exists:\n'%2'\n\nImport anyway?")
+                            .arg(editedSong.ccliNumber())
+                            .arg(existing.first().title()),
+                        QMessageBox::Yes | QMessageBox::No
+                    );
+                    if (reply != QMessageBox::Yes) {
+                        return;
+                    }
+                }
+            }
+
+            int id = m_library->addSong(editedSong);
+            m_library->saveLibrary();
+
+            refreshSongList();
+
+            // Select the newly added song
+            for (int i = 0; i < m_songList->count(); ++i) {
+                if (m_songList->item(i)->data(Qt::UserRole).toInt() == id) {
+                    m_songList->setCurrentRow(i);
+                    break;
+                }
+            }
+
+            QMessageBox::information(this, "Song Imported",
+                QString("'%1' has been added to the library.").arg(editedSong.title()));
+        }
+    } else {
+        // Multiple files - use batch import dialog
+        BatchImportDialog dialog(m_library, filePaths, this);
+        if (dialog.exec() == QDialog::Accepted) {
+            refreshSongList();
+
+            int importedCount = dialog.importedCount();
+            if (importedCount > 0) {
+                QMessageBox::information(this, "Import Complete",
+                    QString("%1 song(s) imported successfully.").arg(importedCount));
+            }
+        }
+    }
+}
+
+void SongLibraryDialog::showDropIndicator(bool show)
+{
+    if (show) {
+        if (!m_dropOverlay) {
+            m_dropOverlay = new QWidget(this);
+            m_dropOverlay->setStyleSheet(
+                "background-color: rgba(30, 58, 138, 0.3);"
+                "border: 3px dashed #1e3a8a;"
+            );
+        }
+        m_dropOverlay->setGeometry(rect());
+        m_dropOverlay->raise();
+        m_dropOverlay->show();
+    } else if (m_dropOverlay) {
+        m_dropOverlay->hide();
+    }
 }
 
 } // namespace Clarity

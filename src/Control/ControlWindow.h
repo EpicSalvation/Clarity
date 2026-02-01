@@ -8,6 +8,7 @@
 #include "Core/SettingsManager.h"
 #include "Core/BibleDatabase.h"
 #include "Core/SongLibrary.h"
+#include <QSet>
 #include "Core/ThemeManager.h"
 #include "Core/MediaLibrary.h"
 #include "Core/VideoThumbnailGenerator.h"
@@ -167,6 +168,9 @@ private:
     bool m_isBlackout = false;
     bool m_isWhiteout = false;
     bool m_isOutputDisabled = false;  ///< Persistent output disable (survives navigation)
+
+    // Song usage tracking (prevents duplicate records per session)
+    QSet<int> m_recordedSongUsage;  ///< Song IDs that have been recorded this session
 };
 
 } // namespace Clarity

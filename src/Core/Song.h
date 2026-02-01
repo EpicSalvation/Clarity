@@ -26,6 +26,21 @@ struct SongSection {
 };
 
 /**
+ * @brief Represents a single usage record for CCLI reporting
+ */
+struct SongUsage {
+    QDateTime dateTime;  ///< When the song was used
+    QString eventName;   ///< Event name (e.g., "Sunday Service", "Wednesday Night")
+
+    SongUsage() = default;
+    SongUsage(const QDateTime& dt, const QString& event = QString())
+        : dateTime(dt), eventName(event) {}
+
+    QJsonObject toJson() const;
+    static SongUsage fromJson(const QJsonObject& json);
+};
+
+/**
  * @brief Style settings for generating slides from songs
  */
 struct SlideStyle {
@@ -81,6 +96,29 @@ public:
     QDateTime lastUsed() const { return m_lastUsed; }
     void setLastUsed(const QDateTime& date) { m_lastUsed = date; }
 
+    // Usage history for CCLI reporting
+    QList<SongUsage> usageHistory() const { return m_usageHistory; }
+    void setUsageHistory(const QList<SongUsage>& history) { m_usageHistory = history; }
+    void addUsage(const SongUsage& usage);
+    void clearUsageHistory() { m_usageHistory.clear(); }
+    int usageCount() const { return m_usageHistory.count(); }
+
+    /**
+     * @brief Get usage count within a date range
+     * @param from Start date (inclusive)
+     * @param to End date (inclusive)
+     * @return Number of uses within the date range
+     */
+    int usageCountInRange(const QDate& from, const QDate& to) const;
+
+    /**
+     * @brief Get usage records within a date range
+     * @param from Start date (inclusive)
+     * @param to End date (inclusive)
+     * @return List of usage records within the date range
+     */
+    QList<SongUsage> usageInRange(const QDate& from, const QDate& to) const;
+
     // Sections
     QList<SongSection> sections() const { return m_sections; }
     void setSections(const QList<SongSection>& sections) { m_sections = sections; }
@@ -128,6 +166,21 @@ public:
      */
     static Song fromPlainText(const QString& text, const QString& title);
 
+    /**
+     * @brief Import from SongSelect USR file format
+     * @param content USR file content string
+     * @return Song object (empty title if parsing failed)
+     *
+     * USR is an INI-style format used by SongSelect:
+     * - [File] section with Type and Version
+     * - [S <CCLI#>] section with song data
+     * - Title, Author (pipe-delimited), Copyright (pipe-delimited)
+     * - Themes (slash-delimited)
+     * - Fields (tab-delimited section names like "Vers 1", "Chorus 1")
+     * - Words (tab-delimited sections, /n for newlines within sections)
+     */
+    static Song fromUsrFile(const QString& content);
+
 private:
     int m_id;
     QString m_title;
@@ -137,6 +190,7 @@ private:
     QList<SongSection> m_sections;
     QDateTime m_addedDate;
     QDateTime m_lastUsed;
+    QList<SongUsage> m_usageHistory;
 };
 
 } // namespace Clarity

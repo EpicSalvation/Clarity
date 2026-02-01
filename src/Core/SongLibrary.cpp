@@ -248,6 +248,17 @@ void SongLibrary::markAsUsed(int id)
     }
 }
 
+void SongLibrary::recordUsage(int id, const QString& eventName)
+{
+    int index = indexOf(id);
+    if (index >= 0) {
+        SongUsage usage(QDateTime::currentDateTime(), eventName);
+        m_songs[index].addUsage(usage);
+        emit songUpdated(id);
+        qDebug() << "SongLibrary: Recorded usage for song" << id << "event:" << eventName;
+    }
+}
+
 Song SongLibrary::importFromFile(const QString& filePath)
 {
     QFile file(filePath);
@@ -265,19 +276,52 @@ Song SongLibrary::importFromFile(const QString& filePath)
 
     Song song;
 
-    if (suffix == "xml") {
-        // Try OpenLyrics format
+    // Auto-detect format by content first
+    QString trimmedContent = content.trimmed();
+
+    // USR format: starts with [File]
+    if (trimmedContent.startsWith("[File]", Qt::CaseInsensitive)) {
+        qDebug() << "Detected USR format by content";
+        song = Song::fromUsrFile(content);
+    }
+    // OpenLyrics XML: starts with <?xml or <song
+    else if (trimmedContent.startsWith("<?xml") || trimmedContent.startsWith("<song")) {
+        qDebug() << "Detected OpenLyrics XML format by content";
         song = Song::fromOpenLyrics(content);
-    } else if (suffix == "txt") {
-        // Plain text with markers
-        song = Song::fromPlainText(content, baseName);
-    } else {
-        // Unknown format, try plain text
-        qDebug() << "Unknown file format, treating as plain text:" << suffix;
+    }
+    // Fall back to extension-based detection
+    else if (suffix == "usr") {
+        qDebug() << "Using USR format based on extension";
+        song = Song::fromUsrFile(content);
+    }
+    else if (suffix == "xml") {
+        qDebug() << "Using OpenLyrics format based on extension";
+        song = Song::fromOpenLyrics(content);
+    }
+    else {
+        // Default to plain text (handles .txt and unknown formats)
+        qDebug() << "Using plain text format for:" << suffix;
         song = Song::fromPlainText(content, baseName);
     }
 
     return song;
+}
+
+QList<Song> SongLibrary::findByCcliNumber(const QString& ccliNumber) const
+{
+    QList<Song> results;
+
+    if (ccliNumber.isEmpty()) {
+        return results;
+    }
+
+    for (const Song& song : m_songs) {
+        if (song.ccliNumber() == ccliNumber) {
+            results.append(song);
+        }
+    }
+
+    return results;
 }
 
 int SongLibrary::nextId()

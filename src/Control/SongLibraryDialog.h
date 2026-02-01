@@ -11,6 +11,9 @@
 #include <QPushButton>
 #include <QCheckBox>
 #include <QSpinBox>
+#include <QComboBox>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 
 namespace Clarity {
 
@@ -69,15 +72,24 @@ public:
     void setDefaultStyle(const QColor& bgColor, const QColor& textColor,
                          const QString& fontFamily, int fontSize);
 
+protected:
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dragLeaveEvent(QDragLeaveEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
+
 private slots:
     void onSearch();
     void onSongSelectionChanged();
     void onSongDoubleClicked(QListWidgetItem* item);
     void onImport();
+    void onBatchImport();
+    void onSearchSongSelect();
     void onNewSong();
     void onEditSong();
     void onDeleteSong();
     void onIncludeLabelChanged(Qt::CheckState state);
+    void onCCLIReport();
+    void onFilterChanged(int index);
     void refreshSongList();
 
 private:
@@ -85,6 +97,8 @@ private:
     void populateSongList(const QList<Song>& songs);
     void showSongDetails(const Song& song);
     QList<Slide> createSlidesFromSong(const Song& song) const;
+    void importFiles(const QStringList& filePaths);
+    void showDropIndicator(bool show);
 
     // Library reference
     SongLibrary* m_library;
@@ -92,6 +106,8 @@ private:
     // Search controls
     QLineEdit* m_searchEdit;
     QPushButton* m_searchButton;
+    QComboBox* m_filterCombo;
+    QPushButton* m_ccliReportButton;
 
     // Song list
     QListWidget* m_songList;
@@ -102,13 +118,19 @@ private:
     QLabel* m_authorLabel;
     QLabel* m_copyrightLabel;
     QLabel* m_ccliLabel;
+    QLabel* m_usageLabel;
+    QLabel* m_lastUsedLabel;
     QTextEdit* m_lyricsPreview;
 
     // Library management buttons
     QPushButton* m_importButton;
+    QPushButton* m_batchImportButton;
     QPushButton* m_newButton;
     QPushButton* m_editButton;
     QPushButton* m_deleteButton;
+
+    // Drop indicator
+    QWidget* m_dropOverlay;
 
     // Insert options
     QCheckBox* m_includeLabelCheck;

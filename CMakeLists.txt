@@ -117,6 +117,12 @@ add_executable(Clarity
     src/Control/MediaLibraryDialog.cpp
     src/Control/BibleImportDialog.h
     src/Control/BibleImportDialog.cpp
+    src/Control/BatchImportDialog.h
+    src/Control/BatchImportDialog.cpp
+    src/Control/CCLIReportDialog.h
+    src/Control/CCLIReportDialog.cpp
+    src/Control/SongSelectSearchDialog.h
+    src/Control/SongSelectSearchDialog.cpp
 
     # Output display files
     src/Output/OutputMain.h

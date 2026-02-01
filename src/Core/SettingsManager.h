@@ -97,6 +97,16 @@ public:
     QString redLetterColor() const;          // Color for words of Jesus (default: #cc0000)
     void setRedLetterColor(const QString& color);
 
+    // CCLI Usage Tracking settings
+    bool usageTrackingEnabled() const;       // Whether to automatically track song usage
+    void setUsageTrackingEnabled(bool enabled);
+
+    bool promptForEventName() const;         // Whether to prompt for event name when recording usage
+    void setPromptForEventName(bool prompt);
+
+    QString defaultEventName() const;        // Default event name (e.g., "Sunday Service")
+    void setDefaultEventName(const QString& name);
+
     // Reset all settings to defaults
     void resetToDefaults();
 

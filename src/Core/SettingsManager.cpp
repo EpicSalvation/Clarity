@@ -389,6 +389,48 @@ void SettingsManager::setRedLetterColor(const QString& color)
     }
 }
 
+bool SettingsManager::usageTrackingEnabled() const
+{
+    return m_settings->value("CCLI/UsageTrackingEnabled", true).toBool();
+}
+
+void SettingsManager::setUsageTrackingEnabled(bool enabled)
+{
+    if (usageTrackingEnabled() != enabled) {
+        m_settings->setValue("CCLI/UsageTrackingEnabled", enabled);
+        m_settings->sync();
+        qDebug() << "SettingsManager: Usage tracking enabled set to" << enabled;
+    }
+}
+
+bool SettingsManager::promptForEventName() const
+{
+    return m_settings->value("CCLI/PromptForEventName", false).toBool();
+}
+
+void SettingsManager::setPromptForEventName(bool prompt)
+{
+    if (promptForEventName() != prompt) {
+        m_settings->setValue("CCLI/PromptForEventName", prompt);
+        m_settings->sync();
+        qDebug() << "SettingsManager: Prompt for event name set to" << prompt;
+    }
+}
+
+QString SettingsManager::defaultEventName() const
+{
+    return m_settings->value("CCLI/DefaultEventName", "Sunday Service").toString();
+}
+
+void SettingsManager::setDefaultEventName(const QString& name)
+{
+    if (defaultEventName() != name) {
+        m_settings->setValue("CCLI/DefaultEventName", name);
+        m_settings->sync();
+        qDebug() << "SettingsManager: Default event name set to" << name;
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";
