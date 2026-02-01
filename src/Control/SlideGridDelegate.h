@@ -69,10 +69,16 @@ public:
      */
     void invalidateCacheFor(int index);
 
+    /**
+     * @brief Set the red letter color for scripture slides
+     */
+    void setRedLetterColor(const QString& color);
+
 private:
     QSize m_thumbnailSize;          ///< Size of each thumbnail (default 160x90)
     int m_currentSlideIndex;        ///< Index of currently displayed slide
     int m_spacing;                  ///< Spacing around thumbnails
+    QString m_redLetterColor;       ///< Color for red letter text
 
     // Mutable cache for thumbnails (can be modified in const paint method)
     mutable QHash<int, QPixmap> m_thumbnailCache;

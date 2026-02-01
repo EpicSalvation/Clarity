@@ -12,6 +12,7 @@ namespace Clarity {
 // Forward declarations
 class SongLibrary;
 class BibleDatabase;
+class SettingsManager;
 
 /**
  * @brief Position information for a slide within the presentation
@@ -253,11 +254,13 @@ public:
      * @param json JSON object
      * @param songLibrary Song library for SongItem deserialization (optional)
      * @param bibleDatabase Bible database for ScriptureItem deserialization (optional)
+     * @param settingsManager Settings manager for red letter settings (optional)
      * @return New Presentation (caller takes ownership)
      */
     static Presentation* fromJson(const QJsonObject& json,
                                    SongLibrary* songLibrary = nullptr,
                                    BibleDatabase* bibleDatabase = nullptr,
+                                   SettingsManager* settingsManager = nullptr,
                                    QObject* parent = nullptr);
 
 signals:

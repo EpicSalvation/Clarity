@@ -52,11 +52,11 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [x] Persistent translation preferences (preferred vs. remember last)
   - [x] One verse per slide setting persistence
 
-- [ ] **Bible Enhancements (Red Letter Edition)**
-  - [ ] Words of Jesus displayed in red
-  - [ ] Verse-level markup in database schema
-  - [ ] UI option to enable/disable red letters
-  - [ ] Rich text support in slides
+- [x] **Bible Enhancements (Red Letter Edition)**
+  - [x] Words of Jesus displayed in red
+  - [x] Verse-level markup in database schema
+  - [x] UI option to enable/disable red letters
+  - [x] Rich text support in slides
 
 - [ ] **SongSelect Integration**
   - [ ] Search SongSelect catalog from within Clarity

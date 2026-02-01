@@ -1,10 +1,12 @@
 #include "ScriptureItem.h"
+#include "SettingsManager.h"
 
 namespace Clarity {
 
 ScriptureItem::ScriptureItem(QObject* parent)
     : PresentationItem(parent)
     , m_bibleDatabase(nullptr)
+    , m_settingsManager(nullptr)
     , m_oneVersePerSlide(true)
     , m_includeVerseReferences(true)
     , m_includeHeaderSlide(true)
@@ -17,6 +19,7 @@ ScriptureItem::ScriptureItem(const QString& reference, const QString& translatio
     , m_reference(reference)
     , m_translation(translation)
     , m_bibleDatabase(database)
+    , m_settingsManager(nullptr)
     , m_oneVersePerSlide(true)
     , m_includeVerseReferences(true)
     , m_includeHeaderSlide(true)
@@ -90,9 +93,15 @@ QList<Slide> ScriptureItem::generateSlides() const
         return slides;
     }
 
+    // Check if red letters are enabled
+    bool useRedLetters = m_settingsManager ? m_settingsManager->redLettersEnabled() : false;
+
     // Helper to create and style a slide
-    auto createSlide = [this](const QString& text) -> Slide {
+    auto createSlide = [this](const QString& text, const QString& richText = QString()) -> Slide {
         Slide slide(text);
+        if (!richText.isEmpty()) {
+            slide.setRichText(richText);
+        }
         if (m_hasCustomStyle) {
             slide.setBackgroundColor(m_itemStyle.backgroundColor);
             slide.setTextColor(m_itemStyle.textColor);
@@ -115,28 +124,54 @@ QList<Slide> ScriptureItem::generateSlides() const
         // Each verse gets its own slide
         for (const BibleVerse& verse : verses) {
             QString slideText;
+            QString slideRichText;
+
             if (m_includeVerseReferences) {
                 // Format: "16 For God so loved the world..."
                 slideText = QString("%1 %2").arg(verse.verse).arg(verse.text);
+                // For rich text, prepend verse number outside the red letter markup
+                if (useRedLetters && !verse.richText.isEmpty()) {
+                    slideRichText = QString("%1 %2").arg(verse.verse).arg(verse.richText);
+                }
             } else {
                 slideText = verse.text;
+                if (useRedLetters && !verse.richText.isEmpty()) {
+                    slideRichText = verse.richText;
+                }
             }
-            slides.append(createSlide(slideText));
+            slides.append(createSlide(slideText, slideRichText));
         }
     } else {
         // All verses on one slide
         QString combinedText;
+        QString combinedRichText;
+        bool hasAnyRichText = false;
+
         for (const BibleVerse& verse : verses) {
             if (!combinedText.isEmpty()) {
                 combinedText += " ";
+                combinedRichText += " ";
             }
             if (m_includeVerseReferences) {
                 combinedText += QString("%1 %2").arg(verse.verse).arg(verse.text);
+                if (!verse.richText.isEmpty()) {
+                    combinedRichText += QString("%1 %2").arg(verse.verse).arg(verse.richText);
+                    hasAnyRichText = true;
+                } else {
+                    combinedRichText += QString("%1 %2").arg(verse.verse).arg(verse.text.toHtmlEscaped());
+                }
             } else {
                 combinedText += verse.text;
+                if (!verse.richText.isEmpty()) {
+                    combinedRichText += verse.richText;
+                    hasAnyRichText = true;
+                } else {
+                    combinedRichText += verse.text.toHtmlEscaped();
+                }
             }
         }
-        slides.append(createSlide(combinedText));
+        // Only use rich text if red letters are enabled and at least one verse has markup
+        slides.append(createSlide(combinedText, (useRedLetters && hasAnyRichText) ? combinedRichText : QString()));
     }
 
     return slides;
@@ -164,6 +199,15 @@ void ScriptureItem::setBibleDatabase(BibleDatabase* database)
 {
     if (m_bibleDatabase != database) {
         m_bibleDatabase = database;
+        invalidateSlideCache();
+        emit itemChanged();
+    }
+}
+
+void ScriptureItem::setSettingsManager(SettingsManager* settings)
+{
+    if (m_settingsManager != settings) {
+        m_settingsManager = settings;
         invalidateSlideCache();
         emit itemChanged();
     }
@@ -207,7 +251,7 @@ QJsonObject ScriptureItem::toJson() const
     return json;
 }
 
-ScriptureItem* ScriptureItem::fromJson(const QJsonObject& json, BibleDatabase* database)
+ScriptureItem* ScriptureItem::fromJson(const QJsonObject& json, BibleDatabase* database, SettingsManager* settings)
 {
     if (json["type"].toString() != "scripture") {
         qWarning("ScriptureItem::fromJson: type mismatch");
@@ -216,6 +260,7 @@ ScriptureItem* ScriptureItem::fromJson(const QJsonObject& json, BibleDatabase* d
 
     ScriptureItem* item = new ScriptureItem();
     item->applyBaseJson(json);
+    item->m_settingsManager = settings;
     item->m_reference = json["reference"].toString();
     item->m_translation = json["translation"].toString();
     item->m_oneVersePerSlide = json["oneVersePerSlide"].toBool(true);

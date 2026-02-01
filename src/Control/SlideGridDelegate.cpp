@@ -10,6 +10,7 @@ SlideGridDelegate::SlideGridDelegate(QObject* parent)
     , m_thumbnailSize(160, 90)  // 16:9 aspect ratio
     , m_currentSlideIndex(-1)
     , m_spacing(10)
+    , m_redLetterColor("#cc0000")
 {
 }
 
@@ -53,6 +54,7 @@ void SlideGridDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
         SlidePreviewRenderer::RenderOptions renderOptions;
         renderOptions.showSlideNumber = true;
         renderOptions.slideNumber = slideIndex + 1;  // 1-based display
+        renderOptions.redLetterColor = m_redLetterColor;
 
         thumbnail = SlidePreviewRenderer::render(slide, m_thumbnailSize, renderOptions);
         m_thumbnailCache.insert(slideIndex, thumbnail);
@@ -132,6 +134,14 @@ void SlideGridDelegate::invalidateCache()
 void SlideGridDelegate::invalidateCacheFor(int index)
 {
     m_thumbnailCache.remove(index);
+}
+
+void SlideGridDelegate::setRedLetterColor(const QString& color)
+{
+    if (m_redLetterColor != color) {
+        m_redLetterColor = color;
+        invalidateCache();  // Re-render thumbnails with new color
+    }
 }
 
 } // namespace Clarity

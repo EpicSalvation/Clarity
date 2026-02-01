@@ -26,6 +26,9 @@ Window {
 
     // Cached slide data for container A
     property string slideTextA: ""
+    property string slideRichTextA: ""
+    property bool useRichTextA: false
+    property string redLetterColorA: "#cc0000"
     property color backgroundColorA: "#000000"
     property color textColorA: "#ffffff"
     property string fontFamilyA: "Arial"
@@ -57,6 +60,9 @@ Window {
 
     // Cached slide data for container B
     property string slideTextB: ""
+    property string slideRichTextB: ""
+    property bool useRichTextB: false
+    property string redLetterColorB: "#cc0000"
     property color backgroundColorB: "#000000"
     property color textColorB: "#ffffff"
     property string fontFamilyB: "Arial"
@@ -89,6 +95,9 @@ Window {
     // Copy current displayController values to the specified container
     function copyToContainerA() {
         slideTextA = displayController.slideText
+        slideRichTextA = displayController.slideRichText
+        useRichTextA = displayController.useRichText
+        redLetterColorA = displayController.redLetterColor
         backgroundColorA = displayController.backgroundColor
         textColorA = displayController.textColor
         fontFamilyA = displayController.fontFamily
@@ -121,6 +130,9 @@ Window {
 
     function copyToContainerB() {
         slideTextB = displayController.slideText
+        slideRichTextB = displayController.slideRichText
+        useRichTextB = displayController.useRichText
+        redLetterColorB = displayController.redLetterColor
         backgroundColorB = displayController.backgroundColor
         textColorB = displayController.textColor
         fontFamilyB = displayController.fontFamily
@@ -162,9 +174,11 @@ Window {
         target: displayController
 
         function onStartTransition() {
-            if (!root.transitioning) {
-                root.beginTransition()
+            // If a transition is in progress, interrupt it and snap to end state
+            if (root.transitioning) {
+                root.interruptTransition()
             }
+            root.beginTransition()
         }
 
         // Toggle fullscreen mode when F key is pressed
@@ -201,6 +215,10 @@ Window {
         // When display is cleared, immediately update the current container
         function onIsClearedChanged() {
             if (displayController.isCleared) {
+                // Stop any in-progress transition before clearing
+                if (root.transitioning) {
+                    root.interruptTransition()
+                }
                 // Force immediate update when clearing (no transition)
                 if (root.showingA) {
                     root.copyToContainerA()
@@ -307,6 +325,45 @@ Window {
         displayController.transitionComplete()
     }
 
+    // Interrupt an in-progress transition, snapping to the end state
+    function interruptTransition() {
+        if (!transitioning) return
+
+        // Stop both animations immediately
+        // Note: Animation.stop() in QML does NOT emit onFinished signal
+        transitionOutAnimation.stop()
+        transitionInAnimation.stop()
+
+        // Snap to final state: incoming slide becomes fully visible
+        // The incoming container is the OPPOSITE of showingA
+        if (showingA) {
+            // We were transitioning FROM A TO B, so B becomes current
+            slideB.x = 0
+            slideB.y = 0
+            slideB.opacity = 1
+            slideA.opacity = 0
+            showingA = false
+        } else {
+            // We were transitioning FROM B TO A, so A becomes current
+            slideA.x = 0
+            slideA.y = 0
+            slideA.opacity = 1
+            slideB.opacity = 0
+            showingA = true
+        }
+
+        // Reset positions and z-order
+        slideA.x = 0
+        slideA.y = 0
+        slideB.x = 0
+        slideB.y = 0
+        slideA.z = 0
+        slideB.z = 0
+
+        transitioning = false
+        console.log("OutputDisplay: Transition interrupted")
+    }
+
     // Slide container A
     Item {
         id: slideA
@@ -410,12 +467,17 @@ Window {
         }
 
         // Text shadow (rendered behind main text for drop shadow effect)
+        // Must use same text format as main text to ensure identical layout
         Text {
             id: textShadowA
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: root.dropShadowOffsetXA
             anchors.verticalCenterOffset: root.dropShadowOffsetYA
-            text: root.slideTextA
+            // Use same format as main text but override all colors to shadow color
+            text: root.useRichTextA
+                ? "<style>*{color:" + root.dropShadowColorA + "}.jesus{color:" + root.dropShadowColorA + "}</style>" + root.slideRichTextA
+                : root.slideTextA
+            textFormat: root.useRichTextA ? Text.RichText : Text.PlainText
             color: root.dropShadowColorA
             font.family: root.fontFamilyA
             font.pixelSize: root.fontSizeA
@@ -426,11 +488,15 @@ Window {
             visible: root.dropShadowEnabledA
         }
 
-        // Main text content
+        // Main text content - supports rich text for red letter display
         Text {
             id: textContentA
             anchors.centerIn: parent
-            text: root.slideTextA
+            // Use rich text when available, applying red letter color via inline CSS
+            text: root.useRichTextA
+                ? "<style>.jesus{color:" + root.redLetterColorA + "}</style>" + root.slideRichTextA
+                : root.slideTextA
+            textFormat: root.useRichTextA ? Text.RichText : Text.PlainText
             color: root.textColorA
             font.family: root.fontFamilyA
             font.pixelSize: root.fontSizeA
@@ -438,7 +504,7 @@ Window {
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.WordWrap
             width: parent.width * 0.8
-            style: Text.Outline
+            style: root.useRichTextA ? Text.Normal : Text.Outline
             styleColor: "black"
         }
     }
@@ -546,12 +612,17 @@ Window {
         }
 
         // Text shadow (rendered behind main text for drop shadow effect)
+        // Must use same text format as main text to ensure identical layout
         Text {
             id: textShadowB
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: root.dropShadowOffsetXB
             anchors.verticalCenterOffset: root.dropShadowOffsetYB
-            text: root.slideTextB
+            // Use same format as main text but override all colors to shadow color
+            text: root.useRichTextB
+                ? "<style>*{color:" + root.dropShadowColorB + "}.jesus{color:" + root.dropShadowColorB + "}</style>" + root.slideRichTextB
+                : root.slideTextB
+            textFormat: root.useRichTextB ? Text.RichText : Text.PlainText
             color: root.dropShadowColorB
             font.family: root.fontFamilyB
             font.pixelSize: root.fontSizeB
@@ -562,11 +633,15 @@ Window {
             visible: root.dropShadowEnabledB
         }
 
-        // Main text content
+        // Main text content - supports rich text for red letter display
         Text {
             id: textContentB
             anchors.centerIn: parent
-            text: root.slideTextB
+            // Use rich text when available, applying red letter color via inline CSS
+            text: root.useRichTextB
+                ? "<style>.jesus{color:" + root.redLetterColorB + "}</style>" + root.slideRichTextB
+                : root.slideTextB
+            textFormat: root.useRichTextB ? Text.RichText : Text.PlainText
             color: root.textColorB
             font.family: root.fontFamilyB
             font.pixelSize: root.fontSizeB
@@ -574,7 +649,7 @@ Window {
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.WordWrap
             width: parent.width * 0.8
-            style: Text.Outline
+            style: root.useRichTextB ? Text.Normal : Text.Outline
             styleColor: "black"
         }
     }

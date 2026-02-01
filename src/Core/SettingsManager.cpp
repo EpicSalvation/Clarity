@@ -357,6 +357,38 @@ void SettingsManager::setScriptureOneVersePerSlide(bool onePerSlide)
     }
 }
 
+bool SettingsManager::redLettersEnabled() const
+{
+    return m_settings->value("Bible/RedLettersEnabled", true).toBool();
+}
+
+void SettingsManager::setRedLettersEnabled(bool enabled)
+{
+    if (redLettersEnabled() != enabled) {
+        m_settings->setValue("Bible/RedLettersEnabled", enabled);
+        m_settings->sync();
+    }
+}
+
+QString SettingsManager::redLetterColor() const
+{
+    return m_settings->value("Bible/RedLetterColor", "#cc0000").toString();
+}
+
+void SettingsManager::setRedLetterColor(const QString& color)
+{
+    // Validate color string
+    if (!QColor::isValidColor(color)) {
+        qWarning() << "SettingsManager: Invalid red letter color:" << color;
+        return;
+    }
+
+    if (redLetterColor() != color) {
+        m_settings->setValue("Bible/RedLetterColor", color);
+        m_settings->sync();
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";

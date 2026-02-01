@@ -40,6 +40,9 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_importTranslationButton(nullptr)
     , m_deleteTranslationButton(nullptr)
     , m_bibleDatabase(nullptr)
+    , m_redLettersEnabledCheckBox(nullptr)
+    , m_redLetterColorButton(nullptr)
+    , m_redLetterColor("#cc0000")
     , m_settingsManager(settingsManager)
 {
     setupUI();
@@ -421,6 +424,35 @@ void SettingsDialog::createBiblePage()
 
     pageLayout->addWidget(defaultGroup);
 
+    // Red Letter Edition group
+    QGroupBox* redLetterGroup = new QGroupBox(tr("Red Letter Edition"), biblePage);
+    QFormLayout* redLetterLayout = new QFormLayout(redLetterGroup);
+
+    m_redLettersEnabledCheckBox = new QCheckBox(
+        tr("Show words of Jesus in red"), redLetterGroup);
+    redLetterLayout->addRow(m_redLettersEnabledCheckBox);
+
+    // Color picker button
+    m_redLetterColorButton = new QPushButton(redLetterGroup);
+    m_redLetterColorButton->setMinimumWidth(100);
+    connect(m_redLetterColorButton, &QPushButton::clicked,
+            this, &SettingsDialog::onRedLetterColorClicked);
+    redLetterLayout->addRow(tr("Red Letter Color:"), m_redLetterColorButton);
+
+    // Enable/disable color button based on checkbox
+    connect(m_redLettersEnabledCheckBox, &QCheckBox::toggled,
+            m_redLetterColorButton, &QPushButton::setEnabled);
+
+    QLabel* redLetterHelpLabel = new QLabel(
+        tr("When enabled, words spoken by Jesus will be displayed in the selected color "
+           "for Bible translations that include red letter markup (e.g., WEB, NET)."),
+        redLetterGroup);
+    redLetterHelpLabel->setWordWrap(true);
+    redLetterHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    redLetterLayout->addRow(redLetterHelpLabel);
+
+    pageLayout->addWidget(redLetterGroup);
+
     // Installed Translations group
     QGroupBox* translationsGroup = new QGroupBox(tr("Installed Translations"), biblePage);
     QVBoxLayout* translationsLayout = new QVBoxLayout(translationsGroup);
@@ -674,6 +706,12 @@ void SettingsDialog::loadSettings()
     m_remoteControlPinEnabledCheckBox->setChecked(m_settingsManager->remoteControlPinEnabled());
     m_remoteControlPinEdit->setText(m_settingsManager->remoteControlPin());
     m_remoteControlPinEdit->setEnabled(m_settingsManager->remoteControlPinEnabled());
+
+    // Load red letter settings
+    m_redLettersEnabledCheckBox->setChecked(m_settingsManager->redLettersEnabled());
+    m_redLetterColor = QColor(m_settingsManager->redLetterColor());
+    updateColorButtonStyle(m_redLetterColorButton, m_redLetterColor);
+    m_redLetterColorButton->setEnabled(m_settingsManager->redLettersEnabled());
 }
 
 void SettingsDialog::saveSettings()
@@ -726,6 +764,10 @@ void SettingsDialog::saveSettings()
         m_settingsManager->setPreferredBibleTranslation(preferredTranslation);
     }
     m_settingsManager->setRememberLastBibleTranslation(m_rememberLastTranslationCheckBox->isChecked());
+
+    // Save red letter settings
+    m_settingsManager->setRedLettersEnabled(m_redLettersEnabledCheckBox->isChecked());
+    m_settingsManager->setRedLetterColor(m_redLetterColor.name());
 }
 
 void SettingsDialog::onOkClicked()
@@ -768,6 +810,15 @@ void SettingsDialog::updateColorButtonStyle(QPushButton* button, const QColor& c
                           .arg(color.name())
                           .arg(textColor));
     button->setText(color.name().toUpper());
+}
+
+void SettingsDialog::onRedLetterColorClicked()
+{
+    QColor color = QColorDialog::getColor(m_redLetterColor, this, tr("Select Red Letter Color"));
+    if (color.isValid()) {
+        m_redLetterColor = color;
+        updateColorButtonStyle(m_redLetterColorButton, color);
+    }
 }
 
 } // namespace Clarity

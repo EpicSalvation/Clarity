@@ -18,7 +18,8 @@ struct BibleVerse {
     QString book;           ///< Book name (e.g., "John", "Genesis")
     int chapter;            ///< Chapter number (1-indexed)
     int verse;              ///< Verse number (1-indexed)
-    QString text;           ///< Verse text content
+    QString text;           ///< Verse text content (plain text for searching)
+    QString richText;       ///< HTML-formatted text with red letter markup (may be empty)
     QString translation;    ///< Translation identifier (e.g., "KJV", "WEB")
 
     /**

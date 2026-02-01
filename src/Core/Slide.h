@@ -30,6 +30,8 @@ public:
 
     // Getters
     QString text() const { return m_text; }
+    QString richText() const { return m_richText; }
+    bool hasRichText() const { return !m_richText.isEmpty(); }
     QColor backgroundColor() const { return m_backgroundColor; }
     QColor textColor() const { return m_textColor; }
     QString fontFamily() const { return m_fontFamily; }
@@ -78,6 +80,7 @@ public:
 
     // Setters
     void setText(const QString& text) { m_text = text; }
+    void setRichText(const QString& richText) { m_richText = richText; }
     void setBackgroundColor(const QColor& color) { m_backgroundColor = color; }
     void setTextColor(const QColor& color) { m_textColor = color; }
     void setFontFamily(const QString& family) { m_fontFamily = family; }
@@ -126,6 +129,7 @@ public:
 
 private:
     QString m_text;
+    QString m_richText;  ///< HTML with red letter markup (may be empty)
     QColor m_backgroundColor;
     QColor m_textColor;
     QString m_fontFamily;

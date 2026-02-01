@@ -27,6 +27,8 @@ class ConfidenceDisplay : public QObject {
 
     // Current slide properties (what's on screen now)
     Q_PROPERTY(QString currentSlideText READ currentSlideText NOTIFY currentSlideChanged)
+    Q_PROPERTY(QString currentSlideRichText READ currentSlideRichText NOTIFY currentSlideChanged)
+    Q_PROPERTY(bool currentUseRichText READ currentUseRichText NOTIFY currentSlideChanged)
     Q_PROPERTY(QColor currentBackgroundColor READ currentBackgroundColor NOTIFY currentSlideChanged)
     Q_PROPERTY(QColor currentTextColor READ currentTextColor NOTIFY currentSlideChanged)
     Q_PROPERTY(QString currentFontFamily READ currentFontFamily NOTIFY currentSlideChanged)
@@ -39,6 +41,8 @@ class ConfidenceDisplay : public QObject {
 
     // Next slide properties (preview)
     Q_PROPERTY(QString nextSlideText READ nextSlideText NOTIFY nextSlideChanged)
+    Q_PROPERTY(QString nextSlideRichText READ nextSlideRichText NOTIFY nextSlideChanged)
+    Q_PROPERTY(bool nextUseRichText READ nextUseRichText NOTIFY nextSlideChanged)
     Q_PROPERTY(QColor nextBackgroundColor READ nextBackgroundColor NOTIFY nextSlideChanged)
     Q_PROPERTY(QColor nextTextColor READ nextTextColor NOTIFY nextSlideChanged)
     Q_PROPERTY(QString nextFontFamily READ nextFontFamily NOTIFY nextSlideChanged)
@@ -48,6 +52,9 @@ class ConfidenceDisplay : public QObject {
     Q_PROPERTY(QColor nextGradientStartColor READ nextGradientStartColor NOTIFY nextSlideChanged)
     Q_PROPERTY(QColor nextGradientEndColor READ nextGradientEndColor NOTIFY nextSlideChanged)
     Q_PROPERTY(int nextGradientAngle READ nextGradientAngle NOTIFY nextSlideChanged)
+
+    // Red letter color (from settings)
+    Q_PROPERTY(QString redLetterColor READ redLetterColor NOTIFY settingsChanged)
 
     // State properties
     Q_PROPERTY(bool hasNextSlide READ hasNextSlide NOTIFY nextSlideChanged)
@@ -74,6 +81,8 @@ public:
 
     // Current slide getters
     QString currentSlideText() const { return m_currentSlide.text(); }
+    QString currentSlideRichText() const { return m_currentSlide.richText(); }
+    bool currentUseRichText() const { return m_currentSlide.hasRichText(); }
     QColor currentBackgroundColor() const { return m_currentSlide.backgroundColor(); }
     QColor currentTextColor() const { return m_currentSlide.textColor(); }
     QString currentFontFamily() const { return m_currentSlide.fontFamily(); }
@@ -86,6 +95,8 @@ public:
 
     // Next slide getters
     QString nextSlideText() const { return m_nextSlide.text(); }
+    QString nextSlideRichText() const { return m_nextSlide.richText(); }
+    bool nextUseRichText() const { return m_nextSlide.hasRichText(); }
     QColor nextBackgroundColor() const { return m_nextSlide.backgroundColor(); }
     QColor nextTextColor() const { return m_nextSlide.textColor(); }
     QString nextFontFamily() const { return m_nextSlide.fontFamily(); }
@@ -95,6 +106,9 @@ public:
     QColor nextGradientStartColor() const { return m_nextSlide.gradientStartColor(); }
     QColor nextGradientEndColor() const { return m_nextSlide.gradientEndColor(); }
     int nextGradientAngle() const { return m_nextSlide.gradientAngle(); }
+
+    // Red letter color getter
+    QString redLetterColor() const;
 
     // State getters
     bool hasNextSlide() const { return m_hasNextSlide; }

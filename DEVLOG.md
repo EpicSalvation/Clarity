@@ -4,6 +4,93 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-01-31 - Red Letter Edition Bible Support
+
+### Summary
+Implemented Red Letter Edition support for Bible translations, displaying words of Jesus in red. Added rich text support throughout the rendering pipeline, from import to output display. Includes settings for enabling/disabling red letters and customizing the color.
+
+### Work Completed
+
+#### Database Schema Changes
+- Added `rich_text` column to verses table via migration
+- Plain text stored in `text` column for searching, HTML markup in `rich_text` column
+- Backward compatible: existing code continues to use `text` column
+
+#### Data Structure Updates
+- **ImportedVerse** (`BibleImporter.h`): Added `richText` field for HTML markup
+- **BibleVerse** (`BibleDatabase.h`): Added `richText` field
+- **Slide** (`Slide.h`): Added `m_richText` member with `richText()`, `hasRichText()`, `setRichText()` methods and JSON serialization
+
+#### Import Pipeline - Red Letter Preservation
+- **OSIS Importer**: Converts `<q who="Jesus">` to `<span class="jesus">`
+- **USFM Importer**: Converts `\wj ...\wj*` markers to HTML spans
+- **USX Importer**: Converts `<char style="wj">` elements to HTML spans
+- **USFX Importer**: Converts `<wj>` elements to HTML spans
+- Added filtering for Strong's numbers (`|strong="H####"`), lemma annotations, and other word-level attributes
+
+#### Settings
+- Added to SettingsManager:
+  - `redLettersEnabled()` / `setRedLettersEnabled()` - toggle feature on/off
+  - `redLetterColor()` / `setRedLetterColor()` - customizable color (default: #cc0000)
+- Added Bible page in SettingsDialog with:
+  - "Show words of Jesus in red" checkbox
+  - Color picker button for red letter color
+
+#### Output Display (QML)
+- Updated OutputDisplay.qml with rich text support in both slide containers (A and B)
+- Shadow text now uses same text format as main text to ensure identical layout
+- CSS styling injects red letter color: `<style>.jesus{color:#cc0000}</style>`
+
+#### Confidence Monitor
+- Added `currentSlideRichText`, `currentUseRichText`, `nextSlideRichText`, `nextUseRichText` properties
+- Added `redLetterColor` property from settings
+- Updated QML to render rich text for current and next slide previews
+
+#### Slide Preview Renderer
+- Updated `SlidePreviewRenderer::drawText()` to use QTextDocument for rich text
+- CSS styling applied for `.jesus` class with configurable color
+- SlideGridDelegate passes red letter color to renderer
+
+#### ScriptureItem Integration
+- Added SettingsManager reference to ScriptureItem
+- `generateSlides()` checks if red letters enabled and populates rich text in slides
+- Prepends verse numbers to rich text when including references
+
+### Technical Decisions
+- Standardized HTML format: `<span class="jesus">text</span>` for all importers
+- Rich text stored only when markup is present (NULL otherwise)
+- Shadow alignment fix: shadow must use same textFormat as main text to avoid layout differences between PlainText and RichText renderers
+
+### Bug Fixes
+- Fixed drop shadow misalignment on slides with red letters by ensuring shadow uses identical text format
+- Added Strong's number stripping (`|strong="H####"`) from USFM imports
+
+### Files Modified
+- `src/Core/BibleDatabase.h/.cpp` - Schema migration, rich text field
+- `src/Core/BibleImporter.h/.cpp` - Red letter preservation in all importers, Strong's filtering
+- `src/Core/Slide.h/.cpp` - Rich text member and JSON serialization
+- `src/Core/SettingsManager.h/.cpp` - Red letter settings
+- `src/Core/ScriptureItem.h/.cpp` - Rich text slide generation
+- `src/Core/Presentation.h/.cpp` - SettingsManager parameter for fromJson
+- `src/Core/SlidePreviewRenderer.h/.cpp` - QTextDocument rendering
+- `src/Control/SettingsDialog.h/.cpp` - Red letter UI controls
+- `src/Control/SlideGridDelegate.h/.cpp` - Red letter color passthrough
+- `src/Control/ControlWindow.cpp` - Wiring settings to components
+- `src/Output/OutputDisplay.h/.cpp` - Rich text properties for QML
+- `src/Output/qml/OutputDisplay.qml` - Rich text rendering with shadow fix
+- `src/Confidence/ConfidenceDisplay.h/.cpp` - Rich text properties
+- `src/Confidence/qml/ConfidenceMonitor.qml` - Rich text rendering
+- `PHASE4_PLAN.md` - Marked Red Letter Edition as complete
+
+### Testing
+- Verified OSIS import preserves red letter markup (WEB Bible)
+- Verified display in output window with correct red coloring
+- Verified shadow alignment matches main text on all slides
+- Verified toggle works to enable/disable red letters
+- Verified color picker changes red letter color
+
+---
+
 ## 2026-01-31 - Bible Translation Importer
 
 ### Summary

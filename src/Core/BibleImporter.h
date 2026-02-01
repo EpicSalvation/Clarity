@@ -16,7 +16,8 @@ struct ImportedVerse {
     QString book;      ///< Canonical book name (e.g., "Genesis")
     int chapter;       ///< Chapter number (1-indexed)
     int verse;         ///< Verse number (1-indexed)
-    QString text;      ///< Verse text content
+    QString text;      ///< Verse text content (plain text for searching)
+    QString richText;  ///< HTML with red letter markup: <span class="jesus">...</span>
 };
 
 /**

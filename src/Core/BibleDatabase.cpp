@@ -152,6 +152,27 @@ bool BibleDatabase::initialize(const QString& dbPath)
         return false;
     }
 
+    // Migration: Add rich_text column if it doesn't exist
+    // This stores HTML with red letter markup for translations that support it
+    QSqlQuery checkColumn(m_database);
+    checkColumn.exec("PRAGMA table_info(verses)");
+    bool hasRichText = false;
+    while (checkColumn.next()) {
+        if (checkColumn.value(1).toString() == "rich_text") {
+            hasRichText = true;
+            break;
+        }
+    }
+
+    if (!hasRichText) {
+        QSqlQuery alterTable(m_database);
+        if (alterTable.exec("ALTER TABLE verses ADD COLUMN rich_text TEXT")) {
+            qDebug() << "BibleDatabase: Added rich_text column to verses table";
+        } else {
+            qWarning() << "BibleDatabase: Failed to add rich_text column:" << alterTable.lastError().text();
+        }
+    }
+
     m_isValid = true;
     qDebug() << "Bible database initialized successfully from" << dbPath;
     return true;
@@ -313,7 +334,7 @@ QList<BibleVerse> BibleDatabase::lookupParsedReference(const BibleReference& ref
 
     // Build query based on reference type
     QString sql = R"(
-        SELECT b.name, v.chapter, v.verse, v.text, v.translation
+        SELECT b.name, v.chapter, v.verse, v.text, v.translation, v.rich_text
         FROM verses v
         JOIN books b ON v.book_id = b.id
         WHERE b.name = :book
@@ -364,6 +385,7 @@ QList<BibleVerse> BibleDatabase::lookupParsedReference(const BibleReference& ref
         verse.verse = query.value(2).toInt();
         verse.text = query.value(3).toString();
         verse.translation = query.value(4).toString();
+        verse.richText = query.value(5).toString();  // May be NULL/empty
         results.append(verse);
     }
 
@@ -392,7 +414,7 @@ QList<BibleVerse> BibleDatabase::searchKeyword(const QString& keyword, int maxRe
     if (tables.contains("verses_fts")) {
         // Use full-text search
         sql = R"(
-            SELECT b.name, v.chapter, v.verse, v.text, v.translation
+            SELECT b.name, v.chapter, v.verse, v.text, v.translation, v.rich_text
             FROM verses v
             JOIN books b ON v.book_id = b.id
             JOIN verses_fts fts ON v.id = fts.rowid
@@ -404,7 +426,7 @@ QList<BibleVerse> BibleDatabase::searchKeyword(const QString& keyword, int maxRe
     } else {
         // Fallback to LIKE search
         sql = R"(
-            SELECT b.name, v.chapter, v.verse, v.text, v.translation
+            SELECT b.name, v.chapter, v.verse, v.text, v.translation, v.rich_text
             FROM verses v
             JOIN books b ON v.book_id = b.id
             WHERE v.text LIKE :keyword
@@ -435,6 +457,7 @@ QList<BibleVerse> BibleDatabase::searchKeyword(const QString& keyword, int maxRe
         verse.verse = query.value(2).toInt();
         verse.text = query.value(3).toString();
         verse.translation = query.value(4).toString();
+        verse.richText = query.value(5).toString();  // May be NULL/empty
         results.append(verse);
     }
 
@@ -601,8 +624,8 @@ bool BibleDatabase::importTranslation(const TranslationInfo& translation, const 
     // Prepare insert statement (reused for all verses)
     QSqlQuery insertQuery(m_database);
     insertQuery.prepare(R"(
-        INSERT INTO verses (book_id, chapter, verse, text, translation)
-        VALUES (:book_id, :chapter, :verse, :text, :translation)
+        INSERT INTO verses (book_id, chapter, verse, text, translation, rich_text)
+        VALUES (:book_id, :chapter, :verse, :text, :translation, :rich_text)
     )");
 
     int total = verses.size();
@@ -635,6 +658,8 @@ bool BibleDatabase::importTranslation(const TranslationInfo& translation, const 
         insertQuery.bindValue(":verse", v.verse);
         insertQuery.bindValue(":text", v.text);
         insertQuery.bindValue(":translation", translation.code);
+        // rich_text may be empty for translations without red letter markup
+        insertQuery.bindValue(":rich_text", v.richText.isEmpty() ? QVariant() : v.richText);
 
         if (!insertQuery.exec()) {
             qWarning() << "BibleDatabase: Failed to insert verse" << v.book << v.chapter << ":" << v.verse

@@ -5,6 +5,8 @@
 
 namespace Clarity {
 
+class SettingsManager;
+
 /**
  * @brief A presentation item that displays a Bible scripture passage
  *
@@ -61,6 +63,16 @@ public:
      */
     void setBibleDatabase(BibleDatabase* database);
 
+    /**
+     * @brief Get the settings manager (may be null)
+     */
+    SettingsManager* settingsManager() const { return m_settingsManager; }
+
+    /**
+     * @brief Set the settings manager for red letter settings
+     */
+    void setSettingsManager(SettingsManager* settings);
+
     // Slide generation options
     /**
      * @brief Whether to put each verse on its own slide
@@ -87,14 +99,16 @@ public:
      * @brief Create a ScriptureItem from JSON
      * @param json JSON object with type="scripture"
      * @param database Bible database for looking up verses
+     * @param settings Settings manager for red letter settings (optional)
      * @return New ScriptureItem or nullptr on error
      */
-    static ScriptureItem* fromJson(const QJsonObject& json, BibleDatabase* database);
+    static ScriptureItem* fromJson(const QJsonObject& json, BibleDatabase* database, SettingsManager* settings = nullptr);
 
 private:
     QString m_reference;
     QString m_translation;
     BibleDatabase* m_bibleDatabase;
+    SettingsManager* m_settingsManager;
 
     // Generation options
     bool m_oneVersePerSlide;

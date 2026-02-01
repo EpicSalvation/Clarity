@@ -315,6 +315,7 @@ void ControlWindow::setupUI()
 
     // Create and set the custom delegate for grid thumbnails
     m_slideDelegate = new SlideGridDelegate(this);
+    m_slideDelegate->setRedLetterColor(m_settingsManager->redLetterColor());
     m_slideGridView->setItemDelegate(m_slideDelegate);
 
     connect(m_slideGridView, &QListView::clicked, this, &ControlWindow::onSlideClicked);
@@ -530,6 +531,9 @@ void ControlWindow::broadcastCurrentSlide()
             transitionDuration = m_settingsManager->transitionDuration();
         }
         outputMessage["transitionDuration"] = transitionDuration;
+
+        // Include red letter color for scripture slides with red letter markup
+        outputMessage["redLetterColor"] = m_settingsManager->redLetterColor();
 
         m_ipcServer->sendToClientType("output", outputMessage);
     }
@@ -1011,8 +1015,8 @@ void ControlWindow::openPresentation()
         return;
     }
 
-    // Load presentation with song library and bible database for item resolution
-    Presentation* loaded = Presentation::fromJson(doc.object(), m_songLibrary, m_bibleDatabase);
+    // Load presentation with song library, bible database, and settings for item resolution
+    Presentation* loaded = Presentation::fromJson(doc.object(), m_songLibrary, m_bibleDatabase, m_settingsManager);
     m_presentationModel->setPresentation(loaded);
     m_itemListModel->setPresentation(loaded);
 
@@ -1158,6 +1162,7 @@ void ControlWindow::onInsertScripture()
             dialog.translation(),
             m_bibleDatabase
         );
+        scriptureItem->setSettingsManager(m_settingsManager);  // For red letter settings
         scriptureItem->setOneVersePerSlide(dialog.oneVersePerSlide());
         scriptureItem->setIncludeVerseReferences(dialog.includeVerseReferences());
         scriptureItem->setIncludeHeaderSlide(true);

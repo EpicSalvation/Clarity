@@ -18,6 +18,9 @@ class OutputDisplay : public QObject {
 
     // Properties exposed to QML
     Q_PROPERTY(QString slideText READ slideText NOTIFY slideTextChanged)
+    Q_PROPERTY(QString slideRichText READ slideRichText NOTIFY slideRichTextChanged)
+    Q_PROPERTY(bool useRichText READ useRichText NOTIFY useRichTextChanged)
+    Q_PROPERTY(QString redLetterColor READ redLetterColor NOTIFY redLetterColorChanged)
     Q_PROPERTY(QColor backgroundColor READ backgroundColor NOTIFY backgroundColorChanged)
     Q_PROPERTY(QColor textColor READ textColor NOTIFY textColorChanged)
     Q_PROPERTY(QString fontFamily READ fontFamily NOTIFY fontFamilyChanged)
@@ -65,6 +68,9 @@ public:
 
     // Property getters
     QString slideText() const { return m_slideText; }
+    QString slideRichText() const { return m_slideRichText; }
+    bool useRichText() const { return m_useRichText; }
+    QString redLetterColor() const { return m_redLetterColor; }
     QColor backgroundColor() const { return m_backgroundColor; }
     QColor textColor() const { return m_textColor; }
     QString fontFamily() const { return m_fontFamily; }
@@ -112,6 +118,9 @@ public:
 
 signals:
     void slideTextChanged();
+    void slideRichTextChanged();
+    void useRichTextChanged();
+    void redLetterColorChanged();
     void backgroundColorChanged();
     void textColorChanged();
     void fontFamilyChanged();
@@ -170,6 +179,9 @@ private:
     IpcClient* m_ipcClient;
 
     QString m_slideText;
+    QString m_slideRichText;
+    bool m_useRichText;
+    QString m_redLetterColor;
     QColor m_backgroundColor;
     QColor m_textColor;
     QString m_fontFamily;

@@ -8,6 +8,8 @@ namespace Clarity {
 OutputDisplay::OutputDisplay(QObject* parent)
     : QObject(parent)
     , m_ipcClient(new IpcClient("output", this))
+    , m_useRichText(false)
+    , m_redLetterColor("#cc0000")
     , m_backgroundColor("#000000")
     , m_textColor("#ffffff")
     , m_fontFamily("Arial")
@@ -64,6 +66,15 @@ void OutputDisplay::onMessageReceived(const QJsonObject& message)
         QJsonObject slideJson = message["slide"].toObject();
         Slide slide = Slide::fromJson(slideJson);
 
+        // Update red letter color if provided
+        if (message.contains("redLetterColor")) {
+            QString newColor = message["redLetterColor"].toString();
+            if (m_redLetterColor != newColor) {
+                m_redLetterColor = newColor;
+                emit redLetterColorChanged();
+            }
+        }
+
         // Update transition settings if provided
         if (message.contains("transitionType")) {
             QString newType = message["transitionType"].toString();
@@ -109,6 +120,20 @@ void OutputDisplay::updateSlide(const Slide& slide)
     if (m_slideText != slide.text()) {
         m_slideText = slide.text();
         emit slideTextChanged();
+        changed = true;
+    }
+
+    // Handle rich text with red letter markup
+    if (m_slideRichText != slide.richText()) {
+        m_slideRichText = slide.richText();
+        emit slideRichTextChanged();
+        changed = true;
+    }
+
+    bool shouldUseRichText = slide.hasRichText();
+    if (m_useRichText != shouldUseRichText) {
+        m_useRichText = shouldUseRichText;
+        emit useRichTextChanged();
         changed = true;
     }
 
@@ -303,6 +328,8 @@ void OutputDisplay::updateSlide(const Slide& slide)
 void OutputDisplay::clearDisplay()
 {
     m_slideText.clear();
+    m_slideRichText.clear();
+    m_useRichText = false;
     m_backgroundColor = QColor("#000000");
     m_backgroundType = "solidColor";
     m_backgroundImageData.clear();
@@ -333,6 +360,8 @@ void OutputDisplay::clearDisplay()
     m_isCleared = true;
 
     emit slideTextChanged();
+    emit slideRichTextChanged();
+    emit useRichTextChanged();
     emit backgroundColorChanged();
     emit backgroundTypeChanged();
     emit backgroundImageDataChanged();

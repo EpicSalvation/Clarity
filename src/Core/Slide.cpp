@@ -67,6 +67,9 @@ QJsonObject Slide::toJson() const
 {
     QJsonObject json;
     json["text"] = m_text;
+    if (!m_richText.isEmpty()) {
+        json["richText"] = m_richText;
+    }
     json["backgroundColor"] = m_backgroundColor.name();
     json["textColor"] = m_textColor.name();
     json["fontFamily"] = m_fontFamily;
@@ -161,6 +164,7 @@ Slide Slide::fromJson(const QJsonObject& json)
 {
     Slide slide;
     slide.m_text = json["text"].toString();
+    slide.m_richText = json["richText"].toString();  // May be empty/missing
     slide.m_backgroundColor = QColor(json["backgroundColor"].toString("#1e3a8a"));
     slide.m_textColor = QColor(json["textColor"].toString("#ffffff"));
     slide.m_fontFamily = json["fontFamily"].toString("Arial");

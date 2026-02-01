@@ -28,6 +28,7 @@ public:
         int highlightBorderWidth;          ///< Highlight border width in pixels
         bool isCurrentSlide;               ///< Special indicator for "live" slide
         QColor currentSlideColor;          ///< "Live" indicator color (green)
+        QString redLetterColor;            ///< Color for red letter text (Jesus' words)
 
         RenderOptions()
             : showSlideNumber(false)
@@ -37,6 +38,7 @@ public:
             , highlightBorderWidth(3)
             , isCurrentSlide(false)
             , currentSlideColor("#22c55e")
+            , redLetterColor("#cc0000")
         {}
     };
 
@@ -82,7 +84,8 @@ private:
     /**
      * @brief Draw slide text with scaled font
      */
-    static void drawText(QPainter& painter, const Slide& slide, const QRect& rect, int scaledFontSize);
+    static void drawText(QPainter& painter, const Slide& slide, const QRect& rect,
+                         int scaledFontSize, const QString& redLetterColor = "#cc0000");
 
     /**
      * @brief Draw slide number indicator

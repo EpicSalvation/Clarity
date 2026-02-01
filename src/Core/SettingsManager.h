@@ -90,6 +90,13 @@ public:
     bool scriptureOneVersePerSlide() const;  // Whether to create one slide per verse
     void setScriptureOneVersePerSlide(bool onePerSlide);
 
+    // Red Letter Edition settings
+    bool redLettersEnabled() const;          // Whether to show words of Jesus in red
+    void setRedLettersEnabled(bool enabled);
+
+    QString redLetterColor() const;          // Color for words of Jesus (default: #cc0000)
+    void setRedLetterColor(const QString& color);
+
     // Reset all settings to defaults
     void resetToDefaults();
 

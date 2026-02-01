@@ -116,10 +116,13 @@ Window {
                         color: confidenceDisplay.settingsBackgroundColor
                         clip: true
 
-                        // Current slide text using settings
+                        // Current slide text using settings - supports rich text for red letters
                         Text {
                             anchors.centerIn: parent
-                            text: confidenceDisplay.currentSlideText
+                            text: confidenceDisplay.currentUseRichText
+                                ? "<style>.jesus{color:" + confidenceDisplay.redLetterColor + "}</style>" + confidenceDisplay.currentSlideRichText
+                                : confidenceDisplay.currentSlideText
+                            textFormat: confidenceDisplay.currentUseRichText ? Text.RichText : Text.PlainText
                             color: confidenceDisplay.settingsTextColor
                             font.family: confidenceDisplay.settingsFontFamily
                             font.pixelSize: confidenceDisplay.settingsFontSize
@@ -167,10 +170,15 @@ Window {
                         color: confidenceDisplay.settingsBackgroundColor
                         clip: true
 
-                        // Next slide text or placeholder using settings
+                        // Next slide text or placeholder using settings - supports rich text for red letters
                         Text {
                             anchors.centerIn: parent
-                            text: confidenceDisplay.hasNextSlide ? confidenceDisplay.nextSlideText : "End of presentation"
+                            text: confidenceDisplay.hasNextSlide
+                                ? (confidenceDisplay.nextUseRichText
+                                    ? "<style>.jesus{color:" + confidenceDisplay.redLetterColor + "}</style>" + confidenceDisplay.nextSlideRichText
+                                    : confidenceDisplay.nextSlideText)
+                                : "End of presentation"
+                            textFormat: (confidenceDisplay.hasNextSlide && confidenceDisplay.nextUseRichText) ? Text.RichText : Text.PlainText
                             color: confidenceDisplay.hasNextSlide ? confidenceDisplay.settingsTextColor : "#666666"
                             font.family: confidenceDisplay.settingsFontFamily
                             font.pixelSize: confidenceDisplay.hasNextSlide ? confidenceDisplay.settingsFontSize * 0.6 : 20

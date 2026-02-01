@@ -3,6 +3,7 @@
 #include "SlideGroupItem.h"
 #include "SongItem.h"
 #include "ScriptureItem.h"
+#include "SettingsManager.h"
 #include <QJsonArray>
 #include <QDateTime>
 #include <algorithm>
@@ -518,6 +519,7 @@ QJsonObject Presentation::toJson() const
 Presentation* Presentation::fromJson(const QJsonObject& json,
                                       SongLibrary* songLibrary,
                                       BibleDatabase* bibleDatabase,
+                                      SettingsManager* settingsManager,
                                       QObject* parent)
 {
     Presentation* presentation = new Presentation(parent);
@@ -555,7 +557,7 @@ Presentation* Presentation::fromJson(const QJsonObject& json,
             if (typeName == "song") {
                 item = SongItem::fromJson(itemJson, songLibrary);
             } else if (typeName == "scripture") {
-                item = ScriptureItem::fromJson(itemJson, bibleDatabase);
+                item = ScriptureItem::fromJson(itemJson, bibleDatabase, settingsManager);
             } else if (typeName == "customSlide") {
                 item = CustomSlideItem::fromJson(itemJson);
             } else if (typeName == "slideGroup") {

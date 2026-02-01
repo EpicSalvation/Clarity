@@ -43,6 +43,7 @@ private slots:
     void onConfidenceBackgroundColorClicked();
     void onImportTranslationClicked();
     void onDeleteTranslationClicked();
+    void onRedLetterColorClicked();
 
 private:
     void setupUI();
@@ -95,6 +96,11 @@ private:
     QComboBox* m_preferredTranslationComboBox;
     QCheckBox* m_rememberLastTranslationCheckBox;
     BibleDatabase* m_bibleDatabase;
+
+    // Red Letter Edition settings
+    QCheckBox* m_redLettersEnabledCheckBox;
+    QPushButton* m_redLetterColorButton;
+    QColor m_redLetterColor;
 
     // Settings manager
     SettingsManager* m_settingsManager;

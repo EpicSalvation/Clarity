@@ -261,4 +261,11 @@ QColor ConfidenceDisplay::settingsBackgroundColor() const
     return QColor(settings.value("ConfidenceMonitor/BackgroundColor", "#2a2a2a").toString());
 }
 
+QString ConfidenceDisplay::redLetterColor() const
+{
+    QSettings settings(QCoreApplication::organizationName(),
+                       QCoreApplication::applicationName());
+    return settings.value("Bible/RedLetterColor", "#cc0000").toString();
+}
+
 } // namespace Clarity

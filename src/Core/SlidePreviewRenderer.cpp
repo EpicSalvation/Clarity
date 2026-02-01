@@ -2,6 +2,8 @@
 #include "VideoThumbnailGenerator.h"
 #include <QPainter>
 #include <QLinearGradient>
+#include <QTextDocument>
+#include <QAbstractTextDocumentLayout>
 #include <QtMath>
 
 namespace Clarity {
@@ -46,7 +48,7 @@ QPixmap SlidePreviewRenderer::render(const Slide& slide, const QSize& size,
     // Calculate scaled font size for preview
     // Original design is 1080p, so scale font proportionally
     int scaledFontSize = qMax(10, slide.fontSize() * size.height() / 1080);
-    drawText(painter, slide, rect, scaledFontSize);
+    drawText(painter, slide, rect, scaledFontSize, options.redLetterColor);
 
     // Draw slide number if requested
     if (options.showSlideNumber) {
@@ -155,23 +157,56 @@ void SlidePreviewRenderer::drawVideo(QPainter& painter, const Slide& slide, cons
     painter.drawPixmap(rect.topLeft(), placeholder);
 }
 
-void SlidePreviewRenderer::drawText(QPainter& painter, const Slide& slide, const QRect& rect, int scaledFontSize)
+void SlidePreviewRenderer::drawText(QPainter& painter, const Slide& slide, const QRect& rect,
+                                    int scaledFontSize, const QString& redLetterColor)
 {
     QString text = slide.text();
     if (text.isEmpty()) {
         return;
     }
 
-    QFont font(slide.fontFamily());
-    font.setPixelSize(scaledFontSize);
-    painter.setFont(font);
-    painter.setPen(slide.textColor());
-
     // Use a margin for text
     int margin = qMax(4, rect.width() / 20);
     QRect textRect = rect.adjusted(margin, margin, -margin, -margin);
 
-    painter.drawText(textRect, Qt::AlignCenter | Qt::TextWordWrap, text);
+    // If slide has rich text (red letter markup), use QTextDocument for rendering
+    if (slide.hasRichText()) {
+        QTextDocument doc;
+        doc.setTextWidth(textRect.width());
+
+        // Build HTML with CSS for styling
+        QString css = QString(
+            "<style>"
+            "body { color: %1; font-family: %2; font-size: %3px; text-align: center; }"
+            ".jesus { color: %4; }"
+            "</style>"
+        ).arg(slide.textColor().name())
+         .arg(slide.fontFamily())
+         .arg(scaledFontSize)
+         .arg(redLetterColor);
+
+        // Wrap in centered paragraph
+        QString html = css + "<body><p style='text-align: center;'>" + slide.richText() + "</p></body>";
+        doc.setHtml(html);
+
+        // Calculate vertical centering
+        int docHeight = doc.size().height();
+        int yOffset = textRect.top() + (textRect.height() - docHeight) / 2;
+        yOffset = qMax(textRect.top(), yOffset);
+
+        painter.save();
+        painter.translate(textRect.left(), yOffset);
+        doc.drawContents(&painter, QRectF(0, 0, textRect.width(), textRect.height()));
+        painter.restore();
+    } else {
+        // Plain text rendering
+        QFont font(slide.fontFamily());
+        font.setPixelSize(scaledFontSize);
+        painter.setFont(font);
+        painter.setPen(slide.textColor());
+
+        painter.drawText(textRect, Qt::AlignCenter | Qt::TextWordWrap, text);
+    }
 }
 
 void SlidePreviewRenderer::drawSlideNumber(QPainter& painter, int slideNumber, const QRect& rect)

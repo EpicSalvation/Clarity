@@ -287,22 +287,47 @@ ImportResult OsisImporter::import(const QString& filePath)
                         currentBook = canonicalBook;
                         currentChapter = chapter;
 
-                        // Read verse content
+                        // Read verse content, preserving red letter markup
+                        // OSIS uses <q who="Jesus"> for words of Jesus
                         QString verseText;
+                        QString richText;
+                        bool inRedLetter = false;
+                        bool hasRedLetterMarkup = false;
                         int depth = 1;
+
                         while (depth > 0 && !xml.atEnd()) {
                             token = xml.readNext();
                             if (token == QXmlStreamReader::StartElement) {
                                 depth++;
+                                QString childElement = xml.name().toString().toLower();
+                                // Check for <q who="Jesus"> - words of Jesus marker
+                                if (childElement == "q") {
+                                    QString who = xml.attributes().value("who").toString().toLower();
+                                    if (who == "jesus") {
+                                        inRedLetter = true;
+                                        hasRedLetterMarkup = true;
+                                        richText += "<span class=\"jesus\">";
+                                    }
+                                }
                             } else if (token == QXmlStreamReader::EndElement) {
+                                QString endElement = xml.name().toString().toLower();
+                                if (endElement == "q" && inRedLetter) {
+                                    inRedLetter = false;
+                                    richText += "</span>";
+                                }
                                 depth--;
                             } else if (token == QXmlStreamReader::Characters) {
-                                verseText += xml.text().toString();
+                                QString text = xml.text().toString();
+                                verseText += text;
+                                // Escape HTML entities in rich text
+                                QString escapedText = text.toHtmlEscaped();
+                                richText += escapedText;
                             }
                         }
 
                         verseText = stripFormatting(verseText);
                         verseText = normalizeWhitespace(verseText);
+                        richText = normalizeWhitespace(richText);
 
                         if (!verseText.isEmpty()) {
                             ImportedVerse iv;
@@ -310,6 +335,10 @@ ImportResult OsisImporter::import(const QString& filePath)
                             iv.chapter = chapter;
                             iv.verse = verse;
                             iv.text = verseText;
+                            // Only store richText if it contains red letter markup
+                            if (hasRedLetterMarkup) {
+                                iv.richText = richText;
+                            }
                             result.verses.append(iv);
                             verseCount++;
 
@@ -397,10 +426,66 @@ QString UsfmImporter::stripUsfmMarkers(const QString& text)
         QRegularExpression::DotMatchesEverythingOption);
     result.remove(xrefPattern);
 
+    // Remove Strong's numbers: |strong="H1234" or |strong="G5678"
+    static QRegularExpression strongPattern("\\|strong=\"[HG]?\\d+\"");
+    result.remove(strongPattern);
+
+    // Remove lemma annotations: |lemma="..."
+    static QRegularExpression lemmaPattern("\\|lemma=\"[^\"]*\"");
+    result.remove(lemmaPattern);
+
+    // Remove other word-level attributes: |x-morph="..." etc.
+    static QRegularExpression attrPattern("\\|[a-z-]+=\"[^\"]*\"");
+    result.remove(attrPattern);
+
     // Remove USFM character markers like \add, \wj, \nd, \+add, etc.
     // Matches: \marker, \+marker, \marker*, \+marker*
     static QRegularExpression markerPattern("\\\\\\+?[a-z]+\\d?\\*?");
     result.remove(markerPattern);
+
+    return result;
+}
+
+/**
+ * @brief Convert USFM text to HTML preserving red letter markup
+ *
+ * Converts \wj ...\wj* markers to <span class="jesus">...</span>
+ * while stripping other USFM markers.
+ */
+static QString usfmToRichText(const QString& text)
+{
+    QString result = text;
+
+    // Remove footnotes and cross-references first
+    static QRegularExpression footnotePattern("\\\\f\\s+.*?\\\\f\\*",
+        QRegularExpression::DotMatchesEverythingOption);
+    result.remove(footnotePattern);
+
+    static QRegularExpression xrefPattern("\\\\x\\s+.*?\\\\x\\*",
+        QRegularExpression::DotMatchesEverythingOption);
+    result.remove(xrefPattern);
+
+    // Remove Strong's numbers: |strong="H1234" or |strong="G5678"
+    static QRegularExpression strongPattern("\\|strong=\"[HG]?\\d+\"");
+    result.remove(strongPattern);
+
+    // Remove lemma annotations: |lemma="..."
+    static QRegularExpression lemmaPattern("\\|lemma=\"[^\"]*\"");
+    result.remove(lemmaPattern);
+
+    // Remove other word-level attributes: |x-morph="..." etc.
+    static QRegularExpression attrPattern("\\|[a-z-]+=\"[^\"]*\"");
+    result.remove(attrPattern);
+
+    // Convert \wj ...\wj* to HTML spans
+    // Note: \wj is "words of Jesus" marker in USFM
+    static QRegularExpression wjPattern("\\\\wj\\s+(.*?)\\\\wj\\*",
+        QRegularExpression::DotMatchesEverythingOption);
+    result.replace(wjPattern, "<span class=\"jesus\">\\1</span>");
+
+    // Remove remaining USFM markers (but preserve the converted spans)
+    static QRegularExpression otherMarkerPattern("\\\\\\+?[a-z]+\\d?\\*?");
+    result.remove(otherMarkerPattern);
 
     return result;
 }
@@ -440,6 +525,16 @@ ImportResult UsfmImporter::import(const QString& filePath)
                 iv.chapter = currentChapter;
                 iv.verse = currentVerseNum;
                 iv.text = text;
+
+                // Check for red letter markup (\wj markers)
+                if (currentVerseText.contains("\\wj")) {
+                    QString richText = usfmToRichText(currentVerseText);
+                    richText = normalizeWhitespace(richText);
+                    if (richText.contains("class=\"jesus\"")) {
+                        iv.richText = richText;
+                    }
+                }
+
                 result.verses.append(iv);
                 verseCount++;
 
@@ -593,7 +688,26 @@ ImportResult UsxImporter::import(const QString& filePath)
     int verseCount = 0;
     int estimatedTotal = 31102;
     QString currentVerseText;
+    QString currentVerseRichText;
     int currentVerseNum = 0;
+    bool inRedLetter = false;
+    bool hasRedLetterMarkup = false;
+
+    // Helper lambda to save current verse
+    auto saveVerse = [&]() {
+        if (currentVerseNum > 0 && !currentVerseText.isEmpty() && !currentBook.isEmpty()) {
+            ImportedVerse iv;
+            iv.book = currentBook;
+            iv.chapter = currentChapter;
+            iv.verse = currentVerseNum;
+            iv.text = normalizeWhitespace(currentVerseText);
+            if (hasRedLetterMarkup) {
+                iv.richText = normalizeWhitespace(currentVerseRichText);
+            }
+            result.verses.append(iv);
+            verseCount++;
+        }
+    };
 
     while (!xml.atEnd() && !xml.hasError()) {
         QXmlStreamReader::TokenType token = xml.readNext();
@@ -611,19 +725,13 @@ ImportResult UsxImporter::import(const QString& filePath)
                 QString num = xml.attributes().value("number").toString();
                 if (!num.isEmpty()) {
                     // Save previous verse if any
-                    if (currentVerseNum > 0 && !currentVerseText.isEmpty() && !currentBook.isEmpty()) {
-                        ImportedVerse iv;
-                        iv.book = currentBook;
-                        iv.chapter = currentChapter;
-                        iv.verse = currentVerseNum;
-                        iv.text = normalizeWhitespace(currentVerseText);
-                        result.verses.append(iv);
-                        verseCount++;
-                    }
+                    saveVerse();
 
                     currentChapter = num.toInt();
                     currentVerseNum = 0;
                     currentVerseText.clear();
+                    currentVerseRichText.clear();
+                    hasRedLetterMarkup = false;
                 }
             }
             // Verse element
@@ -633,33 +741,20 @@ ImportResult UsxImporter::import(const QString& filePath)
 
                 if (!eid.isEmpty()) {
                     // End of verse - save it
-                    if (currentVerseNum > 0 && !currentVerseText.isEmpty() && !currentBook.isEmpty()) {
-                        ImportedVerse iv;
-                        iv.book = currentBook;
-                        iv.chapter = currentChapter;
-                        iv.verse = currentVerseNum;
-                        iv.text = normalizeWhitespace(currentVerseText);
-                        result.verses.append(iv);
-                        verseCount++;
+                    saveVerse();
 
-                        if (verseCount % 500 == 0) {
-                            emit progressChanged(verseCount, estimatedTotal,
-                                tr("Parsing %1...").arg(currentBook));
-                        }
+                    if (verseCount % 500 == 0 && verseCount > 0) {
+                        emit progressChanged(verseCount, estimatedTotal,
+                            tr("Parsing %1...").arg(currentBook));
                     }
+
                     currentVerseNum = 0;
                     currentVerseText.clear();
+                    currentVerseRichText.clear();
+                    hasRedLetterMarkup = false;
                 } else if (!num.isEmpty()) {
                     // Save previous verse
-                    if (currentVerseNum > 0 && !currentVerseText.isEmpty() && !currentBook.isEmpty()) {
-                        ImportedVerse iv;
-                        iv.book = currentBook;
-                        iv.chapter = currentChapter;
-                        iv.verse = currentVerseNum;
-                        iv.text = normalizeWhitespace(currentVerseText);
-                        result.verses.append(iv);
-                        verseCount++;
-                    }
+                    saveVerse();
 
                     // Handle verse ranges like "1-2"
                     if (num.contains('-')) {
@@ -667,24 +762,36 @@ ImportResult UsxImporter::import(const QString& filePath)
                     }
                     currentVerseNum = num.toInt();
                     currentVerseText.clear();
+                    currentVerseRichText.clear();
+                    hasRedLetterMarkup = false;
                 }
+            }
+            // Character style element - check for "wj" (words of Jesus)
+            else if (elementName == "char") {
+                QString style = xml.attributes().value("style").toString().toLower();
+                if (style == "wj") {
+                    inRedLetter = true;
+                    hasRedLetterMarkup = true;
+                    currentVerseRichText += "<span class=\"jesus\">";
+                }
+            }
+        } else if (token == QXmlStreamReader::EndElement) {
+            QString elementName = xml.name().toString().toLower();
+            if (elementName == "char" && inRedLetter) {
+                inRedLetter = false;
+                currentVerseRichText += "</span>";
             }
         } else if (token == QXmlStreamReader::Characters) {
             if (currentVerseNum > 0) {
-                currentVerseText += xml.text().toString();
+                QString text = xml.text().toString();
+                currentVerseText += text;
+                currentVerseRichText += text.toHtmlEscaped();
             }
         }
     }
 
     // Save last verse
-    if (currentVerseNum > 0 && !currentVerseText.isEmpty() && !currentBook.isEmpty()) {
-        ImportedVerse iv;
-        iv.book = currentBook;
-        iv.chapter = currentChapter;
-        iv.verse = currentVerseNum;
-        iv.text = normalizeWhitespace(currentVerseText);
-        result.verses.append(iv);
-    }
+    saveVerse();
 
     if (xml.hasError()) {
         result.error = tr("XML parsing error: %1").arg(xml.errorString());
@@ -749,8 +856,27 @@ ImportResult UsfxImporter::import(const QString& filePath)
     int verseCount = 0;
     int estimatedTotal = 31102;
     QString currentVerseText;
+    QString currentVerseRichText;
     int currentVerseNum = 0;
     bool inVerse = false;
+    bool inRedLetter = false;
+    bool hasRedLetterMarkup = false;
+
+    // Helper lambda to save current verse
+    auto saveVerse = [&]() {
+        if (inVerse && currentVerseNum > 0 && !currentVerseText.isEmpty() && !currentBook.isEmpty()) {
+            ImportedVerse iv;
+            iv.book = currentBook;
+            iv.chapter = currentChapter;
+            iv.verse = currentVerseNum;
+            iv.text = normalizeWhitespace(stripFormatting(currentVerseText));
+            if (hasRedLetterMarkup) {
+                iv.richText = normalizeWhitespace(currentVerseRichText);
+            }
+            result.verses.append(iv);
+            verseCount++;
+        }
+    };
 
     while (!xml.atEnd() && !xml.hasError()) {
         QXmlStreamReader::TokenType token = xml.readNext();
@@ -775,59 +901,54 @@ ImportResult UsfxImporter::import(const QString& filePath)
             // Verse element
             else if (elementName == "v") {
                 // Save previous verse
-                if (inVerse && currentVerseNum > 0 && !currentVerseText.isEmpty() && !currentBook.isEmpty()) {
-                    ImportedVerse iv;
-                    iv.book = currentBook;
-                    iv.chapter = currentChapter;
-                    iv.verse = currentVerseNum;
-                    iv.text = normalizeWhitespace(stripFormatting(currentVerseText));
-                    result.verses.append(iv);
-                    verseCount++;
+                saveVerse();
 
-                    if (verseCount % 500 == 0) {
-                        emit progressChanged(verseCount, estimatedTotal,
-                            tr("Parsing %1...").arg(currentBook));
-                    }
+                if (verseCount % 500 == 0 && verseCount > 0) {
+                    emit progressChanged(verseCount, estimatedTotal,
+                        tr("Parsing %1...").arg(currentBook));
                 }
 
                 QString id = xml.attributes().value("id").toString();
                 if (!id.isEmpty()) {
                     currentVerseNum = id.toInt();
                     currentVerseText.clear();
+                    currentVerseRichText.clear();
+                    hasRedLetterMarkup = false;
                     inVerse = true;
                 }
             }
             // Verse end marker
             else if (elementName == "ve") {
-                if (inVerse && currentVerseNum > 0 && !currentVerseText.isEmpty() && !currentBook.isEmpty()) {
-                    ImportedVerse iv;
-                    iv.book = currentBook;
-                    iv.chapter = currentChapter;
-                    iv.verse = currentVerseNum;
-                    iv.text = normalizeWhitespace(stripFormatting(currentVerseText));
-                    result.verses.append(iv);
-                    verseCount++;
-                }
+                saveVerse();
                 inVerse = false;
                 currentVerseNum = 0;
                 currentVerseText.clear();
+                currentVerseRichText.clear();
+                hasRedLetterMarkup = false;
+            }
+            // Words of Jesus element
+            else if (elementName == "wj") {
+                inRedLetter = true;
+                hasRedLetterMarkup = true;
+                currentVerseRichText += "<span class=\"jesus\">";
+            }
+        } else if (token == QXmlStreamReader::EndElement) {
+            QString elementName = xml.name().toString().toLower();
+            if (elementName == "wj" && inRedLetter) {
+                inRedLetter = false;
+                currentVerseRichText += "</span>";
             }
         } else if (token == QXmlStreamReader::Characters) {
             if (inVerse) {
-                currentVerseText += xml.text().toString();
+                QString text = xml.text().toString();
+                currentVerseText += text;
+                currentVerseRichText += text.toHtmlEscaped();
             }
         }
     }
 
     // Save last verse
-    if (inVerse && currentVerseNum > 0 && !currentVerseText.isEmpty() && !currentBook.isEmpty()) {
-        ImportedVerse iv;
-        iv.book = currentBook;
-        iv.chapter = currentChapter;
-        iv.verse = currentVerseNum;
-        iv.text = normalizeWhitespace(stripFormatting(currentVerseText));
-        result.verses.append(iv);
-    }
+    saveVerse();
 
     if (xml.hasError()) {
         result.error = tr("XML parsing error: %1").arg(xml.errorString());
