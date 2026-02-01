@@ -38,9 +38,9 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [ ] Loop point configuration
 
 - [ ] **Scripture Lookup Integration**
-  - [ ] Quick lookup by reference
-  - [ ] Multiple translation support
-  - [ ] Automatic verse formatting
+  - [x] Quick lookup by reference
+  - [x] Multiple translation support
+  - [x] Automatic verse formatting
   - [ ] Scripture-specific themes
 
 - [x] **Bible Translation Importer**
