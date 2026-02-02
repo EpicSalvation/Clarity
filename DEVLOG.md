@@ -41,14 +41,25 @@ New menu action "Slide > Clone Format to Group" copies all formatting from the s
 - For SongItem/ScriptureItem/CustomSlideItem: Basic properties (background color, text color, font family, font size) are applied at item level
 - Useful when you've manually styled one slide and want to apply the same look to all related slides
 
+#### Slide Context Menu (Right-Click)
+Added right-click context menu on slide grid with quick access to:
+- Edit Slide (Ctrl+E)
+- Delete Slide (Delete)
+- Apply Theme... (Ctrl+T)
+- Apply Theme to Current Slide...
+- Apply Theme to Group... (Ctrl+Shift+T)
+- Clone Format to Group (Ctrl+Shift+F)
+
+Actions are enabled/disabled based on whether a slide is selected. Clicking on a slide in the context menu selects it before showing the menu.
+
 #### Theme::toSlideStyle() Method
 Added helper method to convert Theme to SlideStyle for item-level theming. Note that SlideStyle only supports solid color backgrounds, so gradient themes use the start color as the background when applied at the item level.
 
 ### Files Modified
 - `src/Core/Theme.h` - Added `#include "Song.h"` and `toSlideStyle()` declaration
 - `src/Core/Theme.cpp` - Implemented `toSlideStyle()` conversion method
-- `src/Control/ControlWindow.h` - Added `onApplyThemeToGroup()` and `onCloneFormatToGroup()` slot declarations
-- `src/Control/ControlWindow.cpp` - Fixed `onApplyThemeToSlide()`, added `onApplyThemeToGroup()` and `onCloneFormatToGroup()` implementations, added menu actions
+- `src/Control/ControlWindow.h` - Added `onApplyThemeToGroup()`, `onCloneFormatToGroup()`, and `onSlideContextMenu()` slot declarations
+- `src/Control/ControlWindow.cpp` - Fixed `onApplyThemeToSlide()`, added `onApplyThemeToGroup()`, `onCloneFormatToGroup()`, and `onSlideContextMenu()` implementations, added menu actions and context menu setup
 
 ### Technical Notes
 - `SlideStyle` (from Song.h) only stores: backgroundColor, textColor, fontFamily, fontSize

@@ -323,6 +323,10 @@ void ControlWindow::setupUI()
     connect(m_slideGridView, &QListView::clicked, this, &ControlWindow::onSlideClicked);
     connect(m_slideGridView, &QListView::doubleClicked, this, &ControlWindow::onSlideDoubleClicked);
 
+    // Enable context menu for slide grid
+    m_slideGridView->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_slideGridView, &QListView::customContextMenuRequested, this, &ControlWindow::onSlideContextMenu);
+
     contentLayout->addWidget(m_slideGridView, 1);  // Grid takes remaining space
 
     // Right panel: Live preview
@@ -928,6 +932,55 @@ void ControlWindow::onMoveSlideDown()
     broadcastCurrentSlide();
 }
 
+void ControlWindow::onSlideContextMenu(const QPoint& pos)
+{
+    QModelIndex index = m_slideGridView->indexAt(pos);
+
+    QMenu contextMenu(this);
+
+    // Slide editing actions
+    QAction* editAction = contextMenu.addAction(tr("&Edit Slide"));
+    editAction->setShortcut(QKeySequence("Ctrl+E"));
+    connect(editAction, &QAction::triggered, this, &ControlWindow::onEditSlide);
+
+    QAction* deleteAction = contextMenu.addAction(tr("&Delete Slide"));
+    deleteAction->setShortcut(QKeySequence::Delete);
+    connect(deleteAction, &QAction::triggered, this, &ControlWindow::onDeleteSlide);
+
+    contextMenu.addSeparator();
+
+    // Theme/formatting actions
+    QAction* applyThemeAction = contextMenu.addAction(tr("Apply &Theme..."));
+    applyThemeAction->setShortcut(QKeySequence("Ctrl+T"));
+    connect(applyThemeAction, &QAction::triggered, this, &ControlWindow::onApplyTheme);
+
+    QAction* applyThemeToSlideAction = contextMenu.addAction(tr("Apply Theme to Current Slide..."));
+    connect(applyThemeToSlideAction, &QAction::triggered, this, &ControlWindow::onApplyThemeToSlide);
+
+    QAction* applyThemeToGroupAction = contextMenu.addAction(tr("Apply Theme to &Group..."));
+    applyThemeToGroupAction->setShortcut(QKeySequence("Ctrl+Shift+T"));
+    connect(applyThemeToGroupAction, &QAction::triggered, this, &ControlWindow::onApplyThemeToGroup);
+
+    QAction* cloneFormatAction = contextMenu.addAction(tr("Clone &Format to Group"));
+    cloneFormatAction->setShortcut(QKeySequence("Ctrl+Shift+F"));
+    connect(cloneFormatAction, &QAction::triggered, this, &ControlWindow::onCloneFormatToGroup);
+
+    // Enable/disable actions based on whether a slide is selected
+    bool hasSelection = index.isValid();
+    editAction->setEnabled(hasSelection);
+    deleteAction->setEnabled(hasSelection);
+    applyThemeToSlideAction->setEnabled(hasSelection);
+    applyThemeToGroupAction->setEnabled(hasSelection);
+    cloneFormatAction->setEnabled(hasSelection);
+
+    // If clicked on a slide, select it first
+    if (hasSelection) {
+        m_slideGridView->setCurrentIndex(index);
+        onSlideClicked(index);
+    }
+
+    contextMenu.exec(m_slideGridView->mapToGlobal(pos));
+}
 
 void ControlWindow::onStartTimer()
 {

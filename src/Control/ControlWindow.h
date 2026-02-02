@@ -69,6 +69,7 @@ private slots:
     void onDeleteSlide();
     void onMoveSlideUp();
     void onMoveSlideDown();
+    void onSlideContextMenu(const QPoint& pos);
 
     // Content insertion
     void onInsertScripture();
