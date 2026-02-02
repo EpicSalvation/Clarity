@@ -4,10 +4,10 @@ A chronological record of development work on the Clarity project.
 
 ---
 
-## 2026-02-02 - Fix Theme Application to Slides
+## 2026-02-02 - Fix Theme Application and Add Clone Format Feature
 
 ### Summary
-Fixed the "Apply Theme to Current Slide" functionality which was not working for song and scripture items, and added a new "Apply Theme to Group" feature to apply themes to all slides in a logical slide group.
+Fixed the "Apply Theme to Current Slide" functionality which was not working for song and scripture items, added "Apply Theme to Group" feature, and added "Clone Format to Group" feature to copy formatting from one slide to all others in the same group.
 
 ### Issues Fixed
 
@@ -34,20 +34,27 @@ New menu action "Slide > Apply Theme to Group..." applies a theme to all slides 
 - For SongItem/ScriptureItem/CustomSlideItem: Applies item-level styling
 - Useful for quickly styling all verses of a song or all slides in a scripture passage
 
+#### Clone Format to Group (Ctrl+Shift+F)
+New menu action "Slide > Clone Format to Group" copies all formatting from the selected slide to all other slides in the same group:
+- Copies all visual properties: background (color/gradient/image/video), text styling (color, font, size), drop shadow, overlay, text container, and text band settings
+- For SlideGroupItem: Full formatting is cloned including gradients and images
+- For SongItem/ScriptureItem/CustomSlideItem: Basic properties (background color, text color, font family, font size) are applied at item level
+- Useful when you've manually styled one slide and want to apply the same look to all related slides
+
 #### Theme::toSlideStyle() Method
 Added helper method to convert Theme to SlideStyle for item-level theming. Note that SlideStyle only supports solid color backgrounds, so gradient themes use the start color as the background when applied at the item level.
 
 ### Files Modified
 - `src/Core/Theme.h` - Added `#include "Song.h"` and `toSlideStyle()` declaration
 - `src/Core/Theme.cpp` - Implemented `toSlideStyle()` conversion method
-- `src/Control/ControlWindow.h` - Added `onApplyThemeToGroup()` slot declaration
-- `src/Control/ControlWindow.cpp` - Fixed `onApplyThemeToSlide()` to handle different item types, added `onApplyThemeToGroup()` implementation, added menu action
+- `src/Control/ControlWindow.h` - Added `onApplyThemeToGroup()` and `onCloneFormatToGroup()` slot declarations
+- `src/Control/ControlWindow.cpp` - Fixed `onApplyThemeToSlide()`, added `onApplyThemeToGroup()` and `onCloneFormatToGroup()` implementations, added menu actions
 
 ### Technical Notes
 - `SlideStyle` (from Song.h) only stores: backgroundColor, textColor, fontFamily, fontSize
 - Full `Theme` supports gradients and images, but these can't be stored at the item level
 - When applying themes to SongItem/ScriptureItem, gradient themes fall back to using the gradient start color as the solid background
-- For SlideGroupItem, the full theme (including gradients) is applied since each slide can store complete styling
+- For SlideGroupItem, the full formatting (including gradients, images, drop shadows, overlays, etc.) is cloned since each slide can store complete styling
 
 ---
 

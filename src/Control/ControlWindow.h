@@ -95,6 +95,7 @@ private slots:
     void onApplyTheme();
     void onApplyThemeToSlide();
     void onApplyThemeToGroup();
+    void onCloneFormatToGroup();
     void onManageThemes();
 
     // Timer controls

@@ -265,6 +265,7 @@ void ControlWindow::setupUI()
     slideMenu->addAction(tr("Apply &Theme..."), QKeySequence("Ctrl+T"), this, &ControlWindow::onApplyTheme);
     slideMenu->addAction(tr("Apply Theme to Current Slide..."), this, &ControlWindow::onApplyThemeToSlide);
     slideMenu->addAction(tr("Apply Theme to &Group..."), QKeySequence("Ctrl+Shift+T"), this, &ControlWindow::onApplyThemeToGroup);
+    slideMenu->addAction(tr("Clone &Format to Group"), QKeySequence("Ctrl+Shift+F"), this, &ControlWindow::onCloneFormatToGroup);
 
     // Format menu (for theme management)
     QMenu* formatMenu = menuBar->addMenu(tr("F&ormat"));
@@ -1443,6 +1444,107 @@ void ControlWindow::onApplyThemeToGroup()
         qDebug() << "Applied theme" << theme.name() << "to group" << item->displayName()
                  << "(" << item->slideCount() << "slides)";
     }
+}
+
+void ControlWindow::onCloneFormatToGroup()
+{
+    QModelIndex currentIndex = m_slideGridView->currentIndex();
+    if (!currentIndex.isValid()) {
+        QMessageBox::information(this, tr("No Slide Selected"), tr("Please select a slide to clone formatting from."));
+        return;
+    }
+
+    // Map from proxy index to source index
+    QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(currentIndex);
+    int flatIndex = sourceIndex.isValid() ? sourceIndex.row() : currentIndex.row();
+
+    // Get the item containing this slide
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) return;
+
+    SlidePosition pos = presentation->positionForFlatIndex(flatIndex);
+    if (!pos.isValid()) return;
+
+    PresentationItem* item = presentation->itemAt(pos.itemIndex);
+    if (!item) return;
+
+    // Get the source slide to clone formatting from
+    Slide sourceSlide = m_presentationModel->getSlide(flatIndex);
+
+    // Apply formatting to all slides in the group/item
+    if (auto* groupItem = qobject_cast<SlideGroupItem*>(item)) {
+        // For SlideGroupItem, copy full formatting to each slide
+        QList<Slide> slides = groupItem->slides();
+        for (int i = 0; i < slides.count(); ++i) {
+            Slide& slide = slides[i];
+            // Copy all formatting properties (but not text content)
+            slide.setBackgroundType(sourceSlide.backgroundType());
+            slide.setBackgroundColor(sourceSlide.backgroundColor());
+            slide.setGradientStartColor(sourceSlide.gradientStartColor());
+            slide.setGradientEndColor(sourceSlide.gradientEndColor());
+            slide.setGradientAngle(sourceSlide.gradientAngle());
+            slide.setBackgroundImageData(sourceSlide.backgroundImageData());
+            slide.setBackgroundImagePath(sourceSlide.backgroundImagePath());
+            slide.setBackgroundVideoPath(sourceSlide.backgroundVideoPath());
+            slide.setVideoLoop(sourceSlide.videoLoop());
+            slide.setTextColor(sourceSlide.textColor());
+            slide.setFontFamily(sourceSlide.fontFamily());
+            slide.setFontSize(sourceSlide.fontSize());
+            // Drop shadow
+            slide.setDropShadowEnabled(sourceSlide.dropShadowEnabled());
+            slide.setDropShadowColor(sourceSlide.dropShadowColor());
+            slide.setDropShadowOffsetX(sourceSlide.dropShadowOffsetX());
+            slide.setDropShadowOffsetY(sourceSlide.dropShadowOffsetY());
+            slide.setDropShadowBlur(sourceSlide.dropShadowBlur());
+            // Overlay
+            slide.setOverlayEnabled(sourceSlide.overlayEnabled());
+            slide.setOverlayColor(sourceSlide.overlayColor());
+            slide.setOverlayBlur(sourceSlide.overlayBlur());
+            // Text container
+            slide.setTextContainerEnabled(sourceSlide.textContainerEnabled());
+            slide.setTextContainerColor(sourceSlide.textContainerColor());
+            slide.setTextContainerPadding(sourceSlide.textContainerPadding());
+            slide.setTextContainerRadius(sourceSlide.textContainerRadius());
+            slide.setTextContainerBlur(sourceSlide.textContainerBlur());
+            // Text band
+            slide.setTextBandEnabled(sourceSlide.textBandEnabled());
+            slide.setTextBandColor(sourceSlide.textBandColor());
+            slide.setTextBandBlur(sourceSlide.textBandBlur());
+
+            groupItem->updateSlide(i, slide);
+        }
+        // Invalidate cache to reflect changes
+        groupItem->invalidateSlideCache();
+    } else {
+        // For SongItem, ScriptureItem, and CustomSlideItem, use item-level styling
+        // Note: This only supports basic properties (no gradients/images at item level)
+        SlideStyle style(
+            sourceSlide.backgroundColor(),
+            sourceSlide.textColor(),
+            sourceSlide.fontFamily(),
+            sourceSlide.fontSize()
+        );
+        item->setItemStyle(style);
+    }
+
+    // Emit dataChanged for all slides in this item
+    int itemStart = presentation->flatIndexForPosition(pos.itemIndex, 0);
+    int itemEnd = itemStart + item->slideCount() - 1;
+    QModelIndex startIdx = m_presentationModel->index(itemStart, 0);
+    QModelIndex endIdx = m_presentationModel->index(itemEnd, 0);
+    emit m_presentationModel->dataChanged(startIdx, endIdx);
+
+    // Broadcast if current slide is in this item
+    int currentSlideIndex = m_presentationModel->currentSlideIndex();
+    SlidePosition currentPos = presentation->positionForFlatIndex(currentSlideIndex);
+    if (currentPos.itemIndex == pos.itemIndex) {
+        broadcastCurrentSlide();
+    }
+
+    markDirty();
+
+    qDebug() << "Cloned formatting from slide" << flatIndex << "to group" << item->displayName()
+             << "(" << item->slideCount() << "slides)";
 }
 
 void ControlWindow::onManageThemes()
