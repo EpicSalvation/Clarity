@@ -46,7 +46,6 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_outputDisabledButton(nullptr)
     , m_settingsButton(nullptr)
     , m_addSlideButton(nullptr)
-    , m_editSlideButton(nullptr)
     , m_deleteSlideButton(nullptr)
     , m_moveUpButton(nullptr)
     , m_moveDownButton(nullptr)
@@ -285,14 +284,53 @@ void ControlWindow::setupUI()
     // Content area: horizontal layout with list on left, grid in center, preview on right
     QHBoxLayout* contentLayout = new QHBoxLayout();
 
-    // Left panel: Item list (playlist items - songs, scriptures, slide groups)
+    // Left panel: Item list with add/remove/reorder buttons at the bottom
+    QWidget* leftPanel = new QWidget(this);
+    leftPanel->setFixedWidth(180);
+    QVBoxLayout* leftLayout = new QVBoxLayout(leftPanel);
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    leftLayout->setSpacing(2);
+
     m_slideListView = new QListView(this);
     m_slideListView->setModel(m_itemListModel);
-    m_slideListView->setFixedWidth(180);
     m_slideListView->setSelectionMode(QAbstractItemView::SingleSelection);
     connect(m_slideListView, &QListView::clicked, this, &ControlWindow::onItemClicked);
     connect(m_slideListView, &QListView::doubleClicked, this, &ControlWindow::onItemDoubleClicked);
-    contentLayout->addWidget(m_slideListView);
+    leftLayout->addWidget(m_slideListView);
+
+    // Compact playlist buttons (+, -, up, down)
+    QHBoxLayout* playlistButtonLayout = new QHBoxLayout();
+    playlistButtonLayout->setContentsMargins(0, 0, 0, 0);
+    playlistButtonLayout->setSpacing(2);
+
+    m_addSlideButton = new QPushButton("+", this);
+    m_deleteSlideButton = new QPushButton(QStringLiteral("\u2212"), this);  // minus sign
+    m_moveUpButton = new QPushButton(QStringLiteral("\u25B2"), this);      // up triangle
+    m_moveDownButton = new QPushButton(QStringLiteral("\u25BC"), this);    // down triangle
+
+    // Make buttons compact
+    for (QPushButton* btn : {m_addSlideButton, m_deleteSlideButton, m_moveUpButton, m_moveDownButton}) {
+        btn->setFixedSize(36, 28);
+        btn->setToolTip("");
+    }
+    m_addSlideButton->setToolTip(tr("Add slide (Ctrl+Shift+N)"));
+    m_deleteSlideButton->setToolTip(tr("Delete slide (Delete)"));
+    m_moveUpButton->setToolTip(tr("Move slide up (Ctrl+Up)"));
+    m_moveDownButton->setToolTip(tr("Move slide down (Ctrl+Down)"));
+
+    connect(m_addSlideButton, &QPushButton::clicked, this, &ControlWindow::onAddSlide);
+    connect(m_deleteSlideButton, &QPushButton::clicked, this, &ControlWindow::onDeleteSlide);
+    connect(m_moveUpButton, &QPushButton::clicked, this, &ControlWindow::onMoveSlideUp);
+    connect(m_moveDownButton, &QPushButton::clicked, this, &ControlWindow::onMoveSlideDown);
+
+    playlistButtonLayout->addWidget(m_addSlideButton);
+    playlistButtonLayout->addWidget(m_deleteSlideButton);
+    playlistButtonLayout->addStretch();
+    playlistButtonLayout->addWidget(m_moveUpButton);
+    playlistButtonLayout->addWidget(m_moveDownButton);
+
+    leftLayout->addLayout(playlistButtonLayout);
+    contentLayout->addWidget(leftPanel);
 
     // Center panel: Slide grid view
     m_slideGridView = new QListView(this);
@@ -333,30 +371,6 @@ void ControlWindow::setupUI()
     contentLayout->addWidget(m_livePreviewPanel);
 
     mainLayout->addLayout(contentLayout, 1);  // Content area stretches
-
-    // Slide editing buttons
-    QHBoxLayout* editLayout = new QHBoxLayout();
-
-    m_addSlideButton = new QPushButton(tr("Add"), this);
-    m_editSlideButton = new QPushButton(tr("Edit"), this);
-    m_deleteSlideButton = new QPushButton(tr("Delete"), this);
-    m_moveUpButton = new QPushButton(tr("Move Up"), this);
-    m_moveDownButton = new QPushButton(tr("Move Down"), this);
-
-    connect(m_addSlideButton, &QPushButton::clicked, this, &ControlWindow::onAddSlide);
-    connect(m_editSlideButton, &QPushButton::clicked, this, &ControlWindow::onEditSlide);
-    connect(m_deleteSlideButton, &QPushButton::clicked, this, &ControlWindow::onDeleteSlide);
-    connect(m_moveUpButton, &QPushButton::clicked, this, &ControlWindow::onMoveSlideUp);
-    connect(m_moveDownButton, &QPushButton::clicked, this, &ControlWindow::onMoveSlideDown);
-
-    editLayout->addWidget(m_addSlideButton);
-    editLayout->addWidget(m_editSlideButton);
-    editLayout->addWidget(m_deleteSlideButton);
-    editLayout->addWidget(m_moveUpButton);
-    editLayout->addWidget(m_moveDownButton);
-    editLayout->addStretch();
-
-    mainLayout->addLayout(editLayout);
 
     // Control buttons
     QHBoxLayout* buttonLayout = new QHBoxLayout();

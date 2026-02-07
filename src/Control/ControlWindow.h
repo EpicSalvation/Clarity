@@ -136,7 +136,6 @@ private:
     QPushButton* m_outputDisabledButton;  ///< Toggle to disable output display
     QPushButton* m_settingsButton;
     QPushButton* m_addSlideButton;
-    QPushButton* m_editSlideButton;
     QPushButton* m_deleteSlideButton;
     QPushButton* m_moveUpButton;
     QPushButton* m_moveDownButton;
