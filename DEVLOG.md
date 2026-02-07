@@ -4,26 +4,38 @@ A chronological record of development work on the Clarity project.
 
 ---
 
-## 2026-02-07 - Replace Launch Buttons with Double-Clickable Preview Panels
+## 2026-02-07 - UI Cleanup: Preview Panel Interaction and Playlist Controls
 
 ### Summary
-Replaced the "Launch Output" and "Launch Confidence" buttons with double-click interaction on the live preview panels. The preview panels now show green/red borders indicating whether the corresponding display process is connected via IPC. Double-clicking a preview toggles its display, making the UI more intuitive and freeing up toolbar space.
+Two related UI improvements that reduce button clutter and make the interface more intuitive:
+1. Replaced "Launch Output" and "Launch Confidence" buttons with double-click interaction on the live preview panels, with green/red status borders.
+2. Moved slide management buttons into the playlist panel as compact +/−/▲/▼ controls. Removed the Edit button (double-click to edit already exists). Up/down buttons now reorder entire playlist items.
 
 ### Work Completed
-- **LivePreviewWidget**: Added `m_active` state, `setActive()`/`isActive()` methods, `doubleClicked()` signal, `mouseDoubleClickEvent()` override. Changed border from static dark gray to green (active) / red (inactive) with 3px width drawn around the entire widget.
-- **ConfidencePreviewWidget**: Same pattern — active state, double-click signal, green/red status border (3px).
+
+#### Double-Clickable Preview Panels
+- **LivePreviewWidget / ConfidencePreviewWidget**: Added `m_active` state, `setActive()`/`isActive()` methods, `doubleClicked()` signal, `mouseDoubleClickEvent()` override. Replaced static dark gray border with green (active) / red (inactive) 3px status border around the entire widget.
 - **LivePreviewPanel**: Added `setOutputActive()`/`setConfidenceActive()` forwarding methods and `outputDoubleClicked()`/`confidenceDoubleClicked()` signals wired from child widgets.
-- **ControlWindow**: Removed `m_launchOutputButton`/`m_launchConfidenceButton` members, removed `onLaunchOutput()`/`onLaunchConfidence()` slots, removed button creation/connection code from `setupUI()`. Connected preview double-click signals to existing `toggleOutputDisplay()`/`toggleConfidenceMonitor()` methods. Added `updatePreviewStates()` helper and `m_outputVisible`/`m_confidenceVisible` state tracking. Borders reflect visibility (not just IPC connection), so toggling a display off correctly turns the border red.
+- **ControlWindow**: Removed `m_launchOutputButton`/`m_launchConfidenceButton` and their slots. Connected preview double-click signals to existing `toggleOutputDisplay()`/`toggleConfidenceMonitor()` methods. Added `updatePreviewStates()` with `m_outputVisible`/`m_confidenceVisible` tracking so borders reflect visibility state, not just IPC connection.
+
+#### Compact Playlist Buttons
+- Removed the full-width Add/Edit/Delete/Move Up/Move Down button row.
+- Added compact +/−/▲/▼ buttons (36x28px) at the bottom of the playlist panel (left panel).
+- Removed the Edit button entirely — double-clicking a slide in the grid already opens the editor.
+- **Up/down buttons now move entire playlist items** (songs, scriptures, slide groups) using `Presentation::moveItem()`, not individual slides.
+
+#### Bug Fix: moveSlide Crash
+- Fixed `PresentationModel::moveSlide` crash when moving slides across item boundaries. Cross-item moves restructure the item list via `removeSlide`/`insertSlide`, which is incompatible with `beginMoveRows`/`endMoveRows`. Now detects within-group vs. cross-item moves and uses `beginResetModel`/`endResetModel` for the latter.
 
 ### Technical Decisions
-- Reused existing `toggleOutputDisplay()` and `toggleConfidenceMonitor()` methods which already handle the launch-if-not-connected / toggle-if-connected logic.
-- Visibility is tracked separately from IPC connection: toggling sends `toggleVisibility` without disconnecting, so `hasClientType()` alone was insufficient. Added `m_outputVisible`/`m_confidenceVisible` bools that flip on toggle and reset on client disconnect.
-- Border drawn around the full widget rect (including title bar) at 3px for clear at-a-glance status.
-- Settings button kept in a simplified bottom row layout.
+- Visibility tracked separately from IPC connection: toggling sends `toggleVisibility` without disconnecting, so `hasClientType()` alone was insufficient.
+- Playlist up/down uses `Presentation::moveItem()` which properly updates the current slide index to follow the moved item.
+- Kept Ctrl+Up/Ctrl+Down keyboard shortcuts mapped to the same move methods.
 
 ### Testing
 - All modified files compile and link cleanly with Qt 6.10.2 MinGW 64-bit.
-- Verified: borders update correctly on connect, disconnect, and toggle (double-click or O/C shortcuts).
+- Verified: preview borders update on connect, disconnect, and toggle.
+- Verified: playlist item reordering works correctly in both directions.
 
 ---
 
