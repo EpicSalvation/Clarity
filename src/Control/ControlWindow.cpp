@@ -361,7 +361,11 @@ void ControlWindow::setupUI()
     m_slideGridView->setSpacing(10);
     m_slideGridView->setUniformItemSizes(true);
     m_slideGridView->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_slideGridView->setDragEnabled(false);  // Disable drag for now
+    m_slideGridView->setDragEnabled(true);
+    m_slideGridView->setAcceptDrops(true);
+    m_slideGridView->setDropIndicatorShown(true);
+    m_slideGridView->setDragDropMode(QAbstractItemView::InternalMove);
+    m_slideGridView->setDefaultDropAction(Qt::MoveAction);
 
     // Create and set the custom delegate for grid thumbnails
     m_slideDelegate = new SlideGridDelegate(this);

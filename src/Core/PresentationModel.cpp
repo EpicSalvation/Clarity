@@ -1,5 +1,6 @@
 #include "PresentationModel.h"
 #include "SlideGroupItem.h"
+#include <QIODevice>
 
 namespace Clarity {
 
@@ -105,6 +106,142 @@ QHash<int, QByteArray> PresentationModel::roleNames() const
     roles[ItemTypeRole] = "itemType";
     roles[FlatIndexRole] = "flatIndex";
     return roles;
+}
+
+Qt::ItemFlags PresentationModel::flags(const QModelIndex& index) const
+{
+    Qt::ItemFlags defaultFlags = QAbstractListModel::flags(index);
+    if (!index.isValid() || !m_presentation) {
+        return defaultFlags | Qt::ItemIsDropEnabled;
+    }
+
+    // Only allow dragging slides that belong to a SlideGroupItem
+    SlidePosition pos = m_presentation->positionForFlatIndex(index.row());
+    if (pos.isValid()) {
+        PresentationItem* item = m_presentation->itemAt(pos.itemIndex);
+        if (qobject_cast<SlideGroupItem*>(item)) {
+            return defaultFlags | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
+        }
+    }
+    return defaultFlags;
+}
+
+Qt::DropActions PresentationModel::supportedDropActions() const
+{
+    return Qt::MoveAction;
+}
+
+QStringList PresentationModel::mimeTypes() const
+{
+    return { "application/x-clarity-slide-index" };
+}
+
+QMimeData* PresentationModel::mimeData(const QModelIndexList& indexes) const
+{
+    QMimeData* mimeData = new QMimeData();
+    QByteArray encodedData;
+    QDataStream stream(&encodedData, QIODevice::WriteOnly);
+
+    for (const QModelIndex& index : indexes) {
+        if (index.isValid()) {
+            stream << index.row();  // flat slide index
+        }
+    }
+
+    mimeData->setData("application/x-clarity-slide-index", encodedData);
+    return mimeData;
+}
+
+bool PresentationModel::canDropMimeData(const QMimeData* data, Qt::DropAction action,
+                                         int row, int column, const QModelIndex& parent) const
+{
+    Q_UNUSED(action);
+    Q_UNUSED(column);
+
+    if (!data->hasFormat("application/x-clarity-slide-index") || !m_presentation) {
+        return false;
+    }
+
+    // Decode source row
+    QByteArray encodedData = data->data("application/x-clarity-slide-index");
+    QDataStream stream(&encodedData, QIODevice::ReadOnly);
+    int sourceRow = -1;
+    if (!stream.atEnd()) {
+        stream >> sourceRow;
+    }
+    if (sourceRow < 0) return false;
+
+    SlidePosition sourcePos = m_presentation->positionForFlatIndex(sourceRow);
+    if (!sourcePos.isValid()) return false;
+
+    // Only allow drop within the same SlideGroupItem
+    int targetRow = (row >= 0) ? row : (parent.isValid() ? parent.row() : -1);
+    if (targetRow < 0) return false;
+
+    SlidePosition targetPos = m_presentation->positionForFlatIndex(targetRow);
+    if (!targetPos.isValid()) return false;
+
+    return sourcePos.itemIndex == targetPos.itemIndex
+        && qobject_cast<SlideGroupItem*>(m_presentation->itemAt(sourcePos.itemIndex));
+}
+
+bool PresentationModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
+                                      int row, int column, const QModelIndex& parent)
+{
+    Q_UNUSED(column);
+
+    if (action == Qt::IgnoreAction) return true;
+    if (!data->hasFormat("application/x-clarity-slide-index") || !m_presentation) return false;
+
+    // Decode source row
+    QByteArray encodedData = data->data("application/x-clarity-slide-index");
+    QDataStream stream(&encodedData, QIODevice::ReadOnly);
+    int sourceRow = -1;
+    if (!stream.atEnd()) {
+        stream >> sourceRow;
+    }
+    if (sourceRow < 0) return false;
+
+    // Determine target row
+    int targetRow;
+    if (row >= 0) {
+        targetRow = row;
+    } else if (parent.isValid()) {
+        targetRow = parent.row();
+    } else {
+        targetRow = m_presentation->totalSlideCount();
+    }
+
+    // Verify both are in the same SlideGroupItem
+    SlidePosition sourcePos = m_presentation->positionForFlatIndex(sourceRow);
+    if (!sourcePos.isValid()) return false;
+
+    // Clamp targetRow to valid range
+    if (targetRow > m_presentation->totalSlideCount()) {
+        targetRow = m_presentation->totalSlideCount();
+    }
+
+    SlidePosition targetPos = m_presentation->positionForFlatIndex(
+        qMin(targetRow, m_presentation->totalSlideCount() - 1));
+    if (!targetPos.isValid()) return false;
+
+    if (sourcePos.itemIndex != targetPos.itemIndex) return false;
+
+    PresentationItem* item = m_presentation->itemAt(sourcePos.itemIndex);
+    SlideGroupItem* groupItem = qobject_cast<SlideGroupItem*>(item);
+    if (!groupItem) return false;
+
+    // Adjust for removal shift when dragging downward
+    if (sourceRow < targetRow) {
+        targetRow--;
+    }
+    if (sourceRow == targetRow) return false;
+
+    // Use moveSlide which handles within-group moves properly
+    moveSlide(sourceRow, targetRow);
+    setCurrentSlideIndex(targetRow);
+
+    return true;
 }
 
 void PresentationModel::setPresentation(Presentation* presentation)
