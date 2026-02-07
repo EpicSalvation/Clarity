@@ -50,10 +50,7 @@ QList<Slide> ScriptureItem::generateSlides() const
         // No database - return a placeholder slide
         Slide errorSlide(tr("Bible database not available"));
         if (m_hasCustomStyle) {
-            errorSlide.setBackgroundColor(m_itemStyle.backgroundColor);
-            errorSlide.setTextColor(m_itemStyle.textColor);
-            errorSlide.setFontFamily(m_itemStyle.fontFamily);
-            errorSlide.setFontSize(m_itemStyle.fontSize);
+            m_itemStyle.applyTo(errorSlide);
         }
         slides.append(errorSlide);
         return slides;
@@ -62,10 +59,7 @@ QList<Slide> ScriptureItem::generateSlides() const
     if (m_reference.isEmpty()) {
         Slide errorSlide(tr("No scripture reference specified"));
         if (m_hasCustomStyle) {
-            errorSlide.setBackgroundColor(m_itemStyle.backgroundColor);
-            errorSlide.setTextColor(m_itemStyle.textColor);
-            errorSlide.setFontFamily(m_itemStyle.fontFamily);
-            errorSlide.setFontSize(m_itemStyle.fontSize);
+            m_itemStyle.applyTo(errorSlide);
         }
         slides.append(errorSlide);
         return slides;
@@ -84,10 +78,7 @@ QList<Slide> ScriptureItem::generateSlides() const
     if (verses.isEmpty()) {
         Slide errorSlide(tr("Scripture not found: %1").arg(m_reference));
         if (m_hasCustomStyle) {
-            errorSlide.setBackgroundColor(m_itemStyle.backgroundColor);
-            errorSlide.setTextColor(m_itemStyle.textColor);
-            errorSlide.setFontFamily(m_itemStyle.fontFamily);
-            errorSlide.setFontSize(m_itemStyle.fontSize);
+            m_itemStyle.applyTo(errorSlide);
         }
         slides.append(errorSlide);
         return slides;
@@ -103,10 +94,7 @@ QList<Slide> ScriptureItem::generateSlides() const
             slide.setRichText(richText);
         }
         if (m_hasCustomStyle) {
-            slide.setBackgroundColor(m_itemStyle.backgroundColor);
-            slide.setTextColor(m_itemStyle.textColor);
-            slide.setFontFamily(m_itemStyle.fontFamily);
-            slide.setFontSize(m_itemStyle.fontSize);
+            m_itemStyle.applyTo(slide);
         }
         return slide;
     };

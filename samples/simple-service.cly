@@ -1,58 +1,128 @@
 {
-  "version": "1.0",
-  "title": "Simple Sunday Service",
-  "currentSlideIndex": 0,
-  "createdDate": "2026-01-23T11:00:00",
-  "modifiedDate": "2026-01-23T11:00:00",
-  "slides": [
-    {
-      "text": "Sunday Service\n\nJanuary 23, 2026",
-      "backgroundColor": "#1e3a8a",
-      "textColor": "#ffffff",
-      "fontFamily": "Arial",
-      "fontSize": 56
-    },
-    {
-      "text": "Welcome",
-      "backgroundColor": "#1e3a8a",
-      "textColor": "#ffffff",
-      "fontFamily": "Arial",
-      "fontSize": 72
-    },
-    {
-      "text": "Opening Prayer",
-      "backgroundColor": "#1e3a8a",
-      "textColor": "#ffffff",
-      "fontFamily": "Arial",
-      "fontSize": 60
-    },
-    {
-      "text": "Worship Time",
-      "backgroundColor": "#1e3a8a",
-      "textColor": "#ffffff",
-      "fontFamily": "Arial",
-      "fontSize": 60
-    },
-    {
-      "text": "Message\n\nPastor John Smith",
-      "backgroundColor": "#1e3a8a",
-      "textColor": "#ffffff",
-      "fontFamily": "Arial",
-      "fontSize": 56
-    },
-    {
-      "text": "Closing Prayer",
-      "backgroundColor": "#1e3a8a",
-      "textColor": "#ffffff",
-      "fontFamily": "Arial",
-      "fontSize": 60
-    },
-    {
-      "text": "Thank You!",
-      "backgroundColor": "#1e3a8a",
-      "textColor": "#ffffff",
-      "fontFamily": "Arial",
-      "fontSize": 72
-    }
-  ]
+    "createdDate": "2026-01-30T01:23:42",
+    "currentSlideIndex": 0,
+    "items": [
+        {
+            "name": "Imported Slides",
+            "slides": [
+                {
+                    "backgroundColor": "#1e3a8a",
+                    "backgroundType": "solidColor",
+                    "dropShadowBlur": 4,
+                    "dropShadowColor": "#ff000000",
+                    "dropShadowEnabled": true,
+                    "dropShadowOffsetX": 2,
+                    "dropShadowOffsetY": 2,
+                    "fontFamily": "Arial",
+                    "fontSize": 56,
+                    "overlayEnabled": false,
+                    "text": "Sunday Service\n\nJanuary 23, 2026",
+                    "textBandEnabled": false,
+                    "textColor": "#ffffff",
+                    "textContainerEnabled": false
+                },
+                {
+                    "backgroundColor": "#1e3a8a",
+                    "backgroundType": "solidColor",
+                    "dropShadowBlur": 4,
+                    "dropShadowColor": "#ff000000",
+                    "dropShadowEnabled": true,
+                    "dropShadowOffsetX": 2,
+                    "dropShadowOffsetY": 2,
+                    "fontFamily": "Arial",
+                    "fontSize": 72,
+                    "overlayEnabled": false,
+                    "text": "Welcome",
+                    "textBandEnabled": false,
+                    "textColor": "#ffffff",
+                    "textContainerEnabled": false
+                },
+                {
+                    "backgroundColor": "#1e3a8a",
+                    "backgroundType": "solidColor",
+                    "dropShadowBlur": 4,
+                    "dropShadowColor": "#ff000000",
+                    "dropShadowEnabled": true,
+                    "dropShadowOffsetX": 2,
+                    "dropShadowOffsetY": 2,
+                    "fontFamily": "Arial",
+                    "fontSize": 60,
+                    "overlayEnabled": false,
+                    "text": "Opening Prayer",
+                    "textBandEnabled": false,
+                    "textColor": "#ffffff",
+                    "textContainerEnabled": false
+                },
+                {
+                    "backgroundColor": "#1e3a8a",
+                    "backgroundType": "solidColor",
+                    "dropShadowBlur": 4,
+                    "dropShadowColor": "#ff000000",
+                    "dropShadowEnabled": true,
+                    "dropShadowOffsetX": 2,
+                    "dropShadowOffsetY": 2,
+                    "fontFamily": "Arial",
+                    "fontSize": 60,
+                    "overlayEnabled": false,
+                    "text": "Worship Time",
+                    "textBandEnabled": false,
+                    "textColor": "#ffffff",
+                    "textContainerEnabled": false
+                },
+                {
+                    "backgroundColor": "#1e3a8a",
+                    "backgroundType": "solidColor",
+                    "dropShadowBlur": 4,
+                    "dropShadowColor": "#ff000000",
+                    "dropShadowEnabled": true,
+                    "dropShadowOffsetX": 2,
+                    "dropShadowOffsetY": 2,
+                    "fontFamily": "Arial",
+                    "fontSize": 56,
+                    "overlayEnabled": false,
+                    "text": "Message\n\nPastor John Smith",
+                    "textBandEnabled": false,
+                    "textColor": "#ffffff",
+                    "textContainerEnabled": false
+                },
+                {
+                    "backgroundColor": "#1e3a8a",
+                    "backgroundType": "solidColor",
+                    "dropShadowBlur": 4,
+                    "dropShadowColor": "#ff000000",
+                    "dropShadowEnabled": true,
+                    "dropShadowOffsetX": 2,
+                    "dropShadowOffsetY": 2,
+                    "fontFamily": "Arial",
+                    "fontSize": 60,
+                    "overlayEnabled": false,
+                    "text": "Closing Prayer",
+                    "textBandEnabled": false,
+                    "textColor": "#ffffff",
+                    "textContainerEnabled": false
+                },
+                {
+                    "backgroundColor": "#1e3a8a",
+                    "backgroundType": "solidColor",
+                    "dropShadowBlur": 4,
+                    "dropShadowColor": "#ff000000",
+                    "dropShadowEnabled": true,
+                    "dropShadowOffsetX": 2,
+                    "dropShadowOffsetY": 2,
+                    "fontFamily": "Arial",
+                    "fontSize": 72,
+                    "overlayEnabled": false,
+                    "text": "Thank You!",
+                    "textBandEnabled": false,
+                    "textColor": "#ffffff",
+                    "textContainerEnabled": false
+                }
+            ],
+            "type": "slideGroup",
+            "uuid": "6922ef23-f0b3-40a0-9440-9855d33ae9e9"
+        }
+    ],
+    "modifiedDate": "2026-01-30T01:23:42",
+    "title": "Simple Sunday Service",
+    "version": "2.0"
 }

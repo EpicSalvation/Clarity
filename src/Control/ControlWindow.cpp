@@ -1399,22 +1399,15 @@ void ControlWindow::onApplyThemeToSlide()
         PresentationItem* item = presentation->itemAt(pos.itemIndex);
         if (!item) return;
 
-        // For SongItem and ScriptureItem, we need to apply the theme at the item level
-        // because their slides are generated on-demand from source data
         if (qobject_cast<SongItem*>(item) || qobject_cast<ScriptureItem*>(item)) {
-            // Convert theme to SlideStyle and apply to the item
-            item->setItemStyle(theme.toSlideStyle());
+            // Use per-slide style override so only this slide changes
+            item->setSlideStyleOverride(pos.slideInItem, theme.toSlideStyle());
 
-            // The item's slides will be regenerated with the new style
-            // Emit dataChanged for all slides in this item
-            int itemStart = presentation->flatIndexForPosition(pos.itemIndex, 0);
-            int itemEnd = itemStart + item->slideCount() - 1;
-            QModelIndex startIdx = m_presentationModel->index(itemStart, 0);
-            QModelIndex endIdx = m_presentationModel->index(itemEnd, 0);
-            emit m_presentationModel->dataChanged(startIdx, endIdx);
+            QModelIndex idx = m_presentationModel->index(flatIndex, 0);
+            emit m_presentationModel->dataChanged(idx, idx);
 
-            qDebug() << "Applied theme" << theme.name() << "to item" << item->displayName()
-                     << "(all" << item->slideCount() << "slides)";
+            qDebug() << "Applied theme" << theme.name() << "to slide" << pos.slideInItem
+                     << "in item" << item->displayName();
         } else {
             // For CustomSlideItem and SlideGroupItem, we can update the individual slide
             Slide slide = m_presentationModel->getSlide(flatIndex);
@@ -1570,13 +1563,15 @@ void ControlWindow::onCloneFormatToGroup()
         groupItem->invalidateSlideCache();
     } else {
         // For SongItem, ScriptureItem, and CustomSlideItem, use item-level styling
-        // Note: This only supports basic properties (no gradients/images at item level)
-        SlideStyle style(
-            sourceSlide.backgroundColor(),
-            sourceSlide.textColor(),
-            sourceSlide.fontFamily(),
-            sourceSlide.fontSize()
-        );
+        SlideStyle style;
+        style.backgroundColor = sourceSlide.backgroundColor();
+        style.textColor = sourceSlide.textColor();
+        style.fontFamily = sourceSlide.fontFamily();
+        style.fontSize = sourceSlide.fontSize();
+        style.backgroundType = sourceSlide.backgroundType();
+        style.gradientStartColor = sourceSlide.gradientStartColor();
+        style.gradientEndColor = sourceSlide.gradientEndColor();
+        style.gradientAngle = sourceSlide.gradientAngle();
         item->setItemStyle(style);
     }
 

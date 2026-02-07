@@ -42,10 +42,7 @@ QList<Slide> CustomSlideItem::generateSlides() const
 
     // Apply custom style if set
     if (m_hasCustomStyle) {
-        slide.setBackgroundColor(m_itemStyle.backgroundColor);
-        slide.setTextColor(m_itemStyle.textColor);
-        slide.setFontFamily(m_itemStyle.fontFamily);
-        slide.setFontSize(m_itemStyle.fontSize);
+        m_itemStyle.applyTo(slide);
     }
 
     slides.append(slide);

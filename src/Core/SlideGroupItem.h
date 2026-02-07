@@ -68,6 +68,14 @@ public:
     void updateSlide(int index, const Slide& slide);
 
     /**
+     * @brief Permanently apply the group custom style to each individual slide
+     *
+     * After baking, m_hasCustomStyle is cleared so generateSlides() returns
+     * m_slides as-is, allowing individual slide changes to stick.
+     */
+    void bakeCustomStyle();
+
+    /**
      * @brief Remove a slide at a specific position
      */
     void removeSlide(int index);

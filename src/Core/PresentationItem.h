@@ -6,6 +6,7 @@
 #include <QString>
 #include <QList>
 #include <QJsonObject>
+#include <QMap>
 #include <QUuid>
 
 namespace Clarity {
@@ -116,6 +117,27 @@ public:
      */
     void clearCustomStyle();
 
+    // Per-slide style overrides (for overriding individual slides within an item)
+    /**
+     * @brief Set a style override for a specific slide index within this item
+     */
+    void setSlideStyleOverride(int slideIndex, const SlideStyle& style);
+
+    /**
+     * @brief Clear the style override for a specific slide index
+     */
+    void clearSlideStyleOverride(int slideIndex);
+
+    /**
+     * @brief Check if a specific slide has a style override
+     */
+    bool hasSlideStyleOverride(int slideIndex) const { return m_perSlideStyles.contains(slideIndex); }
+
+    /**
+     * @brief Get all per-slide style overrides
+     */
+    QMap<int, SlideStyle> slideStyleOverrides() const { return m_perSlideStyles; }
+
     // Unique identifier
     /**
      * @brief Get the unique identifier for this item
@@ -182,6 +204,7 @@ protected:
     QString m_uuid;
     SlideStyle m_itemStyle;
     bool m_hasCustomStyle;
+    QMap<int, SlideStyle> m_perSlideStyles;  ///< Per-slide style overrides
 
     // Slide cache
     mutable QList<Slide> m_cachedSlides;

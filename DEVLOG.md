@@ -4,6 +4,64 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-06 - Per-Slide Theme Overrides, Gradient Support in SlideStyle, Deprecation Fixes
+
+### Summary
+Fixed "Apply Theme to Current Slide" so it only changes the selected slide (not the entire group), added gradient support to SlideStyle for consistent theme application, added SlideGroupItem bake-on-edit behavior, and fixed all Qt deprecation warnings.
+
+### Issues Fixed
+
+#### Apply Theme to Current Slide Affected All Slides in SongItem/ScriptureItem
+When using "Apply Theme to Current Slide" on a slide within a SongItem or ScriptureItem, the theme was applied to ALL slides in the item because the code called `item->setItemStyle()` which sets the item-level style uniformly.
+
+**Root Cause:** SongItem and ScriptureItem generate slides on-demand. The only styling mechanism was `setItemStyle()` which applies to every generated slide.
+
+**Solution:** Added per-slide style overrides to PresentationItem:
+- New `QMap<int, SlideStyle> m_perSlideStyles` stores overrides keyed by slide index
+- `cachedSlides()` applies per-slide overrides after `generateSlides()`, so subclasses need no changes
+- `setSlideStyleOverride(int, SlideStyle)` and `clearSlideStyleOverride(int)` methods
+- `setItemStyle()` clears per-slide overrides (group-level style supersedes individual)
+- Per-slide styles are serialized/deserialized in `baseToJson()`/`applyBaseJson()`
+- `onApplyThemeToSlide()` now uses `setSlideStyleOverride()` for SongItem/ScriptureItem
+
+#### SlideGroupItem Group Style Overriding Individual Changes
+When a SlideGroupItem had a custom style, `generateSlides()` re-applied it to all slides, wiping out individual edits.
+
+**Solution:** Added `bakeCustomStyle()` to SlideGroupItem. Called automatically in `Presentation::updateSlide()` before individual slide updates — permanently applies the group style to each slide's data and clears `m_hasCustomStyle`.
+
+#### SlideStyle Lacked Gradient Support
+`SlideStyle` only supported solid color backgrounds. When converting a gradient Theme to SlideStyle (via `toSlideStyle()`), the gradient was lost and only the start color was used as a solid background.
+
+**Solution:** Added `backgroundType`, `gradientStartColor`, `gradientEndColor`, and `gradientAngle` fields to SlideStyle, plus an `applyTo(Slide&)` method. Refactored all manual property-setting code to use `applyTo()` instead.
+
+#### Qt Deprecation Warnings
+- Replaced `QSortFilterProxyModel::invalidateFilter()` with `beginFilterChange()`/`endFilterChange()` in SlideFilterProxyModel
+- Replaced `QColor::isValidColor()` with `QColor::isValidColorName()` in SettingsManager
+
+### Files Modified
+- `src/Core/PresentationItem.h` — Added per-slide style override API and `QMap` member
+- `src/Core/PresentationItem.cpp` — Per-slide override methods, apply in `cachedSlides()`, JSON serialization, clear on `setItemStyle()`
+- `src/Core/SlideGroupItem.h` — Added `bakeCustomStyle()` declaration
+- `src/Core/SlideGroupItem.cpp` — `bakeCustomStyle()` implementation
+- `src/Core/Presentation.cpp` — Call `bakeCustomStyle()` before individual SlideGroupItem updates
+- `src/Core/Song.h` — Added gradient fields and `applyTo()` to SlideStyle
+- `src/Core/Song.cpp` — Use `style.applyTo()` instead of manual property setting
+- `src/Core/ScriptureItem.cpp` — Use `m_itemStyle.applyTo()` instead of manual property setting
+- `src/Core/CustomSlideItem.cpp` — Use `m_itemStyle.applyTo()` instead of manual property setting
+- `src/Core/Theme.cpp` — `toSlideStyle()` now preserves gradient data
+- `src/Control/ControlWindow.cpp` — `onApplyThemeToSlide()` uses per-slide overrides; `onCloneFormatToGroup()` preserves gradient data
+- `src/Control/ScriptureDialog.cpp` — `slideStyle()` preserves gradient data from theme
+- `src/Core/SlideFilterProxyModel.cpp` — Fixed deprecated `invalidateFilter()` calls
+- `src/Core/SettingsManager.cpp` — Fixed deprecated `isValidColor()` call
+- `samples/simple-service.cly` — Updated sample file
+
+### Technical Notes
+- Per-slide overrides are applied in `cachedSlides()` at the base class level, so SongItem, ScriptureItem, CustomSlideItem, and SlideGroupItem all benefit without code changes
+- `setItemStyle()` clears per-slide overrides because a group-level style change should reset individual customizations
+- The `bakeCustomStyle()` approach for SlideGroupItem is safe because group-level operations (Apply Theme to Group, Clone Format to Group) call `groupItem->updateSlide()` directly, not through `Presentation::updateSlide()`
+
+---
+
 ## 2026-02-02 - Fix Theme Application and Add Clone Format Feature
 
 ### Summary

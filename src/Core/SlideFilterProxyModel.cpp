@@ -13,16 +13,18 @@ SlideFilterProxyModel::SlideFilterProxyModel(QObject* parent)
 void SlideFilterProxyModel::setFilterItemIndex(int itemIndex)
 {
     if (m_filterItemIndex != itemIndex) {
+        beginFilterChange();
         m_filterItemIndex = itemIndex;
-        invalidateFilter();
+        endFilterChange();
     }
 }
 
 void SlideFilterProxyModel::setShowAllSlides(bool showAll)
 {
     if (m_showAllSlides != showAll) {
+        beginFilterChange();
         m_showAllSlides = showAll;
-        invalidateFilter();
+        endFilterChange();
     }
 }
 

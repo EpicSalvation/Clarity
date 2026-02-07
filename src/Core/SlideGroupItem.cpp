@@ -43,10 +43,7 @@ QList<Slide> SlideGroupItem::generateSlides() const
 
     for (const Slide& slide : m_slides) {
         Slide styledSlide = slide;
-        styledSlide.setBackgroundColor(m_itemStyle.backgroundColor);
-        styledSlide.setTextColor(m_itemStyle.textColor);
-        styledSlide.setFontFamily(m_itemStyle.fontFamily);
-        styledSlide.setFontSize(m_itemStyle.fontSize);
+        m_itemStyle.applyTo(styledSlide);
         styledSlides.append(styledSlide);
     }
 
@@ -82,6 +79,21 @@ void SlideGroupItem::insertSlide(int index, const Slide& slide)
         invalidateSlideCache();
         emit itemChanged();
     }
+}
+
+void SlideGroupItem::bakeCustomStyle()
+{
+    if (!m_hasCustomStyle) return;
+
+    // Permanently apply group style to each individual slide
+    for (int i = 0; i < m_slides.count(); ++i) {
+        m_itemStyle.applyTo(m_slides[i]);
+    }
+
+    // Clear the group-level style so generateSlides() returns m_slides as-is
+    m_hasCustomStyle = false;
+    m_itemStyle = SlideStyle();
+    invalidateSlideCache();
 }
 
 void SlideGroupItem::updateSlide(int index, const Slide& slide)

@@ -41,7 +41,9 @@ struct SongUsage {
 };
 
 /**
- * @brief Style settings for generating slides from songs
+ * @brief Style settings for generating slides from songs and other items
+ *
+ * Supports solid color and gradient backgrounds for item-level theming.
  */
 struct SlideStyle {
     QColor backgroundColor;
@@ -49,14 +51,44 @@ struct SlideStyle {
     QString fontFamily;
     int fontSize;
 
+    // Gradient support
+    Slide::BackgroundType backgroundType;
+    QColor gradientStartColor;
+    QColor gradientEndColor;
+    int gradientAngle;
+
     SlideStyle()
         : backgroundColor("#1e3a8a")
         , textColor("#ffffff")
         , fontFamily("Arial")
-        , fontSize(48) {}
+        , fontSize(48)
+        , backgroundType(Slide::SolidColor)
+        , gradientStartColor("#1e3a8a")
+        , gradientEndColor("#60a5fa")
+        , gradientAngle(135) {}
 
     SlideStyle(const QColor& bg, const QColor& text, const QString& font, int size)
-        : backgroundColor(bg), textColor(text), fontFamily(font), fontSize(size) {}
+        : backgroundColor(bg), textColor(text), fontFamily(font), fontSize(size)
+        , backgroundType(Slide::SolidColor)
+        , gradientStartColor("#1e3a8a")
+        , gradientEndColor("#60a5fa")
+        , gradientAngle(135) {}
+
+    /**
+     * @brief Apply this style to a slide (sets all style properties)
+     */
+    void applyTo(Slide& slide) const {
+        slide.setBackgroundType(backgroundType);
+        slide.setBackgroundColor(backgroundColor);
+        slide.setTextColor(textColor);
+        slide.setFontFamily(fontFamily);
+        slide.setFontSize(fontSize);
+        if (backgroundType == Slide::Gradient) {
+            slide.setGradientStartColor(gradientStartColor);
+            slide.setGradientEndColor(gradientEndColor);
+            slide.setGradientAngle(gradientAngle);
+        }
+    }
 };
 
 /**

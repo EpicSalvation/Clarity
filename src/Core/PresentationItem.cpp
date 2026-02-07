@@ -26,6 +26,14 @@ QList<Slide> PresentationItem::cachedSlides() const
 {
     if (!m_cacheValid) {
         m_cachedSlides = generateSlides();
+
+        // Apply per-slide style overrides on top of generated slides
+        for (auto it = m_perSlideStyles.constBegin(); it != m_perSlideStyles.constEnd(); ++it) {
+            if (it.key() >= 0 && it.key() < m_cachedSlides.count()) {
+                it.value().applyTo(m_cachedSlides[it.key()]);
+            }
+        }
+
         m_cacheValid = true;
     }
     return m_cachedSlides;
@@ -47,6 +55,7 @@ void PresentationItem::setItemStyle(const SlideStyle& style)
 {
     m_itemStyle = style;
     m_hasCustomStyle = true;
+    m_perSlideStyles.clear();  // Group-level style supersedes per-slide overrides
     invalidateSlideCache();
     emit itemChanged();
 }
@@ -57,6 +66,21 @@ void PresentationItem::clearCustomStyle()
     m_itemStyle = SlideStyle();  // Reset to defaults
     invalidateSlideCache();
     emit itemChanged();
+}
+
+void PresentationItem::setSlideStyleOverride(int slideIndex, const SlideStyle& style)
+{
+    m_perSlideStyles[slideIndex] = style;
+    invalidateSlideCache();
+    emit itemChanged();
+}
+
+void PresentationItem::clearSlideStyleOverride(int slideIndex)
+{
+    if (m_perSlideStyles.remove(slideIndex) > 0) {
+        invalidateSlideCache();
+        emit itemChanged();
+    }
 }
 
 QJsonObject PresentationItem::toJson() const
@@ -76,7 +100,45 @@ QJsonObject PresentationItem::baseToJson() const
         styleJson["textColor"] = m_itemStyle.textColor.name();
         styleJson["fontFamily"] = m_itemStyle.fontFamily;
         styleJson["fontSize"] = m_itemStyle.fontSize;
+
+        // Gradient support
+        QString bgTypeStr = "solidColor";
+        if (m_itemStyle.backgroundType == Slide::Gradient) {
+            bgTypeStr = "gradient";
+        }
+        styleJson["backgroundType"] = bgTypeStr;
+
+        if (m_itemStyle.backgroundType == Slide::Gradient) {
+            styleJson["gradientStartColor"] = m_itemStyle.gradientStartColor.name();
+            styleJson["gradientEndColor"] = m_itemStyle.gradientEndColor.name();
+            styleJson["gradientAngle"] = m_itemStyle.gradientAngle;
+        }
+
         json["style"] = styleJson;
+    }
+
+    // Serialize per-slide style overrides
+    if (!m_perSlideStyles.isEmpty()) {
+        QJsonObject slideStylesJson;
+        for (auto it = m_perSlideStyles.constBegin(); it != m_perSlideStyles.constEnd(); ++it) {
+            QJsonObject ssJson;
+            ssJson["backgroundColor"] = it.value().backgroundColor.name();
+            ssJson["textColor"] = it.value().textColor.name();
+            ssJson["fontFamily"] = it.value().fontFamily;
+            ssJson["fontSize"] = it.value().fontSize;
+
+            QString bgTypeStr = "solidColor";
+            if (it.value().backgroundType == Slide::Gradient) {
+                bgTypeStr = "gradient";
+                ssJson["gradientStartColor"] = it.value().gradientStartColor.name();
+                ssJson["gradientEndColor"] = it.value().gradientEndColor.name();
+                ssJson["gradientAngle"] = it.value().gradientAngle;
+            }
+            ssJson["backgroundType"] = bgTypeStr;
+
+            slideStylesJson[QString::number(it.key())] = ssJson;
+        }
+        json["slideStyles"] = slideStylesJson;
     }
 
     return json;
@@ -92,17 +154,55 @@ void PresentationItem::applyBaseJson(const QJsonObject& json)
         m_itemStyle.textColor = QColor(styleJson["textColor"].toString("#ffffff"));
         m_itemStyle.fontFamily = styleJson["fontFamily"].toString("Arial");
         m_itemStyle.fontSize = styleJson["fontSize"].toInt(48);
+
+        // Gradient support
+        QString bgTypeStr = styleJson["backgroundType"].toString("solidColor");
+        if (bgTypeStr == "gradient") {
+            m_itemStyle.backgroundType = Slide::Gradient;
+            m_itemStyle.gradientStartColor = QColor(styleJson["gradientStartColor"].toString("#1e3a8a"));
+            m_itemStyle.gradientEndColor = QColor(styleJson["gradientEndColor"].toString("#60a5fa"));
+            m_itemStyle.gradientAngle = styleJson["gradientAngle"].toInt(135);
+        } else {
+            m_itemStyle.backgroundType = Slide::SolidColor;
+        }
+
         m_hasCustomStyle = true;
+    }
+
+    // Deserialize per-slide style overrides
+    if (json.contains("slideStyles")) {
+        QJsonObject slideStylesJson = json["slideStyles"].toObject();
+        for (auto it = slideStylesJson.constBegin(); it != slideStylesJson.constEnd(); ++it) {
+            bool ok;
+            int slideIndex = it.key().toInt(&ok);
+            if (!ok) continue;
+
+            QJsonObject ssJson = it.value().toObject();
+            SlideStyle style;
+            style.backgroundColor = QColor(ssJson["backgroundColor"].toString("#1e3a8a"));
+            style.textColor = QColor(ssJson["textColor"].toString("#ffffff"));
+            style.fontFamily = ssJson["fontFamily"].toString("Arial");
+            style.fontSize = ssJson["fontSize"].toInt(48);
+
+            QString bgTypeStr = ssJson["backgroundType"].toString("solidColor");
+            if (bgTypeStr == "gradient") {
+                style.backgroundType = Slide::Gradient;
+                style.gradientStartColor = QColor(ssJson["gradientStartColor"].toString("#1e3a8a"));
+                style.gradientEndColor = QColor(ssJson["gradientEndColor"].toString("#60a5fa"));
+                style.gradientAngle = ssJson["gradientAngle"].toInt(135);
+            } else {
+                style.backgroundType = Slide::SolidColor;
+            }
+
+            m_perSlideStyles[slideIndex] = style;
+        }
     }
 }
 
 void PresentationItem::applyStyleToSlide(Slide& slide) const
 {
     if (m_hasCustomStyle) {
-        slide.setBackgroundColor(m_itemStyle.backgroundColor);
-        slide.setTextColor(m_itemStyle.textColor);
-        slide.setFontFamily(m_itemStyle.fontFamily);
-        slide.setFontSize(m_itemStyle.fontSize);
+        m_itemStyle.applyTo(slide);
     }
 }
 

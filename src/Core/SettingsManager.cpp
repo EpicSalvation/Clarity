@@ -378,7 +378,7 @@ QString SettingsManager::redLetterColor() const
 void SettingsManager::setRedLetterColor(const QString& color)
 {
     // Validate color string
-    if (!QColor::isValidColor(color)) {
+    if (!QColor::isValidColorName(color)) {
         qWarning() << "SettingsManager: Invalid red letter color:" << color;
         return;
     }

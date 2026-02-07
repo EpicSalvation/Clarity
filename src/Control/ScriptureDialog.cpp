@@ -611,6 +611,12 @@ bool ScriptureDialog::includeVerseReferences() const
 
 SlideStyle ScriptureDialog::slideStyle() const
 {
+    if (m_useTheme) {
+        // Use the full theme conversion to preserve gradient data
+        SlideStyle style = m_selectedTheme.toSlideStyle();
+        style.fontSize = m_fontSizeSpinBox->value();  // Override with user-selected font size
+        return style;
+    }
     return SlideStyle(m_backgroundColor, m_textColor, m_fontFamily, m_fontSizeSpinBox->value());
 }
 

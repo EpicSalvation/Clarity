@@ -390,6 +390,10 @@ void Presentation::updateSlide(int flatIndex, const Slide& slide)
     if (auto* customItem = qobject_cast<CustomSlideItem*>(item)) {
         customItem->setSlide(slide);
     } else if (auto* groupItem = qobject_cast<SlideGroupItem*>(item)) {
+        // Bake group style into individual slides so this change sticks
+        if (groupItem->hasCustomStyle()) {
+            groupItem->bakeCustomStyle();
+        }
         groupItem->updateSlide(pos.slideInItem, slide);
     } else {
         // For SongItem/ScriptureItem, we can't directly edit slides

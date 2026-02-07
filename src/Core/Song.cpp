@@ -104,10 +104,7 @@ QList<Slide> Song::toSlides(const SlideStyle& style, bool includeTitleSlide, boo
     if (includeTitleSlide && !m_title.isEmpty()) {
         Slide titleSlide;
         titleSlide.setText(m_title);
-        titleSlide.setBackgroundColor(style.backgroundColor);
-        titleSlide.setTextColor(style.textColor);
-        titleSlide.setFontFamily(style.fontFamily);
-        titleSlide.setFontSize(style.fontSize);
+        style.applyTo(titleSlide);
         slides.append(titleSlide);
     }
 
@@ -138,10 +135,7 @@ QList<Slide> Song::toSlides(const SlideStyle& style, bool includeTitleSlide, boo
                 }
 
                 slide.setText(text);
-                slide.setBackgroundColor(style.backgroundColor);
-                slide.setTextColor(style.textColor);
-                slide.setFontFamily(style.fontFamily);
-                slide.setFontSize(style.fontSize);
+                style.applyTo(slide);
 
                 slides.append(slide);
             }
@@ -155,10 +149,7 @@ QList<Slide> Song::toSlides(const SlideStyle& style, bool includeTitleSlide, boo
             }
 
             slide.setText(text);
-            slide.setBackgroundColor(style.backgroundColor);
-            slide.setTextColor(style.textColor);
-            slide.setFontFamily(style.fontFamily);
-            slide.setFontSize(style.fontSize);
+            style.applyTo(slide);
 
             slides.append(slide);
         }
