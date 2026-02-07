@@ -884,33 +884,43 @@ void ControlWindow::onDeleteSlide()
 
 void ControlWindow::onMoveSlideUp()
 {
-    int sourceIndex = m_presentationModel->currentSlideIndex();
-    if (sourceIndex <= 0) {
-        return; // Already at top or no slide
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) return;
+
+    // Get the item index for the current slide
+    int currentSlide = m_presentationModel->currentSlideIndex();
+    int itemIndex = m_itemListModel->itemIndexForSlide(currentSlide);
+    if (itemIndex <= 0) {
+        return; // Already at top or no item
     }
 
-    // Move slide up (swap with previous)
-    m_presentationModel->moveSlide(sourceIndex, sourceIndex - 1);
-    m_presentationModel->setCurrentSlideIndex(sourceIndex - 1);
+    // Move item up in the playlist
+    presentation->moveItem(itemIndex, itemIndex - 1);
 
+    // Refresh models and UI
+    m_slideDelegate->invalidateCache();
     updateUI();
     broadcastCurrentSlide();
 }
 
 void ControlWindow::onMoveSlideDown()
 {
-    int sourceIndex = m_presentationModel->currentSlideIndex();
-    if (sourceIndex < 0 || sourceIndex >= m_presentationModel->rowCount() - 1) {
-        return; // Already at bottom or no slide
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) return;
+
+    // Get the item index for the current slide
+    int currentSlide = m_presentationModel->currentSlideIndex();
+    int itemIndex = m_itemListModel->itemIndexForSlide(currentSlide);
+    if (itemIndex < 0 || itemIndex >= presentation->itemCount() - 1) {
+        return; // Already at bottom or no item
     }
 
-    // Move slide down (swap with next)
-    m_presentationModel->moveSlide(sourceIndex, sourceIndex + 1);
-    m_presentationModel->setCurrentSlideIndex(sourceIndex + 1);
+    // Move item down in the playlist
+    presentation->moveItem(itemIndex, itemIndex + 1);
 
+    // Refresh models and UI
+    m_slideDelegate->invalidateCache();
     updateUI();
-
-    // Broadcast updated slide to output and confidence monitor
     broadcastCurrentSlide();
 }
 
