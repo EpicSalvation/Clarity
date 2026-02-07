@@ -4,6 +4,71 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-02 - Fix Theme Application and Add Clone Format Feature
+
+### Summary
+Fixed the "Apply Theme to Current Slide" functionality which was not working for song and scripture items, added "Apply Theme to Group" feature, and added "Clone Format to Group" feature to copy formatting from one slide to all others in the same group.
+
+### Issues Fixed
+
+#### Apply Theme to Current Slide Not Working
+The original implementation tried to update individual slides via `Presentation::updateSlide()`, which only works for CustomSlideItem and SlideGroupItem. For SongItem and ScriptureItem, slides are generated on-demand from source data, so individual slide updates have no effect.
+
+**Root Causes:**
+1. `Presentation::updateSlide()` logs a warning and returns without updating for SongItem/ScriptureItem
+2. Missing `markDirty()` call - changes weren't flagged for saving
+3. Model wasn't properly notified of item-level style changes
+
+**Solution:**
+- Detect the item type containing the selected slide
+- For SongItem/ScriptureItem: Apply theme at the item level using `setItemStyle()`, which triggers slide regeneration with the new style
+- For CustomSlideItem/SlideGroupItem: Continue updating individual slides directly
+- Added proper `markDirty()` call
+- Added `dataChanged` signal emission for UI refresh
+
+### New Features
+
+#### Apply Theme to Group (Ctrl+Shift+T)
+New menu action "Slide > Apply Theme to Group..." applies a theme to all slides in the current slide group/item:
+- For SlideGroupItem: Updates each slide individually with full theme support (including gradients)
+- For SongItem/ScriptureItem/CustomSlideItem: Applies item-level styling
+- Useful for quickly styling all verses of a song or all slides in a scripture passage
+
+#### Clone Format to Group (Ctrl+Shift+F)
+New menu action "Slide > Clone Format to Group" copies all formatting from the selected slide to all other slides in the same group:
+- Copies all visual properties: background (color/gradient/image/video), text styling (color, font, size), drop shadow, overlay, text container, and text band settings
+- For SlideGroupItem: Full formatting is cloned including gradients and images
+- For SongItem/ScriptureItem/CustomSlideItem: Basic properties (background color, text color, font family, font size) are applied at item level
+- Useful when you've manually styled one slide and want to apply the same look to all related slides
+
+#### Slide Context Menu (Right-Click)
+Added right-click context menu on slide grid with quick access to:
+- Edit Slide (Ctrl+E)
+- Delete Slide (Delete)
+- Apply Theme... (Ctrl+T)
+- Apply Theme to Current Slide...
+- Apply Theme to Group... (Ctrl+Shift+T)
+- Clone Format to Group (Ctrl+Shift+F)
+
+Actions are enabled/disabled based on whether a slide is selected. Clicking on a slide in the context menu selects it before showing the menu.
+
+#### Theme::toSlideStyle() Method
+Added helper method to convert Theme to SlideStyle for item-level theming. Note that SlideStyle only supports solid color backgrounds, so gradient themes use the start color as the background when applied at the item level.
+
+### Files Modified
+- `src/Core/Theme.h` - Added `#include "Song.h"` and `toSlideStyle()` declaration
+- `src/Core/Theme.cpp` - Implemented `toSlideStyle()` conversion method
+- `src/Control/ControlWindow.h` - Added `onApplyThemeToGroup()`, `onCloneFormatToGroup()`, and `onSlideContextMenu()` slot declarations
+- `src/Control/ControlWindow.cpp` - Fixed `onApplyThemeToSlide()`, added `onApplyThemeToGroup()`, `onCloneFormatToGroup()`, and `onSlideContextMenu()` implementations, added menu actions and context menu setup
+
+### Technical Notes
+- `SlideStyle` (from Song.h) only stores: backgroundColor, textColor, fontFamily, fontSize
+- Full `Theme` supports gradients and images, but these can't be stored at the item level
+- When applying themes to SongItem/ScriptureItem, gradient themes fall back to using the gradient start color as the solid background
+- For SlideGroupItem, the full formatting (including gradients, images, drop shadows, overlays, etc.) is cloned since each slide can store complete styling
+
+---
+
 ## 2026-02-01 - Scripture-Specific Themes
 
 ### Summary

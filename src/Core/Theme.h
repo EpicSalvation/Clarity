@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Slide.h"
+#include "Song.h"  // For SlideStyle
 #include <QString>
 #include <QColor>
 #include <QJsonObject>
@@ -69,6 +70,10 @@ public:
 
     // Create a new slide with this theme's styling
     Slide createSlide(const QString& text) const;
+
+    // Convert to SlideStyle for item-level theming
+    // Note: SlideStyle only supports solid color backgrounds
+    SlideStyle toSlideStyle() const;
 
     // JSON serialization
     QJsonObject toJson() const;

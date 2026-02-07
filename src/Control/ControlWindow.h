@@ -69,6 +69,7 @@ private slots:
     void onDeleteSlide();
     void onMoveSlideUp();
     void onMoveSlideDown();
+    void onSlideContextMenu(const QPoint& pos);
 
     // Content insertion
     void onInsertScripture();
@@ -94,6 +95,8 @@ private slots:
     // Theme operations
     void onApplyTheme();
     void onApplyThemeToSlide();
+    void onApplyThemeToGroup();
+    void onCloneFormatToGroup();
     void onManageThemes();
 
     // Timer controls

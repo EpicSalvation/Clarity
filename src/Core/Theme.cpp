@@ -72,6 +72,17 @@ Slide Theme::createSlide(const QString& text) const
     return slide;
 }
 
+SlideStyle Theme::toSlideStyle() const
+{
+    // SlideStyle only supports solid color backgrounds
+    // For gradients, use the start color as the background
+    QColor bgColor = (m_backgroundType == Slide::Gradient)
+        ? m_gradientStartColor
+        : m_backgroundColor;
+
+    return SlideStyle(bgColor, m_textColor, m_fontFamily, m_bodyFontSize);
+}
+
 QJsonObject Theme::toJson() const
 {
     QJsonObject json;
