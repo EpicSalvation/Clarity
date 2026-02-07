@@ -884,56 +884,28 @@ void ControlWindow::onDeleteSlide()
 
 void ControlWindow::onMoveSlideUp()
 {
-    QModelIndex currentIndex = m_slideGridView->currentIndex();
-    if (!currentIndex.isValid()) {
-        return;
-    }
-
-    // Get the source model index if using proxy
-    int sourceIndex = currentIndex.row();
-    if (m_slideGridView->model() == m_slideFilterProxy) {
-        QModelIndex sourceModelIndex = m_slideFilterProxy->mapToSource(currentIndex);
-        sourceIndex = sourceModelIndex.row();
-    }
-
+    int sourceIndex = m_presentationModel->currentSlideIndex();
     if (sourceIndex <= 0) {
-        return; // Already at top
+        return; // Already at top or no slide
     }
 
     // Move slide up (swap with previous)
     m_presentationModel->moveSlide(sourceIndex, sourceIndex - 1);
-
-    // The moved slide is now at sourceIndex - 1, make it the current displayed slide
     m_presentationModel->setCurrentSlideIndex(sourceIndex - 1);
 
     updateUI();
-
-    // Broadcast updated slide to output and confidence monitor
     broadcastCurrentSlide();
 }
 
 void ControlWindow::onMoveSlideDown()
 {
-    QModelIndex currentIndex = m_slideGridView->currentIndex();
-    if (!currentIndex.isValid()) {
-        return;
-    }
-
-    // Get the source model index if using proxy
-    int sourceIndex = currentIndex.row();
-    if (m_slideGridView->model() == m_slideFilterProxy) {
-        QModelIndex sourceModelIndex = m_slideFilterProxy->mapToSource(currentIndex);
-        sourceIndex = sourceModelIndex.row();
-    }
-
-    if (sourceIndex >= m_presentationModel->rowCount() - 1) {
-        return; // Already at bottom
+    int sourceIndex = m_presentationModel->currentSlideIndex();
+    if (sourceIndex < 0 || sourceIndex >= m_presentationModel->rowCount() - 1) {
+        return; // Already at bottom or no slide
     }
 
     // Move slide down (swap with next)
     m_presentationModel->moveSlide(sourceIndex, sourceIndex + 1);
-
-    // The moved slide is now at sourceIndex + 1, make it the current displayed slide
     m_presentationModel->setCurrentSlideIndex(sourceIndex + 1);
 
     updateUI();
