@@ -5,6 +5,7 @@
 #include <QWidget>
 #include <QPixmap>
 #include <QString>
+#include <QMouseEvent>
 
 namespace Clarity {
 
@@ -49,6 +50,16 @@ public:
     void clear();
 
     /**
+     * @brief Set whether this preview's display process is active (connected via IPC)
+     */
+    void setActive(bool active);
+
+    /**
+     * @brief Check if this preview's display process is active
+     */
+    bool isActive() const { return m_active; }
+
+    /**
      * @brief Get the preferred size for this widget
      */
     QSize sizeHint() const override;
@@ -58,9 +69,16 @@ public:
      */
     QSize minimumSizeHint() const override;
 
+signals:
+    /**
+     * @brief Emitted when the user double-clicks to toggle the display
+     */
+    void doubleClicked();
+
 protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
 
 private:
     /**
@@ -78,6 +96,7 @@ private:
     Slide m_nextSlide;
     bool m_hasCurrentSlide;
     bool m_hasNextSlide;
+    bool m_active;
     int m_currentIndex;
     int m_totalSlides;
 };

@@ -27,6 +27,10 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     m_confidencePreview = new ConfidencePreviewWidget(this);
     layout->addWidget(m_confidencePreview);
 
+    // Wire double-click signals from child widgets to panel signals
+    connect(m_outputPreview, &LivePreviewWidget::doubleClicked, this, &LivePreviewPanel::outputDoubleClicked);
+    connect(m_confidencePreview, &ConfidencePreviewWidget::doubleClicked, this, &LivePreviewPanel::confidenceDoubleClicked);
+
     // Add stretch to push previews to the top
     layout->addStretch();
 
@@ -71,6 +75,16 @@ void LivePreviewPanel::clearAll()
 {
     m_outputPreview->clear();
     m_confidencePreview->clear();
+}
+
+void LivePreviewPanel::setOutputActive(bool active)
+{
+    m_outputPreview->setActive(active);
+}
+
+void LivePreviewPanel::setConfidenceActive(bool active)
+{
+    m_confidencePreview->setActive(active);
 }
 
 QSize LivePreviewPanel::sizeHint() const

@@ -10,6 +10,7 @@ LivePreviewWidget::LivePreviewWidget(const QString& title, QWidget* parent)
     : QWidget(parent)
     , m_title(title)
     , m_hasSlide(false)
+    , m_active(false)
     , m_cacheValid(false)
 {
     // Set a default minimum size maintaining 16:9 aspect ratio
@@ -21,6 +22,12 @@ void LivePreviewWidget::setSlide(const Slide& slide)
     m_currentSlide = slide;
     m_hasSlide = true;
     m_cacheValid = false;
+    update();
+}
+
+void LivePreviewWidget::setActive(bool active)
+{
+    m_active = active;
     update();
 }
 
@@ -84,10 +91,17 @@ void LivePreviewWidget::paintEvent(QPaintEvent* event)
         painter.drawText(previewRect, Qt::AlignCenter, tr("No Signal"));
     }
 
-    // Draw border around preview area
-    painter.setPen(QColor("#374151"));
+    // Draw status border around entire widget (green=active, red=inactive)
+    QColor borderColor = m_active ? QColor("#22c55e") : QColor("#ef4444");
+    painter.setPen(QPen(borderColor, 3));
     painter.setBrush(Qt::NoBrush);
-    painter.drawRect(previewRect.adjusted(0, 0, -1, -1));
+    painter.drawRect(rect().adjusted(1, 1, -1, -1));
+}
+
+void LivePreviewWidget::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    Q_UNUSED(event);
+    emit doubleClicked();
 }
 
 void LivePreviewWidget::resizeEvent(QResizeEvent* event)

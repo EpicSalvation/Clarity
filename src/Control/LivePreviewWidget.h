@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QPixmap>
 #include <QString>
+#include <QMouseEvent>
 
 namespace Clarity {
 
@@ -45,6 +46,16 @@ public:
     Slide currentSlide() const { return m_currentSlide; }
 
     /**
+     * @brief Set whether this preview's display process is active (connected via IPC)
+     */
+    void setActive(bool active);
+
+    /**
+     * @brief Check if this preview's display process is active
+     */
+    bool isActive() const { return m_active; }
+
+    /**
      * @brief Get the preferred size for this widget
      */
     QSize sizeHint() const override;
@@ -53,6 +64,12 @@ public:
      * @brief Get the minimum size for this widget
      */
     QSize minimumSizeHint() const override;
+
+signals:
+    /**
+     * @brief Emitted when the user double-clicks to toggle the display
+     */
+    void doubleClicked();
 
 protected:
     /**
@@ -65,6 +82,11 @@ protected:
      */
     void resizeEvent(QResizeEvent* event) override;
 
+    /**
+     * @brief Handle double-click to toggle display
+     */
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+
 private:
     /**
      * @brief Update the cached preview pixmap
@@ -74,6 +96,7 @@ private:
     QString m_title;             ///< Display title
     Slide m_currentSlide;        ///< Currently displayed slide
     bool m_hasSlide;             ///< Whether a slide is being displayed
+    bool m_active;               ///< Whether the display process is connected
     QPixmap m_cachedPreview;     ///< Cached rendered preview
     bool m_cacheValid;           ///< Whether the cache needs updating
 };

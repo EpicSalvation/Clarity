@@ -4,6 +4,29 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-07 - Replace Launch Buttons with Double-Clickable Preview Panels
+
+### Summary
+Replaced the "Launch Output" and "Launch Confidence" buttons with double-click interaction on the live preview panels. The preview panels now show green/red borders indicating whether the corresponding display process is connected via IPC. Double-clicking a preview toggles its display, making the UI more intuitive and freeing up toolbar space.
+
+### Work Completed
+- **LivePreviewWidget**: Added `m_active` state, `setActive()`/`isActive()` methods, `doubleClicked()` signal, `mouseDoubleClickEvent()` override. Changed border from static dark gray to green (active) / red (inactive) with 3px width drawn around the entire widget.
+- **ConfidencePreviewWidget**: Same pattern — active state, double-click signal, green/red status border (3px).
+- **LivePreviewPanel**: Added `setOutputActive()`/`setConfidenceActive()` forwarding methods and `outputDoubleClicked()`/`confidenceDoubleClicked()` signals wired from child widgets.
+- **ControlWindow**: Removed `m_launchOutputButton`/`m_launchConfidenceButton` members, removed `onLaunchOutput()`/`onLaunchConfidence()` slots, removed button creation/connection code from `setupUI()`. Connected preview double-click signals to existing `toggleOutputDisplay()`/`toggleConfidenceMonitor()` methods. Added `updatePreviewStates()` helper and `m_outputVisible`/`m_confidenceVisible` state tracking. Borders reflect visibility (not just IPC connection), so toggling a display off correctly turns the border red.
+
+### Technical Decisions
+- Reused existing `toggleOutputDisplay()` and `toggleConfidenceMonitor()` methods which already handle the launch-if-not-connected / toggle-if-connected logic.
+- Visibility is tracked separately from IPC connection: toggling sends `toggleVisibility` without disconnecting, so `hasClientType()` alone was insufficient. Added `m_outputVisible`/`m_confidenceVisible` bools that flip on toggle and reset on client disconnect.
+- Border drawn around the full widget rect (including title bar) at 3px for clear at-a-glance status.
+- Settings button kept in a simplified bottom row layout.
+
+### Testing
+- All modified files compile and link cleanly with Qt 6.10.2 MinGW 64-bit.
+- Verified: borders update correctly on connect, disconnect, and toggle (double-click or O/C shortcuts).
+
+---
+
 ## 2026-02-06 - Per-Slide Theme Overrides, Gradient Support in SlideStyle, Deprecation Fixes
 
 ### Summary

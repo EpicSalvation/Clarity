@@ -11,10 +11,17 @@ ConfidencePreviewWidget::ConfidencePreviewWidget(QWidget* parent)
     , m_settings(nullptr)
     , m_hasCurrentSlide(false)
     , m_hasNextSlide(false)
+    , m_active(false)
     , m_currentIndex(0)
     , m_totalSlides(0)
 {
     setMinimumSize(160, 100);
+}
+
+void ConfidencePreviewWidget::setActive(bool active)
+{
+    m_active = active;
+    update();
 }
 
 void ConfidencePreviewWidget::setSettingsManager(SettingsManager* settings)
@@ -85,10 +92,17 @@ void ConfidencePreviewWidget::paintEvent(QPaintEvent* event)
     QRect contentRect(0, titleHeight, width(), height() - titleHeight);
     renderConfidenceMonitor(painter, contentRect);
 
-    // Draw border
-    painter.setPen(QColor("#374151"));
+    // Draw status border around entire widget (green=active, red=inactive)
+    QColor statusBorderColor = m_active ? QColor("#22c55e") : QColor("#ef4444");
+    painter.setPen(QPen(statusBorderColor, 3));
     painter.setBrush(Qt::NoBrush);
-    painter.drawRect(contentRect.adjusted(0, 0, -1, -1));
+    painter.drawRect(rect().adjusted(1, 1, -1, -1));
+}
+
+void ConfidencePreviewWidget::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    Q_UNUSED(event);
+    emit doubleClicked();
 }
 
 void ConfidencePreviewWidget::resizeEvent(QResizeEvent* event)

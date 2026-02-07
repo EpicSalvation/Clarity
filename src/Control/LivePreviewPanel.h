@@ -61,6 +61,16 @@ public:
     void clearAll();
 
     /**
+     * @brief Set the output preview active state (green/red border)
+     */
+    void setOutputActive(bool active);
+
+    /**
+     * @brief Set the confidence preview active state (green/red border)
+     */
+    void setConfidenceActive(bool active);
+
+    /**
      * @brief Get the preferred size for this panel
      */
     QSize sizeHint() const override;
@@ -69,6 +79,17 @@ public:
      * @brief Get the minimum size for this panel
      */
     QSize minimumSizeHint() const override;
+
+signals:
+    /**
+     * @brief Emitted when user double-clicks the output preview to toggle display
+     */
+    void outputDoubleClicked();
+
+    /**
+     * @brief Emitted when user double-clicks the confidence preview to toggle display
+     */
+    void confidenceDoubleClicked();
 
 private:
     LivePreviewWidget* m_outputPreview;            ///< Output display preview

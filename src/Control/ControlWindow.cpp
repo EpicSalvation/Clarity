@@ -44,8 +44,6 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_nextButton(nullptr)
     , m_clearButton(nullptr)
     , m_outputDisabledButton(nullptr)
-    , m_launchOutputButton(nullptr)
-    , m_launchConfidenceButton(nullptr)
     , m_settingsButton(nullptr)
     , m_addSlideButton(nullptr)
     , m_editSlideButton(nullptr)
@@ -404,23 +402,20 @@ void ControlWindow::setupUI()
 
     mainLayout->addLayout(buttonLayout);
 
-    // Process management buttons
+    // Settings button row
     QHBoxLayout* processLayout = new QHBoxLayout();
 
-    m_launchOutputButton = new QPushButton(tr("Launch Output"), this);
-    m_launchConfidenceButton = new QPushButton(tr("Launch Confidence"), this);
     m_settingsButton = new QPushButton(tr("Settings"), this);
-
-    connect(m_launchOutputButton, &QPushButton::clicked, this, &ControlWindow::onLaunchOutput);
-    connect(m_launchConfidenceButton, &QPushButton::clicked, this, &ControlWindow::onLaunchConfidence);
     connect(m_settingsButton, &QPushButton::clicked, this, &ControlWindow::onSettings);
 
-    processLayout->addWidget(m_launchOutputButton);
-    processLayout->addWidget(m_launchConfidenceButton);
     processLayout->addStretch();
     processLayout->addWidget(m_settingsButton);
 
     mainLayout->addLayout(processLayout);
+
+    // Connect live preview double-click signals to toggle output/confidence displays
+    connect(m_livePreviewPanel, &LivePreviewPanel::outputDoubleClicked, this, &ControlWindow::toggleOutputDisplay);
+    connect(m_livePreviewPanel, &LivePreviewPanel::confidenceDoubleClicked, this, &ControlWindow::toggleConfidenceMonitor);
 
     // Status bar
     m_statusLabel = new QLabel(tr("Ready"), this);
@@ -624,24 +619,6 @@ void ControlWindow::onClearOutput()
     m_ipcServer->sendToAll(message);
 }
 
-void ControlWindow::onLaunchOutput()
-{
-    if (m_processManager->launchOutput()) {
-        qDebug() << "Output display launched";
-    } else {
-        qWarning() << "Failed to launch output display";
-    }
-}
-
-void ControlWindow::onLaunchConfidence()
-{
-    if (m_processManager->launchConfidence()) {
-        qDebug() << "Confidence monitor launched";
-    } else {
-        qWarning() << "Failed to launch confidence monitor";
-    }
-}
-
 void ControlWindow::onSlideClicked(const QModelIndex& index)
 {
     if (!index.isValid()) {
@@ -672,6 +649,7 @@ void ControlWindow::onClientDisconnected(QLocalSocket* client)
 {
     Q_UNUSED(client);
     m_statusLabel->setText(tr("IPC Server: Client disconnected"));
+    updatePreviewStates();
 }
 
 void ControlWindow::onMessageReceived(QLocalSocket* client, const QJsonObject& message)
@@ -685,10 +663,16 @@ void ControlWindow::onMessageReceived(QLocalSocket* client, const QJsonObject& m
         qDebug() << "ControlWindow: Client identified as:" << clientType;
 
         // Send current slide to newly identified client
-        if (clientType == "output" || clientType == "confidence") {
-            // Use a small delay to ensure the client is fully registered
+        if (clientType == "output") {
+            m_outputVisible = true;
+            QTimer::singleShot(100, this, &ControlWindow::broadcastCurrentSlide);
+        } else if (clientType == "confidence") {
+            m_confidenceVisible = true;
             QTimer::singleShot(100, this, &ControlWindow::broadcastCurrentSlide);
         }
+
+        // Update preview borders to reflect new connection state
+        updatePreviewStates();
     }
 }
 
@@ -731,6 +715,18 @@ void ControlWindow::markClean()
         m_isDirty = false;
         updateWindowTitle();
     }
+}
+
+void ControlWindow::updatePreviewStates()
+{
+    // If the client disconnected entirely, it's no longer visible
+    if (!m_ipcServer->hasClientType("output"))
+        m_outputVisible = false;
+    if (!m_ipcServer->hasClientType("confidence"))
+        m_confidenceVisible = false;
+
+    m_livePreviewPanel->setOutputActive(m_outputVisible);
+    m_livePreviewPanel->setConfidenceActive(m_confidenceVisible);
 }
 
 void ControlWindow::onPresentationModified()
@@ -1838,6 +1834,10 @@ void ControlWindow::toggleOutputDisplay()
     if (!m_ipcServer->sendToClientType("output", message)) {
         // No output clients connected, launch one
         m_processManager->launchOutput();
+    } else {
+        // Client received the toggle, flip our visibility tracking
+        m_outputVisible = !m_outputVisible;
+        updatePreviewStates();
     }
 }
 
@@ -1861,6 +1861,10 @@ void ControlWindow::toggleConfidenceMonitor()
     if (!m_ipcServer->sendToClientType("confidence", message)) {
         // No confidence clients connected, launch one
         m_processManager->launchConfidence();
+    } else {
+        // Client received the toggle, flip our visibility tracking
+        m_confidenceVisible = !m_confidenceVisible;
+        updatePreviewStates();
     }
 }
 

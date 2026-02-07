@@ -54,8 +54,6 @@ private slots:
     void onPrevSlide();
     void onNextSlide();
     void onClearOutput();
-    void onLaunchOutput();
-    void onLaunchConfidence();
     void onSlideClicked(const QModelIndex& index);
     void onSlideDoubleClicked(const QModelIndex& index);
     void onItemClicked(const QModelIndex& index);
@@ -125,6 +123,7 @@ private:
     bool promptSaveIfDirty();
     void markDirty();
     void markClean();
+    void updatePreviewStates();
 
     // UI components
     QListView* m_slideListView;              ///< Left panel list view (playlist)
@@ -135,8 +134,6 @@ private:
     QPushButton* m_nextButton;
     QPushButton* m_clearButton;
     QPushButton* m_outputDisabledButton;  ///< Toggle to disable output display
-    QPushButton* m_launchOutputButton;
-    QPushButton* m_launchConfidenceButton;
     QPushButton* m_settingsButton;
     QPushButton* m_addSlideButton;
     QPushButton* m_editSlideButton;
@@ -171,6 +168,10 @@ private:
     bool m_isBlackout = false;
     bool m_isWhiteout = false;
     bool m_isOutputDisabled = false;  ///< Persistent output disable (survives navigation)
+
+    // Display visibility tracking for preview borders
+    bool m_outputVisible = false;       ///< Whether output display is visible (not just connected)
+    bool m_confidenceVisible = false;   ///< Whether confidence monitor is visible (not just connected)
 
     // Song usage tracking (prevents duplicate records per session)
     QSet<int> m_recordedSongUsage;  ///< Song IDs that have been recorded this session
