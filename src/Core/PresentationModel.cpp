@@ -1,5 +1,6 @@
 #include "PresentationModel.h"
 #include "SlideGroupItem.h"
+#include "SongItem.h"
 #include <QIODevice>
 
 namespace Clarity {
@@ -115,11 +116,11 @@ Qt::ItemFlags PresentationModel::flags(const QModelIndex& index) const
         return defaultFlags | Qt::ItemIsDropEnabled;
     }
 
-    // Only allow dragging slides that belong to a SlideGroupItem
+    // Allow dragging slides that belong to a SlideGroupItem or SongItem
     SlidePosition pos = m_presentation->positionForFlatIndex(index.row());
     if (pos.isValid()) {
         PresentationItem* item = m_presentation->itemAt(pos.itemIndex);
-        if (qobject_cast<SlideGroupItem*>(item)) {
+        if (qobject_cast<SlideGroupItem*>(item) || qobject_cast<SongItem*>(item)) {
             return defaultFlags | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
         }
     }
@@ -181,8 +182,9 @@ bool PresentationModel::canDropMimeData(const QMimeData* data, Qt::DropAction ac
     SlidePosition targetPos = m_presentation->positionForFlatIndex(targetRow);
     if (!targetPos.isValid()) return false;
 
+    PresentationItem* sourceItem = m_presentation->itemAt(sourcePos.itemIndex);
     return sourcePos.itemIndex == targetPos.itemIndex
-        && qobject_cast<SlideGroupItem*>(m_presentation->itemAt(sourcePos.itemIndex));
+        && (qobject_cast<SlideGroupItem*>(sourceItem) || qobject_cast<SongItem*>(sourceItem));
 }
 
 bool PresentationModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
@@ -228,8 +230,25 @@ bool PresentationModel::dropMimeData(const QMimeData* data, Qt::DropAction actio
     if (sourcePos.itemIndex != targetPos.itemIndex) return false;
 
     PresentationItem* item = m_presentation->itemAt(sourcePos.itemIndex);
-    SlideGroupItem* groupItem = qobject_cast<SlideGroupItem*>(item);
-    if (!groupItem) return false;
+    int itemIndex = sourcePos.itemIndex;
+
+    // If this is a SongItem, convert to SlideGroupItem first so slides can be reordered
+    if (auto* songItem = qobject_cast<SongItem*>(item)) {
+        QList<Slide> slides = songItem->cachedSlides();
+        QString name = songItem->displayName();
+
+        beginResetModel();
+        auto* groupItem = new SlideGroupItem(name, slides);
+        m_presentation->removeItem(itemIndex);
+        m_presentation->insertItem(itemIndex, groupItem);
+        endResetModel();
+
+        // Recalculate positions after the conversion
+        sourcePos = m_presentation->positionForFlatIndex(sourceRow);
+        if (!sourcePos.isValid()) return false;
+    } else if (!qobject_cast<SlideGroupItem*>(item)) {
+        return false;
+    }
 
     // Adjust for removal shift when dragging downward
     if (sourceRow < targetRow) {
