@@ -3,6 +3,8 @@
 #include "Presentation.h"
 #include "PresentationItem.h"
 #include <QAbstractListModel>
+#include <QMimeData>
+#include <QStringList>
 
 namespace Clarity {
 
@@ -29,7 +31,15 @@ public:
     // QAbstractItemModel interface
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    Qt::ItemFlags flags(const QModelIndex& index) const override;
     QHash<int, QByteArray> roleNames() const override;
+
+    // Drag-and-drop support for reordering items
+    Qt::DropActions supportedDropActions() const override;
+    QStringList mimeTypes() const override;
+    QMimeData* mimeData(const QModelIndexList& indexes) const override;
+    bool dropMimeData(const QMimeData* data, Qt::DropAction action,
+                      int row, int column, const QModelIndex& parent) override;
 
     /**
      * @brief Set the presentation to display items from

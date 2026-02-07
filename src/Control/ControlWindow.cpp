@@ -189,6 +189,13 @@ ControlWindow::ControlWindow(QWidget* parent)
     // Connect presentation modification signal
     connect(m_presentationModel, &PresentationModel::presentationModified, this, &ControlWindow::onPresentationModified);
 
+    // Update UI after drag-drop reorder in playlist
+    connect(m_presentationModel, &PresentationModel::itemsChanged, this, [this]() {
+        m_slideDelegate->invalidateCache();
+        updateUI();
+        broadcastCurrentSlide();
+    });
+
     // Invalidate thumbnail cache when model data changes
     connect(m_presentationModel, &QAbstractItemModel::dataChanged, this, [this](const QModelIndex& topLeft, const QModelIndex& bottomRight) {
         for (int i = topLeft.row(); i <= bottomRight.row(); i++) {
@@ -294,6 +301,11 @@ void ControlWindow::setupUI()
     m_slideListView = new QListView(this);
     m_slideListView->setModel(m_itemListModel);
     m_slideListView->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_slideListView->setDragEnabled(true);
+    m_slideListView->setAcceptDrops(true);
+    m_slideListView->setDropIndicatorShown(true);
+    m_slideListView->setDragDropMode(QAbstractItemView::InternalMove);
+    m_slideListView->setDefaultDropAction(Qt::MoveAction);
     connect(m_slideListView, &QListView::clicked, this, &ControlWindow::onItemClicked);
     connect(m_slideListView, &QListView::doubleClicked, this, &ControlWindow::onItemDoubleClicked);
     leftLayout->addWidget(m_slideListView);
