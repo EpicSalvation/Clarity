@@ -1,4 +1,5 @@
 #include "PresentationModel.h"
+#include "SlideGroupItem.h"
 
 namespace Clarity {
 
@@ -222,16 +223,29 @@ void PresentationModel::moveSlide(int fromIndex, int toIndex)
         return;
     }
 
-    // Use beginMoveRows/endMoveRows for proper model notification
-    // Note: Qt's move semantics require special handling of the destination index
-    int destIndex = (toIndex > fromIndex) ? toIndex + 1 : toIndex;
+    // Check if this is a within-group move (simple row move) or a cross-item
+    // move (structural change that removes/inserts items)
+    SlidePosition fromPos = m_presentation->positionForFlatIndex(fromIndex);
+    SlidePosition toPos = m_presentation->positionForFlatIndex(toIndex);
 
-    if (!beginMoveRows(QModelIndex(), fromIndex, fromIndex, QModelIndex(), destIndex)) {
-        return;
+    bool isSimpleMove = fromPos.isValid() && toPos.isValid()
+        && fromPos.itemIndex == toPos.itemIndex
+        && qobject_cast<SlideGroupItem*>(m_presentation->itemAt(fromPos.itemIndex));
+
+    if (isSimpleMove) {
+        // Within same SlideGroupItem — safe to use beginMoveRows/endMoveRows
+        int destIndex = (toIndex > fromIndex) ? toIndex + 1 : toIndex;
+        if (!beginMoveRows(QModelIndex(), fromIndex, fromIndex, QModelIndex(), destIndex)) {
+            return;
+        }
+        m_presentation->moveSlide(fromIndex, toIndex);
+        endMoveRows();
+    } else {
+        // Cross-item move restructures the item list, use model reset
+        beginResetModel();
+        m_presentation->moveSlide(fromIndex, toIndex);
+        endResetModel();
     }
-
-    m_presentation->moveSlide(fromIndex, toIndex);
-    endMoveRows();
 }
 
 Slide PresentationModel::getSlide(int index) const
