@@ -107,6 +107,8 @@ add_executable(Clarity
     src/Control/ThemeSelectorDialog.cpp
     src/Control/SlideGridDelegate.h
     src/Control/SlideGridDelegate.cpp
+    src/Control/SlideGridView.h
+    src/Control/SlideGridView.cpp
     src/Control/LivePreviewWidget.h
     src/Control/LivePreviewWidget.cpp
     src/Control/LivePreviewPanel.h

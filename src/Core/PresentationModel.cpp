@@ -1,4 +1,5 @@
 #include "PresentationModel.h"
+#include "ScriptureItem.h"
 #include "SlideGroupItem.h"
 #include "SongItem.h"
 #include <QIODevice>
@@ -116,11 +117,12 @@ Qt::ItemFlags PresentationModel::flags(const QModelIndex& index) const
         return defaultFlags | Qt::ItemIsDropEnabled;
     }
 
-    // Allow dragging slides that belong to a SlideGroupItem or SongItem
+    // Allow dragging slides that belong to a SlideGroupItem, SongItem, or ScriptureItem
     SlidePosition pos = m_presentation->positionForFlatIndex(index.row());
     if (pos.isValid()) {
         PresentationItem* item = m_presentation->itemAt(pos.itemIndex);
-        if (qobject_cast<SlideGroupItem*>(item) || qobject_cast<SongItem*>(item)) {
+        if (qobject_cast<SlideGroupItem*>(item) || qobject_cast<SongItem*>(item)
+            || qobject_cast<ScriptureItem*>(item)) {
             return defaultFlags | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
         }
     }
@@ -175,16 +177,32 @@ bool PresentationModel::canDropMimeData(const QMimeData* data, Qt::DropAction ac
     SlidePosition sourcePos = m_presentation->positionForFlatIndex(sourceRow);
     if (!sourcePos.isValid()) return false;
 
-    // Only allow drop within the same SlideGroupItem
+    // Only allow drop within the same item (SlideGroupItem, SongItem, or ScriptureItem)
     int targetRow = (row >= 0) ? row : (parent.isValid() ? parent.row() : -1);
     if (targetRow < 0) return false;
 
-    SlidePosition targetPos = m_presentation->positionForFlatIndex(targetRow);
+    // Resolve which item the target belongs to.
+    // targetRow may point to the first slide of the NEXT item (or past the end)
+    // when the user wants to insert after the last slide of the current group.
+    int total = m_presentation->totalSlideCount();
+    int lookupRow = qMin(targetRow, total - 1);
+    SlidePosition targetPos = m_presentation->positionForFlatIndex(lookupRow);
     if (!targetPos.isValid()) return false;
 
+    // If target lands in a different item, check if the previous row is in the
+    // source item — that means "insert at end of group"
+    if (sourcePos.itemIndex != targetPos.itemIndex && targetRow > 0) {
+        SlidePosition prevPos = m_presentation->positionForFlatIndex(targetRow - 1);
+        if (!prevPos.isValid() || prevPos.itemIndex != sourcePos.itemIndex) {
+            return false;
+        }
+    } else if (sourcePos.itemIndex != targetPos.itemIndex) {
+        return false;
+    }
+
     PresentationItem* sourceItem = m_presentation->itemAt(sourcePos.itemIndex);
-    return sourcePos.itemIndex == targetPos.itemIndex
-        && (qobject_cast<SlideGroupItem*>(sourceItem) || qobject_cast<SongItem*>(sourceItem));
+    return qobject_cast<SlideGroupItem*>(sourceItem) || qobject_cast<SongItem*>(sourceItem)
+        || qobject_cast<ScriptureItem*>(sourceItem);
 }
 
 bool PresentationModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
@@ -219,36 +237,28 @@ bool PresentationModel::dropMimeData(const QMimeData* data, Qt::DropAction actio
     if (!sourcePos.isValid()) return false;
 
     // Clamp targetRow to valid range
-    if (targetRow > m_presentation->totalSlideCount()) {
-        targetRow = m_presentation->totalSlideCount();
+    int total = m_presentation->totalSlideCount();
+    if (targetRow > total) {
+        targetRow = total;
     }
 
-    SlidePosition targetPos = m_presentation->positionForFlatIndex(
-        qMin(targetRow, m_presentation->totalSlideCount() - 1));
+    // Resolve which item the target belongs to.
+    // targetRow may point to the first slide of the NEXT item (or past the end)
+    // when the user wants to insert after the last slide of the current group.
+    int lookupRow = qMin(targetRow, total - 1);
+    SlidePosition targetPos = m_presentation->positionForFlatIndex(lookupRow);
     if (!targetPos.isValid()) return false;
 
-    if (sourcePos.itemIndex != targetPos.itemIndex) return false;
+    if (sourcePos.itemIndex != targetPos.itemIndex && targetRow > 0) {
+        SlidePosition prevPos = m_presentation->positionForFlatIndex(targetRow - 1);
+        if (!prevPos.isValid() || prevPos.itemIndex != sourcePos.itemIndex) return false;
+        targetPos = prevPos;  // Use the previous position for item lookup below
+    } else if (sourcePos.itemIndex != targetPos.itemIndex) {
+        return false;
+    }
 
     PresentationItem* item = m_presentation->itemAt(sourcePos.itemIndex);
     int itemIndex = sourcePos.itemIndex;
-
-    // If this is a SongItem, convert to SlideGroupItem first so slides can be reordered
-    if (auto* songItem = qobject_cast<SongItem*>(item)) {
-        QList<Slide> slides = songItem->cachedSlides();
-        QString name = songItem->displayName();
-
-        beginResetModel();
-        auto* groupItem = new SlideGroupItem(name, slides);
-        m_presentation->removeItem(itemIndex);
-        m_presentation->insertItem(itemIndex, groupItem);
-        endResetModel();
-
-        // Recalculate positions after the conversion
-        sourcePos = m_presentation->positionForFlatIndex(sourceRow);
-        if (!sourcePos.isValid()) return false;
-    } else if (!qobject_cast<SlideGroupItem*>(item)) {
-        return false;
-    }
 
     // Adjust for removal shift when dragging downward
     if (sourceRow < targetRow) {
@@ -256,7 +266,35 @@ bool PresentationModel::dropMimeData(const QMimeData* data, Qt::DropAction actio
     }
     if (sourceRow == targetRow) return false;
 
-    // Use moveSlide which handles within-group moves properly
+    // If this is a SongItem or ScriptureItem, convert to SlideGroupItem and move in one operation
+    if (qobject_cast<SongItem*>(item) || qobject_cast<ScriptureItem*>(item)) {
+        QList<Slide> slides = item->cachedSlides();
+        QString name = item->displayName();
+
+        // Calculate within-item indices for the move
+        SlidePosition adjustedTarget = m_presentation->positionForFlatIndex(targetRow);
+        if (!adjustedTarget.isValid() || adjustedTarget.itemIndex != itemIndex) return false;
+
+        // Reorder the slides before creating the group
+        slides.move(sourcePos.slideInItem, adjustedTarget.slideInItem);
+
+        // Block presentation signals to avoid nested model resets
+        beginResetModel();
+        m_presentation->blockSignals(true);
+        m_presentation->removeItem(itemIndex);
+        auto* groupItem = new SlideGroupItem(name, slides);
+        m_presentation->insertItem(itemIndex, groupItem);
+        m_presentation->blockSignals(false);
+        endResetModel();
+
+        setCurrentSlideIndex(targetRow);
+        emit presentationModified();
+        return true;
+    }
+
+    if (!qobject_cast<SlideGroupItem*>(item)) return false;
+
+    // SlideGroupItem — use moveSlide which handles within-group moves properly
     moveSlide(sourceRow, targetRow);
     setCurrentSlideIndex(targetRow);
 
@@ -388,18 +426,26 @@ void PresentationModel::moveSlide(int fromIndex, int toIndex)
         && fromPos.itemIndex == toPos.itemIndex
         && qobject_cast<SlideGroupItem*>(m_presentation->itemAt(fromPos.itemIndex));
 
+    // Block presentation signals to avoid nested model resets —
+    // Presentation::moveSlide emits slidesChanged(), which would trigger
+    // onSlidesChanged() → beginResetModel() while we're already inside
+    // beginMoveRows or beginResetModel.
     if (isSimpleMove) {
         // Within same SlideGroupItem — safe to use beginMoveRows/endMoveRows
         int destIndex = (toIndex > fromIndex) ? toIndex + 1 : toIndex;
         if (!beginMoveRows(QModelIndex(), fromIndex, fromIndex, QModelIndex(), destIndex)) {
             return;
         }
+        m_presentation->blockSignals(true);
         m_presentation->moveSlide(fromIndex, toIndex);
+        m_presentation->blockSignals(false);
         endMoveRows();
     } else {
         // Cross-item move restructures the item list, use model reset
         beginResetModel();
+        m_presentation->blockSignals(true);
         m_presentation->moveSlide(fromIndex, toIndex);
+        m_presentation->blockSignals(false);
         endResetModel();
     }
 }
@@ -416,44 +462,26 @@ void PresentationModel::addItem(PresentationItem* item)
 {
     if (!m_presentation || !item) return;
 
-    // Calculate the flat indices that will be added
-    int startIndex = m_presentation->totalSlideCount();
-    int slideCount = item->slideCount();
-
-    if (slideCount > 0) {
-        beginInsertRows(QModelIndex(), startIndex, startIndex + slideCount - 1);
-    }
-
+    // Use model reset: addItem emits slidesChanged which would cause
+    // nested beginResetModel inside beginInsertRows
+    beginResetModel();
+    m_presentation->blockSignals(true);
     m_presentation->addItem(item);
-
-    if (slideCount > 0) {
-        endInsertRows();
-    }
+    m_presentation->blockSignals(false);
+    endResetModel();
 }
 
 void PresentationModel::insertItem(int index, PresentationItem* item)
 {
     if (!m_presentation || !item) return;
-    if (index < 0) index = 0;
-    if (index > m_presentation->itemCount()) index = m_presentation->itemCount();
 
-    // Calculate the flat index where slides will be inserted
-    int flatIndex = m_presentation->flatIndexForPosition(index, 0);
-    if (flatIndex < 0) {
-        flatIndex = m_presentation->totalSlideCount();
-    }
-
-    int slideCount = item->slideCount();
-
-    if (slideCount > 0) {
-        beginInsertRows(QModelIndex(), flatIndex, flatIndex + slideCount - 1);
-    }
-
+    // Use model reset: insertItem shifts ItemIndexRole for all subsequent
+    // slides, and emits slidesChanged which would nest inside beginInsertRows
+    beginResetModel();
+    m_presentation->blockSignals(true);
     m_presentation->insertItem(index, item);
-
-    if (slideCount > 0) {
-        endInsertRows();
-    }
+    m_presentation->blockSignals(false);
+    endResetModel();
 }
 
 void PresentationModel::removeItem(int index)
@@ -461,20 +489,13 @@ void PresentationModel::removeItem(int index)
     if (!m_presentation) return;
     if (index < 0 || index >= m_presentation->itemCount()) return;
 
-    // Calculate the flat indices that will be removed
-    int flatIndex = m_presentation->flatIndexForPosition(index, 0);
-    PresentationItem* item = m_presentation->itemAt(index);
-    int slideCount = item ? item->slideCount() : 0;
-
-    if (slideCount > 0 && flatIndex >= 0) {
-        beginRemoveRows(QModelIndex(), flatIndex, flatIndex + slideCount - 1);
-    }
-
+    // Use model reset: removeItem shifts ItemIndexRole for all subsequent
+    // slides, and emits slidesChanged which would nest inside beginRemoveRows
+    beginResetModel();
+    m_presentation->blockSignals(true);
     m_presentation->removeItem(index);
-
-    if (slideCount > 0 && flatIndex >= 0) {
-        endRemoveRows();
-    }
+    m_presentation->blockSignals(false);
+    endResetModel();
 }
 
 int PresentationModel::itemCount() const

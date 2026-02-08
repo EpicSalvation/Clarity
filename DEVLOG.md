@@ -4,6 +4,44 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-08 - Insert-Between Drag-and-Drop for Slide Grid
+
+### Summary
+Replaced Qt's default IconMode drop behavior (dropping "on top of" items) with modern insert-between behavior. A vertical blue line indicator now appears between slides during drag, showing exactly where the slide will land when dropped.
+
+### Work Completed
+
+#### New File: SlideGridView (QListView subclass)
+- **SlideGridView.h / SlideGridView.cpp**: Custom `QListView` subclass with insert-between drag-and-drop.
+- `dragEnterEvent`: Accepts drags with `application/x-clarity-slide-index` mime type.
+- `dragMoveEvent`: Calculates insertion index by comparing cursor position against item visual rects, validates with `model()->canDropMimeData()`, stores indicator position.
+- `dragLeaveEvent`: Resets indicator.
+- `dropEvent`: Performs drop at calculated insertion index via `model()->dropMimeData()`.
+- `paintEvent`: After base paint, draws a 3px blue (`#3b82f6`) vertical line at the insertion position.
+- `insertionIndexAt()`: Iterates visible items, finds items on the same row as the cursor, and picks the nearest gap (left or right edge) based on X distance.
+
+#### Proxy Model Row Mapping Fix (SlideFilterProxyModel)
+- Overrode `canDropMimeData` and `dropMimeData` to map proxy rows to source rows before forwarding to the source model. Qt's `QAbstractProxyModel` passes `row` unmapped — only the `parent` index is mapped — which caused mismatched proxy vs source rows when the filter is active.
+- Added private `mapRowToSource()` helper: maps proxy row to source row via `mapToSource(index(row, 0)).row()`, and handles the "past the end" case by returning `lastSourceRow + 1`.
+
+#### End-of-Group Boundary Fix (PresentationModel)
+- Fixed `canDropMimeData` and `dropMimeData` to handle insertion at the end of a group that isn't the last item. When `targetRow` points to the first slide of the next item (or past the end), the code now checks if `targetRow - 1` belongs to the source item, correctly treating it as "insert after last slide in group".
+
+#### Integration Changes
+- **CMakeLists.txt**: Added `SlideGridView.h` and `SlideGridView.cpp` to the Clarity executable sources.
+- **ControlWindow.h**: Changed `m_slideGridView` type from `QListView*` to `SlideGridView*`, added include.
+- **ControlWindow.cpp**: Changed `new QListView` to `new SlideGridView`, set `setDropIndicatorShown(false)` since SlideGridView draws its own indicator.
+
+### Technical Decisions
+- The fix required two layers: (1) `SlideFilterProxyModel` maps proxy rows to source rows for drop operations, and (2) `PresentationModel` handles the boundary case where the mapped source row lands in the next item.
+- Insertion position is calculated by finding items on the same visual row as the cursor (matching Y range), then picking the closest gap by X distance. Items below/above all rows default to end/beginning.
+
+### Testing
+- Build verified with Qt 6.10.2 MinGW — all files compile and link successfully.
+- Manual testing confirmed: drag to beginning, middle, and end of group all work correctly.
+
+---
+
 ## 2026-02-07 - UI Cleanup: Preview Panel Interaction and Playlist Controls
 
 ### Summary

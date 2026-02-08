@@ -206,6 +206,10 @@ ControlWindow::ControlWindow(QWidget* parent)
     connect(m_presentationModel, &QAbstractItemModel::modelReset, this, [this]() {
         m_slideDelegate->invalidateCache();
     });
+    connect(m_presentationModel, &QAbstractItemModel::rowsMoved, this, [this]() {
+        m_slideDelegate->invalidateCache();
+        m_slideGridView->viewport()->update();
+    });
 
     // Broadcast settings changes to confidence monitor
     connect(m_settingsManager, &SettingsManager::confidenceDisplaySettingsChanged, this, [this]() {
@@ -344,8 +348,8 @@ void ControlWindow::setupUI()
     leftLayout->addLayout(playlistButtonLayout);
     contentLayout->addWidget(leftPanel);
 
-    // Center panel: Slide grid view
-    m_slideGridView = new QListView(this);
+    // Center panel: Slide grid view (custom subclass for insert-between drag-and-drop)
+    m_slideGridView = new SlideGridView(this);
 
     // Set up proxy model for filtering slides by item
     m_slideFilterProxy->setSourceModel(m_presentationModel);
@@ -363,7 +367,7 @@ void ControlWindow::setupUI()
     m_slideGridView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_slideGridView->setDragEnabled(true);
     m_slideGridView->setAcceptDrops(true);
-    m_slideGridView->setDropIndicatorShown(true);
+    m_slideGridView->setDropIndicatorShown(false);  // SlideGridView draws its own indicator
     m_slideGridView->setDragDropMode(QAbstractItemView::InternalMove);
     m_slideGridView->setDefaultDropAction(Qt::MoveAction);
 

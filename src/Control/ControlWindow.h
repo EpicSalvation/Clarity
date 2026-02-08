@@ -15,6 +15,7 @@
 #include "Core/RemoteServer.h"
 #include "ProcessManager.h"
 #include "SlideGridDelegate.h"
+#include "SlideGridView.h"
 #include "LivePreviewPanel.h"
 #include <QMainWindow>
 #include <QListView>
@@ -127,7 +128,7 @@ private:
 
     // UI components
     QListView* m_slideListView;              ///< Left panel list view (playlist)
-    QListView* m_slideGridView;              ///< Center grid view for slide thumbnails
+    SlideGridView* m_slideGridView;           ///< Center grid view for slide thumbnails
     SlideGridDelegate* m_slideDelegate;      ///< Custom delegate for grid rendering
     LivePreviewPanel* m_livePreviewPanel;    ///< Right panel live preview
     QPushButton* m_prevButton;
