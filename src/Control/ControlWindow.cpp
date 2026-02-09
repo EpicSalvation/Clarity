@@ -228,6 +228,11 @@ ControlWindow::ControlWindow(QWidget* parent)
         updateUI();
     });
 
+    // Handle slide preview size changes from settings
+    connect(m_settingsManager, &SettingsManager::slidePreviewSizeChanged, this, [this](const QString& size) {
+        applySlidePreviewSize(size);
+    });
+
     updateUI();
     updateWindowTitle();
 }
@@ -368,6 +373,9 @@ void ControlWindow::setupUI()
     m_slideDelegate = new SlideGridDelegate(this);
     m_slideDelegate->setRedLetterColor(m_settingsManager->redLetterColor());
     m_slideGridView->setItemDelegate(m_slideDelegate);
+
+    // Apply saved slide preview size
+    applySlidePreviewSize(m_settingsManager->slidePreviewSize());
 
     connect(m_slideGridView, &QListView::clicked, this, &ControlWindow::onSlideClicked);
     connect(m_slideGridView, &QListView::doubleClicked, this, &ControlWindow::onSlideDoubleClicked);
@@ -705,6 +713,28 @@ void ControlWindow::updatePreviewStates()
 
     m_livePreviewPanel->setOutputActive(m_outputVisible);
     m_livePreviewPanel->setConfidenceActive(m_confidenceVisible);
+}
+
+void ControlWindow::applySlidePreviewSize(const QString& size)
+{
+    QSize thumbnailSize;
+    QSize gridCellSize;
+
+    if (size == "large") {
+        thumbnailSize = QSize(640, 360);
+        gridCellSize = QSize(660, 390);
+    } else if (size == "medium") {
+        thumbnailSize = QSize(320, 180);
+        gridCellSize = QSize(340, 210);
+    } else {
+        // "small" (default)
+        thumbnailSize = QSize(160, 90);
+        gridCellSize = QSize(180, 120);
+    }
+
+    m_slideDelegate->setThumbnailSize(thumbnailSize);
+    m_slideGridView->setGridSize(gridCellSize);
+    m_slideGridView->viewport()->update();
 }
 
 void ControlWindow::onPresentationModified()

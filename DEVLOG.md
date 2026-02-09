@@ -4,6 +4,45 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-08 - Add Slide Preview Size Setting (Small/Medium/Large)
+
+### Summary
+Added a settings option to choose between Small, Medium, and Large slide preview sizes in the slide grid. Small is the existing 160x90 thumbnail size, Medium doubles it to 320x180, and Large quadruples it to 640x360. The setting persists across sessions and does not affect LivePreviewPanel images.
+
+### Work Completed
+
+#### SettingsManager (`src/Core/SettingsManager.h`, `SettingsManager.cpp`)
+- Added `slidePreviewSize()` getter (returns "small", "medium", or "large"; default "small")
+- Added `setSlidePreviewSize()` setter with validation
+- Added `slidePreviewSizeChanged(const QString&)` signal
+- Emits signal on `resetToDefaults()`
+
+#### SettingsDialog (`src/Control/SettingsDialog.h`, `SettingsDialog.cpp`)
+- Added `QComboBox* m_slidePreviewSizeComboBox` with Small/Medium/Large options
+- Placed in the UI Behavior group on the General settings page alongside the existing "Show all slides in grid" checkbox
+- Loads current value in `loadSettings()`, saves in `saveSettings()`
+
+#### ControlWindow (`src/Control/ControlWindow.h`, `ControlWindow.cpp`)
+- Added `applySlidePreviewSize(const QString&)` helper that maps size name to thumbnail and grid cell dimensions
+- Called on startup in `setupUI()` after delegate creation
+- Connected to `SettingsManager::slidePreviewSizeChanged` signal for live updates
+
+#### Size Table
+| Size   | Thumbnail | Grid Cell |
+|--------|-----------|-----------|
+| Small  | 160x90    | 180x120   |
+| Medium | 320x180   | 340x210   |
+| Large  | 640x360   | 660x390   |
+
+### Technical Decisions
+- SlideGridView `insertionIndexAt()` already uses `visualRect()` rather than hardcoded sizes, so drag-and-drop works at all preview sizes without changes
+- `setThumbnailSize()` on the delegate automatically invalidates the thumbnail cache
+
+### Testing
+- Build verified with Qt 6.10.2 MinGW — compiles and links successfully
+
+---
+
 ## 2026-02-08 - Declutter Control Window: Move Buttons to Preview Panel
 
 ### Summary

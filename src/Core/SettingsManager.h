@@ -54,6 +54,9 @@ public:
     bool showAllSlidesInGrid() const;  // Whether to show all slides or just selected item's slides
     void setShowAllSlidesInGrid(bool showAll);
 
+    QString slidePreviewSize() const;  // "small", "medium", "large"
+    void setSlidePreviewSize(const QString& size);
+
     // Remote control settings
     bool remoteControlEnabled() const;
     void setRemoteControlEnabled(bool enabled);
@@ -118,6 +121,7 @@ signals:
     void remoteControlSettingsChanged();
     void languageChanged(const QString& languageCode);
     void slideGridModeChanged(bool showAll);
+    void slidePreviewSizeChanged(const QString& size);
 
 private:
     QSettings* m_settings;

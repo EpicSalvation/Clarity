@@ -124,6 +124,7 @@ private:
     void markDirty();
     void markClean();
     void updatePreviewStates();
+    void applySlidePreviewSize(const QString& size);
 
     // UI components
     QListView* m_slideListView;              ///< Left panel list view (playlist)

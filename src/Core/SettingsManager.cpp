@@ -276,6 +276,27 @@ void SettingsManager::setShowAllSlidesInGrid(bool showAll)
     }
 }
 
+QString SettingsManager::slidePreviewSize() const
+{
+    return m_settings->value("UI/SlidePreviewSize", "small").toString();
+}
+
+void SettingsManager::setSlidePreviewSize(const QString& size)
+{
+    QStringList validSizes = {"small", "medium", "large"};
+    if (!validSizes.contains(size)) {
+        qWarning() << "SettingsManager: Invalid slide preview size:" << size;
+        return;
+    }
+
+    if (slidePreviewSize() != size) {
+        m_settings->setValue("UI/SlidePreviewSize", size);
+        m_settings->sync();
+        emit slidePreviewSizeChanged(size);
+        qDebug() << "SettingsManager: Slide preview size set to" << size;
+    }
+}
+
 QString SettingsManager::language() const
 {
     return m_settings->value("General/Language", "system").toString();
@@ -441,6 +462,7 @@ void SettingsManager::resetToDefaults()
     emit transitionSettingsChanged();
     emit remoteControlSettingsChanged();
     emit languageChanged("system");
+    emit slidePreviewSizeChanged("small");
 }
 
 } // namespace Clarity

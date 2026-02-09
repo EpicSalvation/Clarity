@@ -33,6 +33,7 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_transitionDurationComboBox(nullptr)
     , m_scrollWheelChangesInputsCheckBox(nullptr)
     , m_showAllSlidesInGridCheckBox(nullptr)
+    , m_slidePreviewSizeComboBox(nullptr)
     , m_languageComboBox(nullptr)
     , m_remoteControlEnabledCheckBox(nullptr)
     , m_remoteControlPortSpinBox(nullptr)
@@ -149,6 +150,20 @@ void SettingsDialog::createGeneralPage()
     m_showAllSlidesInGridCheckBox = new QCheckBox(
         tr("Show all slides in grid (instead of just the selected item's slides)"), uiBehaviorGroup);
     uiBehaviorLayout->addWidget(m_showAllSlidesInGridCheckBox);
+
+    // Slide preview size selector
+    QHBoxLayout* previewSizeLayout = new QHBoxLayout();
+    QLabel* previewSizeLabel = new QLabel(tr("Slide preview size:"), uiBehaviorGroup);
+    previewSizeLayout->addWidget(previewSizeLabel);
+
+    m_slidePreviewSizeComboBox = new QComboBox(uiBehaviorGroup);
+    m_slidePreviewSizeComboBox->addItem(tr("Small"), "small");
+    m_slidePreviewSizeComboBox->addItem(tr("Medium"), "medium");
+    m_slidePreviewSizeComboBox->addItem(tr("Large"), "large");
+    previewSizeLayout->addWidget(m_slidePreviewSizeComboBox);
+    previewSizeLayout->addStretch();
+
+    uiBehaviorLayout->addLayout(previewSizeLayout);
 
     QLabel* uiBehaviorHelpLabel = new QLabel(
         tr("By default, the slide grid shows only slides from the currently selected item. "
@@ -689,6 +704,15 @@ void SettingsDialog::loadSettings()
     m_scrollWheelChangesInputsCheckBox->setChecked(m_settingsManager->scrollWheelChangesInputs());
     m_showAllSlidesInGridCheckBox->setChecked(m_settingsManager->showAllSlidesInGrid());
 
+    // Load slide preview size
+    QString previewSize = m_settingsManager->slidePreviewSize();
+    for (int i = 0; i < m_slidePreviewSizeComboBox->count(); ++i) {
+        if (m_slidePreviewSizeComboBox->itemData(i).toString() == previewSize) {
+            m_slidePreviewSizeComboBox->setCurrentIndex(i);
+            break;
+        }
+    }
+
     // Load language setting
     QString languageCode = m_settingsManager->language();
     for (int i = 0; i < m_languageComboBox->count(); ++i) {
@@ -745,6 +769,7 @@ void SettingsDialog::saveSettings()
     // Save UI behavior settings
     m_settingsManager->setScrollWheelChangesInputs(m_scrollWheelChangesInputsCheckBox->isChecked());
     m_settingsManager->setShowAllSlidesInGrid(m_showAllSlidesInGridCheckBox->isChecked());
+    m_settingsManager->setSlidePreviewSize(m_slidePreviewSizeComboBox->currentData().toString());
 
     // Save language setting
     QString languageCode = m_languageComboBox->currentData().toString();
