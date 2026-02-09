@@ -29,6 +29,7 @@
 #include <QInputDialog>
 #include <QDialog>
 #include <QPixmap>
+#include <QBuffer>
 #include <QDebug>
 
 namespace Clarity {
@@ -39,6 +40,9 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_slideGridView(nullptr)
     , m_slideDelegate(nullptr)
     , m_livePreviewPanel(nullptr)
+    , m_mediaDrawer(nullptr)
+    , m_mainSplitter(nullptr)
+    , m_toggleMediaDrawerAction(nullptr)
     , m_addSlideButton(nullptr)
     , m_deleteSlideButton(nullptr)
     , m_moveUpButton(nullptr)
@@ -273,6 +277,13 @@ void ControlWindow::setupUI()
     slideMenu->addAction(tr("Apply Theme to &Group..."), QKeySequence("Ctrl+Shift+T"), this, &ControlWindow::onApplyThemeToGroup);
     slideMenu->addAction(tr("Clone &Format to Group"), QKeySequence("Ctrl+Shift+F"), this, &ControlWindow::onCloneFormatToGroup);
 
+    // View menu
+    QMenu* viewMenu = menuBar->addMenu(tr("&View"));
+    m_toggleMediaDrawerAction = viewMenu->addAction(tr("&Media Library"), QKeySequence("Ctrl+M"),
+                                                     this, &ControlWindow::toggleMediaDrawer);
+    m_toggleMediaDrawerAction->setCheckable(true);
+    m_toggleMediaDrawerAction->setChecked(false);
+
     // Format menu (for theme management)
     QMenu* formatMenu = menuBar->addMenu(tr("F&ormat"));
     formatMenu->addAction(tr("&Manage Themes..."), this, &ControlWindow::onManageThemes);
@@ -384,6 +395,9 @@ void ControlWindow::setupUI()
     m_slideGridView->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_slideGridView, &QListView::customContextMenuRequested, this, &ControlWindow::onSlideContextMenu);
 
+    // Media drag-and-drop from the media drawer onto slides
+    connect(m_slideGridView, &SlideGridView::mediaDropped, this, &ControlWindow::onMediaDroppedOnSlide);
+
     contentLayout->addWidget(m_slideGridView, 1);  // Grid takes remaining space
 
     // Right panel: Live preview
@@ -391,8 +405,47 @@ void ControlWindow::setupUI()
     m_livePreviewPanel->setSettingsManager(m_settingsManager);
     contentLayout->addWidget(m_livePreviewPanel);
 
-    mainLayout->addLayout(contentLayout, 1);  // Content area stretches
+    // Wrap content in a widget for the splitter
+    QWidget* contentWidget = new QWidget(this);
+    contentWidget->setLayout(contentLayout);
 
+    // Create media drawer (bottom panel — toggle bar always visible, content starts collapsed)
+    m_mediaDrawer = new MediaDrawer(m_mediaLibrary, m_thumbnailGenerator, this);
+
+    // Sync View menu and adjust splitter when drawer is toggled
+    connect(m_mediaDrawer, &MediaDrawer::expandedChanged, this, [this](bool expanded) {
+        m_toggleMediaDrawerAction->setChecked(expanded);
+
+        QList<int> sizes = m_mainSplitter->sizes();
+        if (sizes.size() != 2) return;
+
+        int total = sizes[0] + sizes[1];
+
+        if (expanded) {
+            // Expand: give the drawer its remembered height
+            int drawerHeight = qMin(m_drawerExpandedHeight, total * 2 / 3);
+            sizes[0] = total - drawerHeight;
+            sizes[1] = drawerHeight;
+        } else {
+            // Collapse: remember current drawer height, then shrink to toggle bar only
+            if (sizes[1] > 30) {
+                m_drawerExpandedHeight = sizes[1];
+            }
+            int barHeight = 22;
+            sizes[0] = total - barHeight;
+            sizes[1] = barHeight;
+        }
+        m_mainSplitter->setSizes(sizes);
+    });
+
+    // Vertical splitter: content on top, media drawer on bottom
+    m_mainSplitter = new QSplitter(Qt::Vertical, this);
+    m_mainSplitter->addWidget(contentWidget);
+    m_mainSplitter->addWidget(m_mediaDrawer);
+    m_mainSplitter->setStretchFactor(0, 1);  // Content stretches
+    m_mainSplitter->setStretchFactor(1, 0);  // Drawer stays at set size
+
+    mainLayout->addWidget(m_mainSplitter, 1);
 
     // Connect live preview double-click signals to toggle output/confidence displays
     connect(m_livePreviewPanel, &LivePreviewPanel::outputDoubleClicked, this, &ControlWindow::toggleOutputDisplay);
@@ -1664,6 +1717,162 @@ void ControlWindow::onCloneFormatToGroup()
              << "(" << item->slideCount() << "slides)";
 }
 
+void ControlWindow::onMediaDroppedOnSlide(const QModelIndex& proxyIndex, const QString& path,
+                                           const QString& mediaType, bool applyToGroup)
+{
+    if (!proxyIndex.isValid()) return;
+
+    // Map proxy → source flat index
+    QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(proxyIndex);
+    int flatIndex = sourceIndex.isValid() ? sourceIndex.row() : proxyIndex.row();
+
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) return;
+
+    // Prepare the background data based on media type
+    Slide::BackgroundType bgType;
+    QByteArray imageData;
+    if (mediaType == "video") {
+        bgType = Slide::Video;
+    } else {
+        bgType = Slide::Image;
+        // Read raw file bytes directly — avoids expensive decode→re-encode cycle
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning() << "Failed to read image file for drop:" << path;
+            return;
+        }
+        imageData = file.readAll();
+        if (imageData.isEmpty()) {
+            qWarning() << "Image file is empty:" << path;
+            return;
+        }
+    }
+
+    // Helper lambda to apply the background to a single Slide object
+    auto applyBackground = [&](Slide& slide) {
+        slide.setBackgroundType(bgType);
+        if (bgType == Slide::Image) {
+            slide.setBackgroundImagePath(path);
+            slide.setBackgroundImageData(imageData);
+        } else {
+            slide.setBackgroundVideoPath(path);
+            slide.setVideoLoop(true);
+        }
+    };
+
+    if (!applyToGroup) {
+        // Single slide: apply background
+        SlidePosition pos = presentation->positionForFlatIndex(flatIndex);
+        if (!pos.isValid()) return;
+
+        PresentationItem* item = presentation->itemAt(pos.itemIndex);
+        if (!item) return;
+
+        if (qobject_cast<SongItem*>(item) || qobject_cast<ScriptureItem*>(item)) {
+            // For SongItem/ScriptureItem, use per-slide style override
+            // (same pattern as onApplyThemeToSlide)
+            Slide refSlide = m_presentationModel->getSlide(flatIndex);
+            SlideStyle style;
+            style.backgroundColor = refSlide.backgroundColor();
+            style.textColor = refSlide.textColor();
+            style.fontFamily = refSlide.fontFamily();
+            style.fontSize = refSlide.fontSize();
+            style.backgroundType = bgType;
+            style.gradientStartColor = refSlide.gradientStartColor();
+            style.gradientEndColor = refSlide.gradientEndColor();
+            style.gradientAngle = refSlide.gradientAngle();
+            if (bgType == Slide::Image) {
+                style.backgroundImagePath = path;
+                style.backgroundImageData = imageData;
+            } else {
+                style.backgroundVideoPath = path;
+                style.videoLoop = true;
+            }
+            item->setSlideStyleOverride(pos.slideInItem, style);
+        } else {
+            // For SlideGroupItem/CustomSlideItem, update the slide directly
+            Slide slide = m_presentationModel->getSlide(flatIndex);
+            applyBackground(slide);
+            m_presentationModel->updateSlide(flatIndex, slide);
+        }
+
+        // Invalidate delegate cache for this slide
+        m_slideDelegate->invalidateCacheFor(flatIndex);
+        QModelIndex srcIdx = m_presentationModel->index(flatIndex, 0);
+        emit m_presentationModel->dataChanged(srcIdx, srcIdx);
+
+        qDebug() << "Applied" << mediaType << "background to slide" << flatIndex;
+    } else {
+        // Whole group: apply to every slide in the item
+        SlidePosition pos = presentation->positionForFlatIndex(flatIndex);
+        if (!pos.isValid()) return;
+
+        PresentationItem* item = presentation->itemAt(pos.itemIndex);
+        if (!item) return;
+
+        if (auto* groupItem = qobject_cast<SlideGroupItem*>(item)) {
+            // For SlideGroupItem, apply directly to each slide
+            QList<Slide> slides = groupItem->slides();
+            for (int i = 0; i < slides.count(); ++i) {
+                Slide& slide = slides[i];
+                applyBackground(slide);
+                groupItem->updateSlide(i, slide);
+            }
+            groupItem->invalidateSlideCache();
+        } else {
+            // For SongItem/ScriptureItem, update the item style so regenerated slides get the background
+            SlideStyle style;
+            Slide refSlide = m_presentationModel->getSlide(flatIndex);
+            style.backgroundColor = refSlide.backgroundColor();
+            style.textColor = refSlide.textColor();
+            style.fontFamily = refSlide.fontFamily();
+            style.fontSize = refSlide.fontSize();
+            style.backgroundType = bgType;
+            style.gradientStartColor = refSlide.gradientStartColor();
+            style.gradientEndColor = refSlide.gradientEndColor();
+            style.gradientAngle = refSlide.gradientAngle();
+            if (bgType == Slide::Image) {
+                style.backgroundImagePath = path;
+                style.backgroundImageData = imageData;
+            } else {
+                style.backgroundVideoPath = path;
+                style.videoLoop = true;
+            }
+            item->setItemStyle(style);
+        }
+
+        // Invalidate caches and emit dataChanged for all slides in the item
+        int itemStart = presentation->flatIndexForPosition(pos.itemIndex, 0);
+        int itemEnd = itemStart + item->slideCount() - 1;
+        for (int i = itemStart; i <= itemEnd; ++i) {
+            m_slideDelegate->invalidateCacheFor(i);
+        }
+        QModelIndex startIdx = m_presentationModel->index(itemStart, 0);
+        QModelIndex endIdx = m_presentationModel->index(itemEnd, 0);
+        emit m_presentationModel->dataChanged(startIdx, endIdx);
+
+        qDebug() << "Applied" << mediaType << "background to group" << item->displayName()
+                 << "(" << item->slideCount() << "slides)";
+    }
+
+    // Broadcast if the current slide was affected
+    int currentSlideIndex = m_presentationModel->currentSlideIndex();
+    if (!applyToGroup) {
+        if (currentSlideIndex == flatIndex) {
+            broadcastCurrentSlide();
+        }
+    } else {
+        SlidePosition pos = presentation->positionForFlatIndex(flatIndex);
+        SlidePosition currentPos = presentation->positionForFlatIndex(currentSlideIndex);
+        if (currentPos.itemIndex == pos.itemIndex) {
+            broadcastCurrentSlide();
+        }
+    }
+
+    markDirty();
+}
+
 void ControlWindow::onManageThemes()
 {
     // Open the theme selector dialog in management mode
@@ -1906,6 +2115,11 @@ void ControlWindow::toggleConfidenceMonitor()
     }
 }
 
+void ControlWindow::toggleMediaDrawer()
+{
+    m_mediaDrawer->setExpanded(!m_mediaDrawer->isExpanded());
+}
+
 void ControlWindow::showKeyboardShortcuts()
 {
     QString shortcuts = R"(
@@ -1952,6 +2166,7 @@ void ControlWindow::showKeyboardShortcuts()
 <tr><td><b>Ctrl+B</b></td><td>Insert Bible verse</td></tr>
 <tr><td><b>Ctrl+L</b></td><td>Insert song lyrics</td></tr>
 <tr><td><b>Ctrl+T</b></td><td>Apply theme</td></tr>
+<tr><td><b>Ctrl+M</b></td><td>Toggle media library drawer</td></tr>
 </table>
 )";
 

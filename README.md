@@ -26,6 +26,9 @@ Clarity now includes comprehensive presentation features suitable for worship se
 - Automatic import when selecting backgrounds
 - **Video thumbnails** generated via FFmpeg
 - Clean grid-based browser with previews
+- **Drag-and-drop** media onto slides to set backgrounds
+  - Left-drag applies to a single slide
+  - Right-drag applies to all slides in a group/item
 
 #### Presentation Controls
 - Grid and list view modes for slides

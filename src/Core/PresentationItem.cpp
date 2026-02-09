@@ -101,10 +101,14 @@ QJsonObject PresentationItem::baseToJson() const
         styleJson["fontFamily"] = m_itemStyle.fontFamily;
         styleJson["fontSize"] = m_itemStyle.fontSize;
 
-        // Gradient support
+        // Background type
         QString bgTypeStr = "solidColor";
         if (m_itemStyle.backgroundType == Slide::Gradient) {
             bgTypeStr = "gradient";
+        } else if (m_itemStyle.backgroundType == Slide::Image) {
+            bgTypeStr = "image";
+        } else if (m_itemStyle.backgroundType == Slide::Video) {
+            bgTypeStr = "video";
         }
         styleJson["backgroundType"] = bgTypeStr;
 
@@ -112,6 +116,14 @@ QJsonObject PresentationItem::baseToJson() const
             styleJson["gradientStartColor"] = m_itemStyle.gradientStartColor.name();
             styleJson["gradientEndColor"] = m_itemStyle.gradientEndColor.name();
             styleJson["gradientAngle"] = m_itemStyle.gradientAngle;
+        } else if (m_itemStyle.backgroundType == Slide::Image) {
+            styleJson["backgroundImagePath"] = m_itemStyle.backgroundImagePath;
+            if (!m_itemStyle.backgroundImageData.isEmpty()) {
+                styleJson["backgroundImageData"] = QString::fromLatin1(m_itemStyle.backgroundImageData.toBase64());
+            }
+        } else if (m_itemStyle.backgroundType == Slide::Video) {
+            styleJson["backgroundVideoPath"] = m_itemStyle.backgroundVideoPath;
+            styleJson["videoLoop"] = m_itemStyle.videoLoop;
         }
 
         json["style"] = styleJson;
@@ -133,6 +145,16 @@ QJsonObject PresentationItem::baseToJson() const
                 ssJson["gradientStartColor"] = it.value().gradientStartColor.name();
                 ssJson["gradientEndColor"] = it.value().gradientEndColor.name();
                 ssJson["gradientAngle"] = it.value().gradientAngle;
+            } else if (it.value().backgroundType == Slide::Image) {
+                bgTypeStr = "image";
+                ssJson["backgroundImagePath"] = it.value().backgroundImagePath;
+                if (!it.value().backgroundImageData.isEmpty()) {
+                    ssJson["backgroundImageData"] = QString::fromLatin1(it.value().backgroundImageData.toBase64());
+                }
+            } else if (it.value().backgroundType == Slide::Video) {
+                bgTypeStr = "video";
+                ssJson["backgroundVideoPath"] = it.value().backgroundVideoPath;
+                ssJson["videoLoop"] = it.value().videoLoop;
             }
             ssJson["backgroundType"] = bgTypeStr;
 
@@ -155,13 +177,24 @@ void PresentationItem::applyBaseJson(const QJsonObject& json)
         m_itemStyle.fontFamily = styleJson["fontFamily"].toString("Arial");
         m_itemStyle.fontSize = styleJson["fontSize"].toInt(48);
 
-        // Gradient support
+        // Background type
         QString bgTypeStr = styleJson["backgroundType"].toString("solidColor");
         if (bgTypeStr == "gradient") {
             m_itemStyle.backgroundType = Slide::Gradient;
             m_itemStyle.gradientStartColor = QColor(styleJson["gradientStartColor"].toString("#1e3a8a"));
             m_itemStyle.gradientEndColor = QColor(styleJson["gradientEndColor"].toString("#60a5fa"));
             m_itemStyle.gradientAngle = styleJson["gradientAngle"].toInt(135);
+        } else if (bgTypeStr == "image") {
+            m_itemStyle.backgroundType = Slide::Image;
+            m_itemStyle.backgroundImagePath = styleJson["backgroundImagePath"].toString();
+            if (styleJson.contains("backgroundImageData")) {
+                m_itemStyle.backgroundImageData = QByteArray::fromBase64(
+                    styleJson["backgroundImageData"].toString().toLatin1());
+            }
+        } else if (bgTypeStr == "video") {
+            m_itemStyle.backgroundType = Slide::Video;
+            m_itemStyle.backgroundVideoPath = styleJson["backgroundVideoPath"].toString();
+            m_itemStyle.videoLoop = styleJson["videoLoop"].toBool(true);
         } else {
             m_itemStyle.backgroundType = Slide::SolidColor;
         }
@@ -190,6 +223,17 @@ void PresentationItem::applyBaseJson(const QJsonObject& json)
                 style.gradientStartColor = QColor(ssJson["gradientStartColor"].toString("#1e3a8a"));
                 style.gradientEndColor = QColor(ssJson["gradientEndColor"].toString("#60a5fa"));
                 style.gradientAngle = ssJson["gradientAngle"].toInt(135);
+            } else if (bgTypeStr == "image") {
+                style.backgroundType = Slide::Image;
+                style.backgroundImagePath = ssJson["backgroundImagePath"].toString();
+                if (ssJson.contains("backgroundImageData")) {
+                    style.backgroundImageData = QByteArray::fromBase64(
+                        ssJson["backgroundImageData"].toString().toLatin1());
+                }
+            } else if (bgTypeStr == "video") {
+                style.backgroundType = Slide::Video;
+                style.backgroundVideoPath = ssJson["backgroundVideoPath"].toString();
+                style.videoLoop = ssJson["videoLoop"].toBool(true);
             } else {
                 style.backgroundType = Slide::SolidColor;
             }

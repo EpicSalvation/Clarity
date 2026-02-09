@@ -17,8 +17,10 @@
 #include "SlideGridDelegate.h"
 #include "SlideGridView.h"
 #include "LivePreviewPanel.h"
+#include "MediaDrawer.h"
 #include <QMainWindow>
 #include <QListView>
+#include <QSplitter>
 #include <QPushButton>
 #include <QLabel>
 #include <QShortcut>
@@ -91,8 +93,15 @@ private slots:
     void toggleOutputFullscreen();
     void toggleConfidenceMonitor();
 
+    // View
+    void toggleMediaDrawer();
+
     // Help
     void showKeyboardShortcuts();
+
+    // Media drag-and-drop
+    void onMediaDroppedOnSlide(const QModelIndex& proxyIndex, const QString& path,
+                               const QString& mediaType, bool applyToGroup);
 
     // Theme operations
     void onApplyTheme();
@@ -135,6 +144,9 @@ private:
     SlideGridView* m_slideGridView;           ///< Center grid view for slide thumbnails
     SlideGridDelegate* m_slideDelegate;      ///< Custom delegate for grid rendering
     LivePreviewPanel* m_livePreviewPanel;    ///< Right panel live preview
+    MediaDrawer* m_mediaDrawer;              ///< Bottom media library drawer
+    QSplitter* m_mainSplitter;               ///< Vertical splitter for content + drawer
+    QAction* m_toggleMediaDrawerAction;      ///< View menu toggle action
     QPushButton* m_addSlideButton;
     QPushButton* m_deleteSlideButton;
     QPushButton* m_moveUpButton;
@@ -166,6 +178,9 @@ private:
     // Display visibility tracking for preview borders
     bool m_outputVisible = false;       ///< Whether output display is visible (not just connected)
     bool m_confidenceVisible = false;   ///< Whether confidence monitor is visible (not just connected)
+
+    // Media drawer state
+    int m_drawerExpandedHeight = 200;  ///< Remembered drawer height when expanded
 
     // Song usage tracking (prevents duplicate records per session)
     QSet<int> m_recordedSongUsage;  ///< Song IDs that have been recorded this session

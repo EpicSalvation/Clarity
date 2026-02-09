@@ -5,6 +5,8 @@
 #include <QDropEvent>
 #include <QPainter>
 #include <QMimeData>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 namespace Clarity {
 
@@ -17,6 +19,8 @@ void SlideGridView::dragEnterEvent(QDragEnterEvent* event)
 {
     if (event->mimeData()->hasFormat("application/x-clarity-slide-index")) {
         event->acceptProposedAction();
+    } else if (event->mimeData()->hasFormat("application/x-clarity-media-path")) {
+        event->acceptProposedAction();
     } else {
         event->ignore();
     }
@@ -24,6 +28,28 @@ void SlideGridView::dragEnterEvent(QDragEnterEvent* event)
 
 void SlideGridView::dragMoveEvent(QDragMoveEvent* event)
 {
+    // Media drag: highlight the slide under the cursor
+    if (event->mimeData()->hasFormat("application/x-clarity-media-path")) {
+        QModelIndex idx = indexAt(event->position().toPoint());
+        if (idx.isValid()) {
+            event->acceptProposedAction();
+        } else {
+            event->ignore();
+        }
+
+        // Parse applyToGroup from the mime data
+        QByteArray data = event->mimeData()->data("application/x-clarity-media-path");
+        QJsonObject json = QJsonDocument::fromJson(data).object();
+        m_mediaApplyToGroup = json.value("applyToGroup").toBool(false);
+
+        if (m_mediaHighlightIndex != idx) {
+            m_mediaHighlightIndex = idx;
+            viewport()->update();
+        }
+        return;
+    }
+
+    // Slide reorder drag
     if (!event->mimeData()->hasFormat("application/x-clarity-slide-index")) {
         event->ignore();
         return;
@@ -51,11 +77,37 @@ void SlideGridView::dragLeaveEvent(QDragLeaveEvent* event)
 {
     Q_UNUSED(event);
     m_dropIndicatorIndex = -1;
+    m_mediaHighlightIndex = QModelIndex();
     viewport()->update();
 }
 
 void SlideGridView::dropEvent(QDropEvent* event)
 {
+    // Media drop: emit signal with target slide and media info
+    if (event->mimeData()->hasFormat("application/x-clarity-media-path")) {
+        QModelIndex idx = indexAt(event->position().toPoint());
+        if (!idx.isValid()) {
+            event->ignore();
+            m_mediaHighlightIndex = QModelIndex();
+            viewport()->update();
+            return;
+        }
+
+        QByteArray data = event->mimeData()->data("application/x-clarity-media-path");
+        QJsonObject json = QJsonDocument::fromJson(data).object();
+        QString path = json.value("path").toString();
+        QString mediaType = json.value("mediaType").toString();
+        bool applyToGroup = json.value("applyToGroup").toBool(false);
+
+        event->acceptProposedAction();
+        m_mediaHighlightIndex = QModelIndex();
+        viewport()->update();
+
+        emit mediaDropped(idx, path, mediaType, applyToGroup);
+        return;
+    }
+
+    // Slide reorder drop
     if (!event->mimeData()->hasFormat("application/x-clarity-slide-index")) {
         event->ignore();
         return;
@@ -80,6 +132,21 @@ void SlideGridView::paintEvent(QPaintEvent* event)
 {
     // Draw the base list view first
     QListView::paintEvent(event);
+
+    // Draw media drop highlight around target slide
+    if (m_mediaHighlightIndex.isValid()) {
+        QRect rect = visualRect(m_mediaHighlightIndex);
+        if (rect.isValid()) {
+            QPainter painter(viewport());
+            painter.setRenderHint(QPainter::Antialiasing, false);
+            // Green border for single slide, blue for whole group
+            QColor color = m_mediaApplyToGroup ? QColor("#3b82f6") : QColor("#22c55e");
+            QPen pen(color, 3);
+            painter.setPen(pen);
+            painter.setBrush(Qt::NoBrush);
+            painter.drawRect(rect.adjusted(1, 1, -1, -1));
+        }
+    }
 
     // Draw insertion indicator line
     int count = model() ? model()->rowCount() : 0;

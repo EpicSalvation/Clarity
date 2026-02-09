@@ -5,17 +5,31 @@
 namespace Clarity {
 
 /**
- * @brief Custom QListView subclass that provides insert-between drag-and-drop.
+ * @brief Custom QListView subclass that provides insert-between drag-and-drop
+ * and media-onto-slide drag-and-drop.
  *
- * Instead of Qt's default IconMode drop behavior (dropping "on top of" items),
- * this view calculates the insertion gap between items during a drag and draws
- * a vertical blue line to indicate where the slide will be inserted.
+ * For slide reordering (application/x-clarity-slide-index): draws a vertical
+ * blue insertion line between items.
+ *
+ * For media drops (application/x-clarity-media-path): highlights the target
+ * slide with a colored border (green=single, blue=group).
  */
 class SlideGridView : public QListView {
     Q_OBJECT
 
 public:
     explicit SlideGridView(QWidget* parent = nullptr);
+
+signals:
+    /**
+     * @brief Emitted when a media item is dropped onto a slide.
+     * @param index The proxy model index of the target slide
+     * @param path Filesystem path of the media file
+     * @param mediaType "image" or "video"
+     * @param applyToGroup If true, apply to all slides in the target's group/item
+     */
+    void mediaDropped(const QModelIndex& index, const QString& path,
+                      const QString& mediaType, bool applyToGroup);
 
 protected:
     void dragEnterEvent(QDragEnterEvent* event) override;
@@ -33,7 +47,9 @@ private:
      */
     int insertionIndexAt(const QPoint& pos) const;
 
-    int m_dropIndicatorIndex = -1;  ///< Proxy row where the insertion line appears (-1 = hidden)
+    int m_dropIndicatorIndex = -1;      ///< Proxy row where the insertion line appears (-1 = hidden)
+    QModelIndex m_mediaHighlightIndex;  ///< Proxy index of slide being targeted by media drag
+    bool m_mediaApplyToGroup = false;   ///< Whether the current media drag targets the whole group
 };
 
 } // namespace Clarity

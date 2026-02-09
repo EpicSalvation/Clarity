@@ -4,6 +4,96 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-08 - Drag-and-Drop Media onto Slides, Image Optimization, Theme Shadows
+
+### Summary
+Implemented drag-and-drop from the media drawer directly onto the slide grid to apply image/video backgrounds. Left-click drag applies the background to a single slide; right-click drag applies it to every slide in the target's group/item. Also optimized image background application (was 3-5s, now instant), enabled per-slide backgrounds on SongItem/ScriptureItem via style overrides, and added drop shadow support to themes with light shadows for dark-text themes.
+
+### Work Completed
+
+#### Media Drag-and-Drop
+- **`src/Core/Song.h`** — Extended `SlideStyle` with `backgroundImagePath`, `backgroundImageData`, `backgroundVideoPath`, `videoLoop` fields; updated `applyTo()` for Image/Video background types
+- **`src/Control/MediaDrawer.h/.cpp`** — Added `MediaListWidget` subclass:
+  - Left-click + right-click drag initiation via mouse event overrides
+  - Produces `application/x-clarity-media-path` mime data with JSON `{path, mediaType, applyToGroup}`
+  - Item icon used as drag pixmap
+- **`src/Control/SlideGridView.h/.cpp`** — Media drop support:
+  - Accepts `application/x-clarity-media-path` in drag events
+  - Highlights target slide (green=single, blue=group) via `m_mediaHighlightIndex`
+  - Emits `mediaDropped(index, path, mediaType, applyToGroup)` signal
+- **`src/Control/ControlWindow.h/.cpp`** — `onMediaDroppedOnSlide` slot:
+  - SlideGroupItem/CustomSlideItem: updates slide directly via `updateSlide()`
+  - SongItem/ScriptureItem single slide: uses `setSlideStyleOverride()` for per-slide backgrounds
+  - SongItem/ScriptureItem group: uses `setItemStyle()` for whole-item backgrounds
+  - Invalidates caches, broadcasts to output, marks dirty
+
+#### Image Background Optimization
+- **`ControlWindow.cpp`** / **`SlideEditorDialog.cpp`** — Replaced expensive `QPixmap` decode → PNG re-encode with direct `QFile::readAll()` for raw byte storage. All consumers (`loadFromData`, base64 data URIs) auto-detect format.
+- **`OutputDisplay.qml`** — Changed data URI MIME type from `image/png` to `application/octet-stream` for format-agnostic loading
+
+#### Per-Slide Style Override Serialization
+- **`src/Core/PresentationItem.cpp`** — Added image/video support to both item-level style and per-slide style override serialization/deserialization (`backgroundImagePath`, `backgroundImageData`, `backgroundVideoPath`, `videoLoop`)
+
+#### Theme Drop Shadow Support
+- **`src/Core/Theme.h/.cpp`** — Added drop shadow fields (`enabled`, `color`, `offsetX/Y`, `blur`) with getters/setters, `applyToSlide()` integration, and JSON serialization
+- **`src/Core/ThemeManager.cpp`** — Set light shadow colors on four dark-text themes:
+  - Sunrise: warm white glow `rgba(255, 255, 240, 100)`
+  - Clean White: subtle cool gray `rgba(180, 180, 190, 80)`
+  - Scripture Parchment: warm parchment glow `rgba(255, 245, 230, 100)`
+  - Scripture Classic: soft cream glow `rgba(255, 250, 240, 90)`
+
+### Technical Decisions
+- Right-click drag via mouse event overrides on QListWidget subclass rather than global QDrag modification
+- Raw file bytes stored instead of PNG re-encode — avoids 3-5s decode/compress latency for large images
+- Per-slide style overrides used for SongItem/ScriptureItem single-slide backgrounds, matching the existing per-slide theme pattern; SlideGroupItem uses direct slide mutation
+
+### Testing
+- Manual: build succeeds, all features verified working
+
+---
+
+## 2026-02-08 - Media Drawer
+
+### Summary
+Added a collapsible media drawer at the bottom of the control window, providing persistent, quick access to the media library (images and videos) without needing to open a modal dialog. The drawer uses a vertical QSplitter for user-resizable height, has tab buttons for switching between Images and Videos, shows thumbnails in a grid, and supports importing new media. It auto-refreshes when media is added or removed from any source (e.g., the existing MediaLibraryDialog).
+
+### Work Completed
+
+#### New Files
+- **`src/Control/MediaDrawer.h`** / **`MediaDrawer.cpp`** — New `MediaDrawer` widget
+  - Header bar with "Media" title, Images/Videos toggle buttons, Import button
+  - QListWidget in icon mode with 120x90 thumbnails in 130x100 grid cells
+  - Reuses `createCenteredThumbnail()` pattern from MediaLibraryDialog
+  - Connected to `MediaLibrary::mediaAdded`/`mediaRemoved` signals for auto-refresh
+  - Connected to `VideoThumbnailGenerator::thumbnailReady` for async video thumbnails
+  - Import flow reuses same pattern as MediaLibraryDialog (file dialog, addImage/addVideo)
+
+#### Modified Files
+- **`src/Control/ControlWindow.h`** — Added `m_mediaDrawer`, `m_mainSplitter`, `m_toggleMediaDrawerAction` members; `toggleMediaDrawer()` slot
+- **`src/Control/ControlWindow.cpp`**:
+  - Added View menu between Slide and Format menus with "Media Library" action (Ctrl+M, checkable)
+  - Replaced direct `mainLayout->addLayout(contentLayout)` with QSplitter layout: content widget on top, MediaDrawer on bottom
+  - Splitter has stretch factor 1 for content, 0 for drawer; children not collapsible
+  - `toggleMediaDrawer()` shows/hides drawer, sets default 200px height on first open
+  - Added Ctrl+M to keyboard shortcuts help dialog
+- **`CMakeLists.txt`** — Added MediaDrawer.h/.cpp to Clarity executable sources
+
+### Technical Decisions
+- Duplicated `createCenteredThumbnail()` helper rather than extracting to shared location — it's a small static function and the plan explicitly allowed this
+- Drawer starts hidden (not visible) and toggle action starts unchecked
+- Used `setChildrenCollapsible(false)` on splitter to prevent the drawer from being collapsed to zero by accident via dragging
+- No splitter state persistence yet (can be added later via SettingsManager)
+
+### Testing
+- Build: Compiles cleanly with no errors
+- Manual: Verify drawer starts hidden, toggles via View > Media Library (Ctrl+M), shows thumbnails, imports work, splitter resizable
+
+### Next Steps
+- Drag-and-drop from media drawer to slide grid (apply as background)
+- Persist splitter state in SettingsManager
+
+---
+
 ## 2026-02-08 - Visual Grouping for Song Sections
 
 ### Summary

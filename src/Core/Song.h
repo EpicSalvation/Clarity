@@ -57,6 +57,12 @@ struct SlideStyle {
     QColor gradientEndColor;
     int gradientAngle;
 
+    // Image/video background support
+    QString backgroundImagePath;
+    QByteArray backgroundImageData;
+    QString backgroundVideoPath;
+    bool videoLoop = true;
+
     SlideStyle()
         : backgroundColor("#1e3a8a")
         , textColor("#ffffff")
@@ -87,6 +93,14 @@ struct SlideStyle {
             slide.setGradientStartColor(gradientStartColor);
             slide.setGradientEndColor(gradientEndColor);
             slide.setGradientAngle(gradientAngle);
+        }
+        if (backgroundType == Slide::Image) {
+            slide.setBackgroundImagePath(backgroundImagePath);
+            slide.setBackgroundImageData(backgroundImageData);
+        }
+        if (backgroundType == Slide::Video) {
+            slide.setBackgroundVideoPath(backgroundVideoPath);
+            slide.setVideoLoop(videoLoop);
         }
     }
 };

@@ -43,6 +43,13 @@ public:
     int gradientAngle() const { return m_gradientAngle; }
     QByteArray backgroundImageData() const { return m_backgroundImageData; }
 
+    // Drop shadow
+    bool dropShadowEnabled() const { return m_dropShadowEnabled; }
+    QColor dropShadowColor() const { return m_dropShadowColor; }
+    int dropShadowOffsetX() const { return m_dropShadowOffsetX; }
+    int dropShadowOffsetY() const { return m_dropShadowOffsetY; }
+    int dropShadowBlur() const { return m_dropShadowBlur; }
+
     // Setters
     void setName(const QString& name) { m_name = name; }
     void setDescription(const QString& description) { m_description = description; }
@@ -64,6 +71,13 @@ public:
     void setGradientEndColor(const QColor& color) { m_gradientEndColor = color; }
     void setGradientAngle(int angle) { m_gradientAngle = angle; }
     void setBackgroundImageData(const QByteArray& data) { m_backgroundImageData = data; }
+
+    // Drop shadow
+    void setDropShadowEnabled(bool enabled) { m_dropShadowEnabled = enabled; }
+    void setDropShadowColor(const QColor& color) { m_dropShadowColor = color; }
+    void setDropShadowOffsetX(int offset) { m_dropShadowOffsetX = offset; }
+    void setDropShadowOffsetY(int offset) { m_dropShadowOffsetY = offset; }
+    void setDropShadowBlur(int blur) { m_dropShadowBlur = blur; }
 
     // Apply theme to a slide
     void applyToSlide(Slide& slide) const;
@@ -103,6 +117,13 @@ private:
     QColor m_gradientEndColor;
     int m_gradientAngle;
     QByteArray m_backgroundImageData;
+
+    // Drop shadow
+    bool m_dropShadowEnabled = true;
+    QColor m_dropShadowColor = QColor("#000000");
+    int m_dropShadowOffsetX = 2;
+    int m_dropShadowOffsetY = 2;
+    int m_dropShadowBlur = 4;
 };
 
 } // namespace Clarity

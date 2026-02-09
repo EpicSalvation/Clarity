@@ -653,32 +653,34 @@ void SlideEditorDialog::onBrowseImageLibrary()
 
 void SlideEditorDialog::setImageFromPath(const QString& path)
 {
-    // Load image file
-    QPixmap pixmap(path);
-    if (pixmap.isNull()) {
-        qWarning() << "Failed to load image:" << path;
+    // Read raw file bytes directly — avoids expensive decode→re-encode cycle
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to read image:" << path;
         return;
     }
-
-    // Convert to byte array
-    QByteArray imageData;
-    QBuffer buffer(&imageData);
-    buffer.open(QIODevice::WriteOnly);
-    pixmap.save(&buffer, "PNG");
+    QByteArray imageData = file.readAll();
+    if (imageData.isEmpty()) {
+        qWarning() << "Image file is empty:" << path;
+        return;
+    }
 
     // Update slide
     m_slide.setBackgroundImagePath(path);
     m_slide.setBackgroundImageData(imageData);
 
-    // Update UI - show just the filename for cleaner display
+    // Update UI preview - load pixmap for the small preview widget
+    QPixmap pixmap(path);
     QFileInfo fileInfo(path);
     m_imagePathEdit->setText(fileInfo.fileName());
     m_imagePathEdit->setToolTip(path);
-    m_imagePreviewLabel->setPixmap(pixmap.scaled(
-        m_imagePreviewLabel->size(),
-        Qt::KeepAspectRatio,
-        Qt::SmoothTransformation
-    ));
+    if (!pixmap.isNull()) {
+        m_imagePreviewLabel->setPixmap(pixmap.scaled(
+            m_imagePreviewLabel->size(),
+            Qt::KeepAspectRatio,
+            Qt::SmoothTransformation
+        ));
+    }
 
     qDebug() << "Loaded background image:" << path << "size:" << imageData.size() << "bytes";
 }

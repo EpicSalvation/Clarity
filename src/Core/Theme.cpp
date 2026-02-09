@@ -62,6 +62,13 @@ void Theme::applyToSlide(Slide& slide) const
         slide.setBackgroundImageData(m_backgroundImageData);
         break;
     }
+
+    // Apply drop shadow
+    slide.setDropShadowEnabled(m_dropShadowEnabled);
+    slide.setDropShadowColor(m_dropShadowColor);
+    slide.setDropShadowOffsetX(m_dropShadowOffsetX);
+    slide.setDropShadowOffsetY(m_dropShadowOffsetY);
+    slide.setDropShadowBlur(m_dropShadowBlur);
 }
 
 Slide Theme::createSlide(const QString& text) const
@@ -130,6 +137,13 @@ QJsonObject Theme::toJson() const
         json["backgroundImageData"] = QString::fromLatin1(m_backgroundImageData.toBase64());
     }
 
+    // Drop shadow
+    json["dropShadowEnabled"] = m_dropShadowEnabled;
+    json["dropShadowColor"] = m_dropShadowColor.name(QColor::HexArgb);
+    json["dropShadowOffsetX"] = m_dropShadowOffsetX;
+    json["dropShadowOffsetY"] = m_dropShadowOffsetY;
+    json["dropShadowBlur"] = m_dropShadowBlur;
+
     return json;
 }
 
@@ -173,6 +187,13 @@ Theme Theme::fromJson(const QJsonObject& json)
             json["backgroundImageData"].toString().toLatin1()
         );
     }
+
+    // Drop shadow
+    theme.m_dropShadowEnabled = json["dropShadowEnabled"].toBool(true);
+    theme.m_dropShadowColor = QColor(json["dropShadowColor"].toString("#000000"));
+    theme.m_dropShadowOffsetX = json["dropShadowOffsetX"].toInt(2);
+    theme.m_dropShadowOffsetY = json["dropShadowOffsetY"].toInt(2);
+    theme.m_dropShadowBlur = json["dropShadowBlur"].toInt(4);
 
     return theme;
 }

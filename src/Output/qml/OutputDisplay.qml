@@ -406,7 +406,7 @@ Window {
             anchors.fill: parent
             visible: root.backgroundTypeA === "image"
             source: root.backgroundTypeA === "image" && root.backgroundImageDataBase64A !== ""
-                    ? "data:image/png;base64," + root.backgroundImageDataBase64A : ""
+                    ? "data:application/octet-stream;base64," + root.backgroundImageDataBase64A : ""
             fillMode: Image.PreserveAspectCrop
             smooth: true
         }
@@ -551,7 +551,7 @@ Window {
             anchors.fill: parent
             visible: root.backgroundTypeB === "image"
             source: root.backgroundTypeB === "image" && root.backgroundImageDataBase64B !== ""
-                    ? "data:image/png;base64," + root.backgroundImageDataBase64B : ""
+                    ? "data:application/octet-stream;base64," + root.backgroundImageDataBase64B : ""
             fillMode: Image.PreserveAspectCrop
             smooth: true
         }

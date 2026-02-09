@@ -90,6 +90,7 @@ void ThemeManager::initBuiltInThemes()
         theme.setFontFamily("Arial");
         theme.setTitleFontSize(72);
         theme.setBodyFontSize(48);
+        theme.setDropShadowColor(QColor(255, 255, 240, 100));  // Warm white glow
         m_builtInThemes.append(theme);
     }
 
@@ -136,6 +137,7 @@ void ThemeManager::initBuiltInThemes()
         theme.setFontFamily("Arial");
         theme.setTitleFontSize(72);
         theme.setBodyFontSize(48);
+        theme.setDropShadowColor(QColor(180, 180, 190, 80));  // Subtle cool gray
         m_builtInThemes.append(theme);
     }
 
@@ -156,6 +158,7 @@ void ThemeManager::initBuiltInThemes()
         theme.setFontFamily("Georgia");
         theme.setTitleFontSize(64);
         theme.setBodyFontSize(44);
+        theme.setDropShadowColor(QColor(255, 245, 230, 100));  // Warm parchment glow
         m_builtInThemes.append(theme);
     }
 
@@ -170,6 +173,7 @@ void ThemeManager::initBuiltInThemes()
         theme.setFontFamily("Times New Roman");
         theme.setTitleFontSize(64);
         theme.setBodyFontSize(44);
+        theme.setDropShadowColor(QColor(255, 250, 240, 90));  // Soft cream glow
         m_builtInThemes.append(theme);
     }
 
