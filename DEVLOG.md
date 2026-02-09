@@ -4,6 +4,66 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-08 - Visual Grouping for Song Sections
+
+### Summary
+Added visual section grouping for songs in the slide grid. Song slides now display color-coded section banners (Verse = blue, Chorus = green, Bridge = amber, etc.) spanning the full thumbnail width on the first slide of each section, with thin color strips on continuation slides. Users can drag-drop to reorder entire sections within a song, and right-click to duplicate or delete sections. Duplicated sections share the same color as the original. Section order is per-presentation (doesn't modify the library song) and persists in save files.
+
+### Work Completed
+
+#### Slide (`src/Core/Slide.h`, `Slide.cpp`)
+- Added `m_groupLabel` (QString) and `m_groupIndex` (int, default -1) metadata fields
+- Getters: `groupLabel()`, `groupIndex()`. Setters: `setGroupLabel()`, `setGroupIndex()`
+- Serialized in `toJson()` only when non-default; deserialized in `fromJson()` with safe defaults
+
+#### Song (`src/Core/Song.h`, `Song.cpp`)
+- Extracted `sectionToSlides(int sectionIndex, ...)` helper from `toSlides()` loop body
+- Refactored `toSlides()` to call `sectionToSlides()` in its loop
+- Both methods now set `groupLabel` and `groupIndex` on generated slides
+- Title slide retains `groupIndex = -1` (no section)
+
+#### SongItem (`src/Core/SongItem.h`, `SongItem.cpp`)
+- Added `m_sectionOrder` (QList<int>) and `m_hasCustomSectionOrder` for per-presentation section ordering
+- `sectionOrder()` returns custom order or natural `[0, 1, ..., N-1]`
+- `sectionOrderIndexForSlide(int slideInItem)` maps a slide index to its section order position
+- `sectionLabelAt(int orderIndex)` returns section label for display
+- `moveSongSection()`, `duplicateSongSection()`, `removeSongSection()` for section operations
+- Rewrote `generateSlides()` to iterate `sectionOrder()` and call `Song::sectionToSlides()` per entry
+- Serializes `sectionOrder` in `toJson()`/`fromJson()` (only when custom)
+- `onSongUpdated()` validates section order entries against current section count
+
+#### PresentationModel (`src/Core/PresentationModel.h`, `PresentationModel.cpp`)
+- Added `GroupLabelRole` and `GroupIndexRole` to `SlideRoles` enum
+- Returns `slide.groupLabel()` and `slide.groupIndex()` in `data()`
+- Added entries to `roleNames()`
+- Changed SongItem drag-drop to move sections instead of converting to SlideGroupItem
+
+#### SlideGridDelegate (`src/Control/SlideGridDelegate.cpp`)
+- Added `sectionColor()` helper mapping section label prefix to a distinct color (Verse=blue, Chorus=green, Bridge=amber, Pre-Chorus=purple, Tag=pink, Intro=teal, Outro/Ending=red, Interlude=violet, Vamp=orange, fallback=gray)
+- First-in-section slides get a full-width color-coded banner overlaying the top of the thumbnail with centered white label text
+- Continuation slides get a thin 3px color strip at the top for visual continuity
+- Banner height and font size scale with thumbnail size (min 14px height, min 8px font)
+- Duplicated sections share the same color since color is derived from `groupLabel` (source section label)
+
+#### ControlWindow (`src/Control/ControlWindow.h`, `ControlWindow.cpp`)
+- Added `onDuplicateSection()` and `onDeleteSection()` slots
+- Context menu shows "Duplicate Section" and "Delete Section" for song slides with valid sections
+- Delete prompts with confirmation dialog; refuses if only 1 section remains
+
+### Technical Decisions
+- Section order is stored per-SongItem (per-presentation) rather than modifying the Song in the library, so the same song can have different section arrangements in different presentations
+- `groupIndex` on slides reflects the order position (not the source section index), so visual grouping works correctly with reordered sections
+- ScriptureItem drag-drop retains the existing convert-to-SlideGroupItem behavior
+
+### Issues/Blockers
+- None
+
+### Next Steps
+- Test with multi-section songs to verify visual grouping and drag behavior
+- Consider adding keyboard shortcuts for section operations
+
+---
+
 ## 2026-02-08 - Add Slide Preview Size Setting (Small/Medium/Large)
 
 ### Summary

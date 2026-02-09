@@ -173,6 +173,16 @@ public:
      */
     QList<Slide> toSlides(const SlideStyle& style, bool includeTitleSlide = true, bool includeSectionLabels = false, int maxLinesPerSlide = 0) const;
 
+    /**
+     * @brief Generate slides for a single section
+     * @param sectionIndex Index into m_sections
+     * @param style Visual style for the slides
+     * @param includeSectionLabel If true, prepend section label to slide text
+     * @param maxLinesPerSlide If > 0, split section into multiple slides
+     * @return List of Slide objects for this section
+     */
+    QList<Slide> sectionToSlides(int sectionIndex, const SlideStyle& style, bool includeSectionLabel = false, int maxLinesPerSlide = 0) const;
+
     // JSON serialization
     QJsonObject toJson() const;
     static Song fromJson(const QJsonObject& json);

@@ -29,6 +29,7 @@ Slide::Slide()
     , m_textBandColor("#80000000")  // 50% black
     , m_textBandBlur(0)
     , m_transitionDuration(-1)
+    , m_groupIndex(-1)
 {
 }
 
@@ -60,6 +61,7 @@ Slide::Slide(const QString& text, const QColor& backgroundColor, const QColor& t
     , m_textBandColor("#80000000")  // 50% black
     , m_textBandBlur(0)
     , m_transitionDuration(-1)
+    , m_groupIndex(-1)
 {
 }
 
@@ -123,6 +125,14 @@ QJsonObject Slide::toJson() const
     // Phase 3: Presenter notes (only include if not empty)
     if (!m_notes.isEmpty()) {
         json["notes"] = m_notes;
+    }
+
+    // Section grouping metadata (only include when set)
+    if (!m_groupLabel.isEmpty()) {
+        json["groupLabel"] = m_groupLabel;
+    }
+    if (m_groupIndex >= 0) {
+        json["groupIndex"] = m_groupIndex;
     }
 
     // Phase 3: Text legibility - Drop shadow
@@ -204,6 +214,10 @@ Slide Slide::fromJson(const QJsonObject& json)
     if (json.contains("notes")) {
         slide.m_notes = json["notes"].toString();
     }
+
+    // Section grouping metadata
+    slide.m_groupLabel = json["groupLabel"].toString();
+    slide.m_groupIndex = json["groupIndex"].toInt(-1);
 
     // Phase 3: Text legibility - Drop shadow
     slide.m_dropShadowEnabled = json["dropShadowEnabled"].toBool(true);

@@ -959,6 +959,25 @@ void ControlWindow::onSlideContextMenu(const QPoint& pos)
     applyThemeToGroupAction->setEnabled(hasSelection);
     cloneFormatAction->setEnabled(hasSelection);
 
+    // Section operations for song slides
+    if (hasSelection) {
+        int itemType = index.data(PresentationModel::ItemTypeRole).toInt();
+        int groupIndex = index.data(PresentationModel::GroupIndexRole).toInt();
+
+        if (itemType == PresentationItem::SongItemType && groupIndex >= 0) {
+            QString groupLabel = index.data(PresentationModel::GroupLabelRole).toString();
+            QString labelSuffix = groupLabel.isEmpty() ? "" : " \"" + groupLabel + "\"";
+
+            contextMenu.addSeparator();
+
+            QAction* dupSectionAction = contextMenu.addAction(tr("Duplicate Section%1").arg(labelSuffix));
+            connect(dupSectionAction, &QAction::triggered, this, &ControlWindow::onDuplicateSection);
+
+            QAction* delSectionAction = contextMenu.addAction(tr("Delete Section%1").arg(labelSuffix));
+            connect(delSectionAction, &QAction::triggered, this, &ControlWindow::onDeleteSection);
+        }
+    }
+
     // If clicked on a slide, select it first
     if (hasSelection) {
         m_slideGridView->setCurrentIndex(index);
@@ -966,6 +985,70 @@ void ControlWindow::onSlideContextMenu(const QPoint& pos)
     }
 
     contextMenu.exec(m_slideGridView->mapToGlobal(pos));
+}
+
+void ControlWindow::onDuplicateSection()
+{
+    QModelIndex proxyIndex = m_slideGridView->currentIndex();
+    if (!proxyIndex.isValid()) return;
+
+    // Map proxy index to source model
+    QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(proxyIndex);
+    if (!sourceIndex.isValid()) return;
+
+    int itemIdx = sourceIndex.data(PresentationModel::ItemIndexRole).toInt();
+    int slideInItem = sourceIndex.data(PresentationModel::SlideInItemRole).toInt();
+    if (itemIdx < 0 || slideInItem < 0) return;
+
+    PresentationItem* item = m_presentationModel->itemAt(itemIdx);
+    SongItem* songItem = qobject_cast<SongItem*>(item);
+    if (!songItem) return;
+
+    int orderIndex = songItem->sectionOrderIndexForSlide(slideInItem);
+    if (orderIndex < 0) return;
+
+    songItem->duplicateSongSection(orderIndex);
+    m_slideDelegate->invalidateCache();
+    markDirty();
+}
+
+void ControlWindow::onDeleteSection()
+{
+    QModelIndex proxyIndex = m_slideGridView->currentIndex();
+    if (!proxyIndex.isValid()) return;
+
+    QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(proxyIndex);
+    if (!sourceIndex.isValid()) return;
+
+    int itemIdx = sourceIndex.data(PresentationModel::ItemIndexRole).toInt();
+    int slideInItem = sourceIndex.data(PresentationModel::SlideInItemRole).toInt();
+    if (itemIdx < 0 || slideInItem < 0) return;
+
+    PresentationItem* item = m_presentationModel->itemAt(itemIdx);
+    SongItem* songItem = qobject_cast<SongItem*>(item);
+    if (!songItem) return;
+
+    int orderIndex = songItem->sectionOrderIndexForSlide(slideInItem);
+    if (orderIndex < 0) return;
+
+    QString sectionLabel = songItem->sectionLabelAt(orderIndex);
+    QString msg = sectionLabel.isEmpty()
+        ? tr("Delete this section?")
+        : tr("Delete section \"%1\"?").arg(sectionLabel);
+
+    if (QMessageBox::question(this, tr("Delete Section"), msg,
+                              QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes) {
+        return;
+    }
+
+    if (!songItem->removeSongSection(orderIndex)) {
+        QMessageBox::information(this, tr("Cannot Delete"),
+                                 tr("Cannot delete the only remaining section."));
+        return;
+    }
+
+    m_slideDelegate->invalidateCache();
+    markDirty();
 }
 
 void ControlWindow::onStartTimer()

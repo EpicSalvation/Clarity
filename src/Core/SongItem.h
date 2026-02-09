@@ -81,6 +81,47 @@ public:
     int maxLinesPerSlide() const { return m_maxLinesPerSlide; }
     void setMaxLinesPerSlide(int maxLines);
 
+    // Section order management (per-presentation, doesn't modify library song)
+
+    /**
+     * @brief Get the section order (custom or natural)
+     * @return List of section indices into Song::sections()
+     */
+    QList<int> sectionOrder() const;
+
+    /**
+     * @brief Get the number of sections in the current order
+     */
+    int sectionCount() const;
+
+    /**
+     * @brief Map a slide-in-item index to its section order position
+     * @param slideInItem 0-based slide index within this item
+     * @return Section order position, or -1 if title slide or invalid
+     */
+    int sectionOrderIndexForSlide(int slideInItem) const;
+
+    /**
+     * @brief Get the section label for a given order position
+     */
+    QString sectionLabelAt(int orderIndex) const;
+
+    /**
+     * @brief Move a section from one order position to another
+     */
+    void moveSongSection(int from, int to);
+
+    /**
+     * @brief Duplicate a section at the given order position
+     */
+    void duplicateSongSection(int orderIndex);
+
+    /**
+     * @brief Remove a section at the given order position
+     * @return true if removed, false if only 1 section remains
+     */
+    bool removeSongSection(int orderIndex);
+
     // JSON serialization
     QJsonObject toJson() const override;
 
@@ -111,6 +152,10 @@ private:
     bool m_includeTitleSlide;
     bool m_includeSectionLabels;
     int m_maxLinesPerSlide;
+
+    // Custom section order (per-presentation)
+    QList<int> m_sectionOrder;
+    bool m_hasCustomSectionOrder;
 };
 
 } // namespace Clarity

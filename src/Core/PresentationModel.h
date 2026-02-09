@@ -32,7 +32,9 @@ public:
         SlideInItemRole,     ///< Position within the item (0-based)
         ItemNameRole,        ///< Display name of containing item
         ItemTypeRole,        ///< Type of containing item
-        FlatIndexRole        ///< The row index in the source model (for proxy model support)
+        FlatIndexRole,       ///< The row index in the source model (for proxy model support)
+        GroupLabelRole,      ///< Section label (e.g., "Verse 1") for song slides
+        GroupIndexRole       ///< Section order position (-1 = title/no group)
     };
 
     explicit PresentationModel(QObject* parent = nullptr);

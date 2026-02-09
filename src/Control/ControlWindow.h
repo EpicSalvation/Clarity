@@ -70,6 +70,10 @@ private slots:
     void onMoveSlideDown();
     void onSlideContextMenu(const QPoint& pos);
 
+    // Section operations (songs)
+    void onDuplicateSection();
+    void onDeleteSection();
+
     // Content insertion
     void onInsertScripture();
     void onInsertSong();

@@ -78,6 +78,12 @@ public:
     QString notes() const { return m_notes; }
     void setNotes(const QString& notes) { m_notes = notes; }
 
+    // Section grouping metadata (set during slide generation from songs)
+    QString groupLabel() const { return m_groupLabel; }
+    void setGroupLabel(const QString& label) { m_groupLabel = label; }
+    int groupIndex() const { return m_groupIndex; }
+    void setGroupIndex(int index) { m_groupIndex = index; }
+
     // Setters
     void setText(const QString& text) { m_text = text; }
     void setRichText(const QString& richText) { m_richText = richText; }
@@ -179,6 +185,10 @@ private:
 
     // Phase 3: Presenter notes
     QString m_notes;                    ///< Presenter notes (shown only on confidence monitor)
+
+    // Section grouping metadata
+    QString m_groupLabel;               ///< Section label (e.g., "Verse 1", "Chorus")
+    int m_groupIndex;                   ///< Section order position (-1 = title slide/no group)
 };
 
 } // namespace Clarity

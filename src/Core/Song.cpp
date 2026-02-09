@@ -96,6 +96,66 @@ QList<SongUsage> Song::usageInRange(const QDate& from, const QDate& to) const
     return results;
 }
 
+QList<Slide> Song::sectionToSlides(int sectionIndex, const SlideStyle& style, bool includeSectionLabel, int maxLinesPerSlide) const
+{
+    QList<Slide> slides;
+
+    if (sectionIndex < 0 || sectionIndex >= m_sections.count()) {
+        return slides;
+    }
+
+    const SongSection& section = m_sections[sectionIndex];
+    QString sectionText = section.text;
+    QStringList lines = sectionText.split('\n');
+
+    // If max lines is set and section exceeds it, split into multiple slides
+    if (maxLinesPerSlide > 0 && lines.count() > maxLinesPerSlide) {
+        int slideNum = 0;
+        for (int i = 0; i < lines.count(); i += maxLinesPerSlide) {
+            slideNum++;
+            QStringList slideLines;
+            for (int j = i; j < qMin(i + maxLinesPerSlide, lines.count()); ++j) {
+                slideLines.append(lines[j]);
+            }
+
+            Slide slide;
+            QString text = slideLines.join("\n");
+
+            if (includeSectionLabel && !section.label.isEmpty()) {
+                QString label = section.label;
+                if (lines.count() > maxLinesPerSlide) {
+                    label += QString(" (%1)").arg(slideNum);
+                }
+                text = label + "\n\n" + text;
+            }
+
+            slide.setText(text);
+            style.applyTo(slide);
+            slide.setGroupLabel(section.label);
+            slide.setGroupIndex(sectionIndex);
+
+            slides.append(slide);
+        }
+    } else {
+        // Single slide for this section
+        Slide slide;
+
+        QString text = sectionText;
+        if (includeSectionLabel && !section.label.isEmpty()) {
+            text = section.label + "\n\n" + text;
+        }
+
+        slide.setText(text);
+        style.applyTo(slide);
+        slide.setGroupLabel(section.label);
+        slide.setGroupIndex(sectionIndex);
+
+        slides.append(slide);
+    }
+
+    return slides;
+}
+
 QList<Slide> Song::toSlides(const SlideStyle& style, bool includeTitleSlide, bool includeSectionLabels, int maxLinesPerSlide) const
 {
     QList<Slide> slides;
@@ -105,54 +165,12 @@ QList<Slide> Song::toSlides(const SlideStyle& style, bool includeTitleSlide, boo
         Slide titleSlide;
         titleSlide.setText(m_title);
         style.applyTo(titleSlide);
+        // Title slide has no group (groupIndex = -1, groupLabel = empty)
         slides.append(titleSlide);
     }
 
-    for (const SongSection& section : m_sections) {
-        QString sectionText = section.text;
-        QStringList lines = sectionText.split('\n');
-
-        // If max lines is set and section exceeds it, split into multiple slides
-        if (maxLinesPerSlide > 0 && lines.count() > maxLinesPerSlide) {
-            int slideNum = 0;
-            for (int i = 0; i < lines.count(); i += maxLinesPerSlide) {
-                slideNum++;
-                QStringList slideLines;
-                for (int j = i; j < qMin(i + maxLinesPerSlide, lines.count()); ++j) {
-                    slideLines.append(lines[j]);
-                }
-
-                Slide slide;
-                QString text = slideLines.join("\n");
-
-                if (includeSectionLabels && !section.label.isEmpty()) {
-                    // Add label with part number if split
-                    QString label = section.label;
-                    if (lines.count() > maxLinesPerSlide) {
-                        label += QString(" (%1)").arg(slideNum);
-                    }
-                    text = label + "\n\n" + text;
-                }
-
-                slide.setText(text);
-                style.applyTo(slide);
-
-                slides.append(slide);
-            }
-        } else {
-            // Single slide for this section
-            Slide slide;
-
-            QString text = sectionText;
-            if (includeSectionLabels && !section.label.isEmpty()) {
-                text = section.label + "\n\n" + text;
-            }
-
-            slide.setText(text);
-            style.applyTo(slide);
-
-            slides.append(slide);
-        }
+    for (int i = 0; i < m_sections.count(); ++i) {
+        slides.append(sectionToSlides(i, style, includeSectionLabels, maxLinesPerSlide));
     }
 
     return slides;

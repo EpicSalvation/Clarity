@@ -86,6 +86,10 @@ QVariant PresentationModel::data(const QModelIndex& index, int role) const
     case FlatIndexRole:
         // Return the source model row index (for proxy model support)
         return flatIndex;
+    case GroupLabelRole:
+        return slide.groupLabel();
+    case GroupIndexRole:
+        return slide.groupIndex();
     case Qt::DisplayRole:
         // For default list view display, show truncated text
         return slide.text().left(50) + (slide.text().length() > 50 ? "..." : "");
@@ -107,6 +111,8 @@ QHash<int, QByteArray> PresentationModel::roleNames() const
     roles[ItemNameRole] = "itemName";
     roles[ItemTypeRole] = "itemType";
     roles[FlatIndexRole] = "flatIndex";
+    roles[GroupLabelRole] = "groupLabel";
+    roles[GroupIndexRole] = "groupIndex";
     return roles;
 }
 
@@ -266,19 +272,39 @@ bool PresentationModel::dropMimeData(const QMimeData* data, Qt::DropAction actio
     }
     if (sourceRow == targetRow) return false;
 
-    // If this is a SongItem or ScriptureItem, convert to SlideGroupItem and move in one operation
-    if (qobject_cast<SongItem*>(item) || qobject_cast<ScriptureItem*>(item)) {
+    // SongItem: section-level drag-drop (move entire sections)
+    if (SongItem* songItem = qobject_cast<SongItem*>(item)) {
+        int fromSection = songItem->sectionOrderIndexForSlide(sourcePos.slideInItem);
+        if (fromSection < 0) return false;  // Can't drag title slide
+
+        // Determine target section
+        SlidePosition adjustedTarget = m_presentation->positionForFlatIndex(targetRow);
+        if (!adjustedTarget.isValid() || adjustedTarget.itemIndex != itemIndex) return false;
+        int toSection = songItem->sectionOrderIndexForSlide(adjustedTarget.slideInItem);
+        if (toSection < 0) toSection = 0;  // Dragging to title slide position = first section
+
+        if (fromSection == toSection) return false;
+
+        beginResetModel();
+        m_presentation->blockSignals(true);
+        songItem->moveSongSection(fromSection, toSection);
+        m_presentation->blockSignals(false);
+        endResetModel();
+
+        emit presentationModified();
+        return true;
+    }
+
+    // ScriptureItem: convert to SlideGroupItem and move (existing behavior)
+    if (qobject_cast<ScriptureItem*>(item)) {
         QList<Slide> slides = item->cachedSlides();
         QString name = item->displayName();
 
-        // Calculate within-item indices for the move
         SlidePosition adjustedTarget = m_presentation->positionForFlatIndex(targetRow);
         if (!adjustedTarget.isValid() || adjustedTarget.itemIndex != itemIndex) return false;
 
-        // Reorder the slides before creating the group
         slides.move(sourcePos.slideInItem, adjustedTarget.slideInItem);
 
-        // Block presentation signals to avoid nested model resets
         beginResetModel();
         m_presentation->blockSignals(true);
         m_presentation->removeItem(itemIndex);

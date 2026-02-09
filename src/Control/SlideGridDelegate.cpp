@@ -5,6 +5,24 @@
 
 namespace Clarity {
 
+// Color palette for section types, derived from the label prefix.
+// Duplicated sections share the same label → same color.
+static QColor sectionColor(const QString& label)
+{
+    QString lower = label.toLower();
+    if (lower.startsWith("verse"))      return QColor("#3b82f6"); // blue
+    if (lower.startsWith("chorus"))     return QColor("#22c55e"); // green
+    if (lower.startsWith("bridge"))     return QColor("#f59e0b"); // amber
+    if (lower.startsWith("pre-chorus")) return QColor("#a855f7"); // purple
+    if (lower.startsWith("tag"))        return QColor("#ec4899"); // pink
+    if (lower.startsWith("intro"))      return QColor("#14b8a6"); // teal
+    if (lower.startsWith("outro"))      return QColor("#ef4444"); // red
+    if (lower.startsWith("ending"))     return QColor("#ef4444"); // red
+    if (lower.startsWith("interlude"))  return QColor("#8b5cf6"); // violet
+    if (lower.startsWith("vamp"))       return QColor("#f97316"); // orange
+    return QColor("#6b7280"); // gray fallback
+}
+
 SlideGridDelegate::SlideGridDelegate(QObject* parent)
     : QStyledItemDelegate(parent)
     , m_thumbnailSize(160, 90)  // 16:9 aspect ratio
@@ -62,6 +80,51 @@ void SlideGridDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
 
     // Draw the thumbnail
     painter->drawPixmap(thumbnailRect, thumbnail);
+
+    // Draw section color-coded banner for song slides
+    QString groupLabel = index.data(PresentationModel::GroupLabelRole).toString();
+    int groupIndex = index.data(PresentationModel::GroupIndexRole).toInt();
+
+    if (groupIndex >= 0 && !groupLabel.isEmpty()) {
+        QColor color = sectionColor(groupLabel);
+
+        // Check if this is the first slide in its section
+        bool isFirstInSection = true;
+        if (index.row() > 0) {
+            QModelIndex prevIndex = index.sibling(index.row() - 1, 0);
+            if (prevIndex.isValid()) {
+                int prevGroupIndex = prevIndex.data(PresentationModel::GroupIndexRole).toInt();
+                if (prevGroupIndex == groupIndex) {
+                    isFirstInSection = false;
+                }
+            }
+        }
+
+        if (isFirstInSection) {
+            // Full-width color-coded banner overlaying the top of the thumbnail
+            int bannerHeight = qMax(14, m_thumbnailSize.height() / 6);
+            QRect bannerRect(thumbnailRect.left(), thumbnailRect.top(),
+                             thumbnailRect.width(), bannerHeight);
+
+            // Semi-transparent colored background so slide content peeks through
+            QColor bannerColor = color;
+            bannerColor.setAlpha(210);
+            painter->fillRect(bannerRect, bannerColor);
+
+            // Section label text
+            int fontSize = qMax(8, bannerHeight - 5);
+            QFont bannerFont("Arial", fontSize);
+            bannerFont.setBold(true);
+            painter->setFont(bannerFont);
+            painter->setPen(Qt::white);
+            painter->drawText(bannerRect, Qt::AlignCenter, groupLabel);
+        } else {
+            // Continuation slides: thin color strip at top for visual continuity
+            QRect stripRect(thumbnailRect.left(), thumbnailRect.top(),
+                            thumbnailRect.width(), 3);
+            painter->fillRect(stripRect, color);
+        }
+    }
 
     // Draw selection/current indicators on top
     bool isSelected = option.state & QStyle::State_Selected;

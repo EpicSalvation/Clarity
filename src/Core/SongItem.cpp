@@ -1,4 +1,5 @@
 #include "SongItem.h"
+#include <QJsonArray>
 
 namespace Clarity {
 
@@ -9,6 +10,7 @@ SongItem::SongItem(QObject* parent)
     , m_includeTitleSlide(true)
     , m_includeSectionLabels(false)
     , m_maxLinesPerSlide(0)
+    , m_hasCustomSectionOrder(false)
 {
 }
 
@@ -19,6 +21,7 @@ SongItem::SongItem(int songId, SongLibrary* library, QObject* parent)
     , m_includeTitleSlide(true)
     , m_includeSectionLabels(false)
     , m_maxLinesPerSlide(0)
+    , m_hasCustomSectionOrder(false)
 {
     if (m_songLibrary) {
         connect(m_songLibrary, &SongLibrary::songUpdated,
@@ -59,27 +62,45 @@ QString SongItem::displaySubtitle() const
 QList<Slide> SongItem::generateSlides() const
 {
     if (!m_songLibrary) {
-        // No library - return a placeholder slide
         Slide errorSlide(tr("Song library not available"));
         return QList<Slide>() << errorSlide;
     }
 
     Song s = m_songLibrary->getSong(m_songId);
     if (s.title().isEmpty()) {
-        // Song not found - return a placeholder slide
         Slide errorSlide(tr("Song not found (ID: %1)").arg(m_songId));
         return QList<Slide>() << errorSlide;
     }
 
-    // Determine style to use
     SlideStyle style;
     if (m_hasCustomStyle) {
         style = m_itemStyle;
     }
-    // Otherwise use the default style from SlideStyle constructor
 
-    // Generate slides from song
-    return s.toSlides(style, m_includeTitleSlide, m_includeSectionLabels, m_maxLinesPerSlide);
+    QList<Slide> slides;
+
+    // Add title slide if requested
+    if (m_includeTitleSlide && !s.title().isEmpty()) {
+        Slide titleSlide;
+        titleSlide.setText(s.title());
+        style.applyTo(titleSlide);
+        // Title slide: groupIndex = -1, groupLabel = empty (defaults)
+        slides.append(titleSlide);
+    }
+
+    // Generate slides in section order
+    QList<int> order = sectionOrder();
+    for (int orderPos = 0; orderPos < order.count(); ++orderPos) {
+        int sectionIdx = order[orderPos];
+        QList<Slide> sectionSlides = s.sectionToSlides(sectionIdx, style, m_includeSectionLabels, m_maxLinesPerSlide);
+        // Override groupIndex to reflect the order position (not the source section index)
+        for (Slide& slide : sectionSlides) {
+            slide.setGroupIndex(orderPos);
+        }
+        slides.append(sectionSlides);
+    }
+
+    return slides;
 }
 
 void SongItem::setSongId(int songId)
@@ -157,6 +178,118 @@ void SongItem::setMaxLinesPerSlide(int maxLines)
     }
 }
 
+QList<int> SongItem::sectionOrder() const
+{
+    if (m_hasCustomSectionOrder && !m_sectionOrder.isEmpty()) {
+        return m_sectionOrder;
+    }
+    // Natural order: [0, 1, 2, ..., N-1]
+    Song s = song();
+    QList<int> order;
+    for (int i = 0; i < s.sectionCount(); ++i) {
+        order.append(i);
+    }
+    return order;
+}
+
+int SongItem::sectionCount() const
+{
+    return sectionOrder().count();
+}
+
+int SongItem::sectionOrderIndexForSlide(int slideInItem) const
+{
+    // Account for title slide offset
+    int slideOffset = slideInItem;
+    if (m_includeTitleSlide) {
+        if (slideInItem == 0) {
+            return -1;  // Title slide has no section
+        }
+        slideOffset = slideInItem - 1;
+    }
+
+    // Walk through sections to find which one this slide belongs to
+    Song s = song();
+    if (s.title().isEmpty()) return -1;
+
+    SlideStyle style;
+    if (m_hasCustomStyle) {
+        style = m_itemStyle;
+    }
+
+    QList<int> order = sectionOrder();
+    int slidesSoFar = 0;
+    for (int orderPos = 0; orderPos < order.count(); ++orderPos) {
+        int sectionIdx = order[orderPos];
+        QList<Slide> sectionSlides = s.sectionToSlides(sectionIdx, style, m_includeSectionLabels, m_maxLinesPerSlide);
+        slidesSoFar += sectionSlides.count();
+        if (slideOffset < slidesSoFar) {
+            return orderPos;
+        }
+    }
+
+    return -1;
+}
+
+QString SongItem::sectionLabelAt(int orderIndex) const
+{
+    QList<int> order = sectionOrder();
+    if (orderIndex < 0 || orderIndex >= order.count()) {
+        return QString();
+    }
+
+    Song s = song();
+    int sectionIdx = order[orderIndex];
+    if (sectionIdx < 0 || sectionIdx >= s.sectionCount()) {
+        return QString();
+    }
+
+    return s.sections()[sectionIdx].label;
+}
+
+void SongItem::moveSongSection(int from, int to)
+{
+    QList<int> order = sectionOrder();
+    if (from < 0 || from >= order.count() || to < 0 || to >= order.count() || from == to) {
+        return;
+    }
+
+    order.move(from, to);
+    m_sectionOrder = order;
+    m_hasCustomSectionOrder = true;
+    invalidateSlideCache();
+    emit itemChanged();
+}
+
+void SongItem::duplicateSongSection(int orderIndex)
+{
+    QList<int> order = sectionOrder();
+    if (orderIndex < 0 || orderIndex >= order.count()) {
+        return;
+    }
+
+    order.insert(orderIndex + 1, order[orderIndex]);
+    m_sectionOrder = order;
+    m_hasCustomSectionOrder = true;
+    invalidateSlideCache();
+    emit itemChanged();
+}
+
+bool SongItem::removeSongSection(int orderIndex)
+{
+    QList<int> order = sectionOrder();
+    if (order.count() <= 1 || orderIndex < 0 || orderIndex >= order.count()) {
+        return false;
+    }
+
+    order.removeAt(orderIndex);
+    m_sectionOrder = order;
+    m_hasCustomSectionOrder = true;
+    invalidateSlideCache();
+    emit itemChanged();
+    return true;
+}
+
 QJsonObject SongItem::toJson() const
 {
     QJsonObject json = baseToJson();
@@ -164,6 +297,15 @@ QJsonObject SongItem::toJson() const
     json["includeTitleSlide"] = m_includeTitleSlide;
     json["includeSectionLabels"] = m_includeSectionLabels;
     json["maxLinesPerSlide"] = m_maxLinesPerSlide;
+
+    if (m_hasCustomSectionOrder && !m_sectionOrder.isEmpty()) {
+        QJsonArray orderArray;
+        for (int idx : m_sectionOrder) {
+            orderArray.append(idx);
+        }
+        json["sectionOrder"] = orderArray;
+    }
+
     return json;
 }
 
@@ -181,6 +323,15 @@ SongItem* SongItem::fromJson(const QJsonObject& json, SongLibrary* library)
     item->m_includeSectionLabels = json["includeSectionLabels"].toBool(false);
     item->m_maxLinesPerSlide = json["maxLinesPerSlide"].toInt(0);
 
+    // Restore custom section order
+    if (json.contains("sectionOrder")) {
+        QJsonArray orderArray = json["sectionOrder"].toArray();
+        for (const QJsonValue& val : orderArray) {
+            item->m_sectionOrder.append(val.toInt());
+        }
+        item->m_hasCustomSectionOrder = !item->m_sectionOrder.isEmpty();
+    }
+
     // Set library (which also connects signals)
     item->setSongLibrary(library);
 
@@ -190,7 +341,24 @@ SongItem* SongItem::fromJson(const QJsonObject& json, SongLibrary* library)
 void SongItem::onSongUpdated(int id)
 {
     if (id == m_songId) {
-        // Our song was updated - invalidate cache
+        // Validate section order against current section count
+        if (m_hasCustomSectionOrder) {
+            Song s = song();
+            int count = s.sectionCount();
+            bool valid = true;
+            for (int idx : m_sectionOrder) {
+                if (idx < 0 || idx >= count) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (!valid) {
+                // Section structure changed — reset to natural order
+                m_sectionOrder.clear();
+                m_hasCustomSectionOrder = false;
+            }
+        }
+
         invalidateSlideCache();
         emit itemChanged();
     }
