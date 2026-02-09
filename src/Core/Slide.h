@@ -74,6 +74,10 @@ public:
     int transitionDuration() const { return m_transitionDuration; }
     bool hasTransitionOverride() const { return !m_transitionType.isEmpty() || m_transitionDuration >= 0; }
 
+    // Auto-advance timer (0 = disabled, positive = seconds until auto-advance)
+    int autoAdvanceDuration() const { return m_autoAdvanceDuration; }
+    bool hasAutoAdvance() const { return m_autoAdvanceDuration > 0; }
+
     // Presenter notes (shown on confidence monitor, not on output)
     QString notes() const { return m_notes; }
     void setNotes(const QString& notes) { m_notes = notes; }
@@ -129,6 +133,9 @@ public:
     void setTransitionDuration(int duration) { m_transitionDuration = duration; }
     void clearTransitionOverride() { m_transitionType.clear(); m_transitionDuration = -1; }
 
+    // Auto-advance timer
+    void setAutoAdvanceDuration(int seconds) { m_autoAdvanceDuration = seconds; }
+
     // JSON serialization
     QJsonObject toJson() const;
     static Slide fromJson(const QJsonObject& json);
@@ -182,6 +189,9 @@ private:
     // Phase 3: Per-slide transition override
     QString m_transitionType;           ///< Override transition type (empty = use default)
     int m_transitionDuration;           ///< Override transition duration in ms (-1 = use default)
+
+    // Phase 4: Auto-advance timer
+    int m_autoAdvanceDuration;          ///< Auto-advance duration in seconds (0 = disabled)
 
     // Phase 3: Presenter notes
     QString m_notes;                    ///< Presenter notes (shown only on confidence monitor)

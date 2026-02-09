@@ -62,6 +62,8 @@ add_library(ClarityCore STATIC
     src/Core/QrCode.cpp
     src/Core/BibleImporter.h
     src/Core/BibleImporter.cpp
+    src/Core/AutoAdvanceTimer.h
+    src/Core/AutoAdvanceTimer.cpp
 )
 
 target_link_libraries(ClarityCore

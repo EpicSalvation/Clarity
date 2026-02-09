@@ -5,6 +5,8 @@
 #include "ConfidencePreviewWidget.h"
 #include <QWidget>
 #include <QPushButton>
+#include <QLabel>
+#include <QProgressBar>
 
 namespace Clarity {
 
@@ -91,6 +93,23 @@ public:
      */
     void setWhiteoutActive(bool active);
 
+    /**
+     * @brief Update the auto-advance countdown display
+     * @param seconds Remaining seconds (0 = hide countdown)
+     * @param total Total duration in seconds
+     */
+    void setAutoAdvanceCountdown(int seconds, int total);
+
+    /**
+     * @brief Set whether the auto-advance timer is active
+     */
+    void setAutoAdvanceActive(bool active);
+
+    /**
+     * @brief Set whether the auto-advance timer is paused
+     */
+    void setAutoAdvancePaused(bool paused);
+
 signals:
     /**
      * @brief Emitted when user double-clicks the output preview to toggle display
@@ -135,6 +154,11 @@ private:
     QPushButton* m_timerPlayButton;                ///< Timer play button
     QPushButton* m_timerPauseButton;               ///< Timer pause button
     QPushButton* m_timerResetButton;               ///< Timer reset button
+
+    // Auto-advance countdown indicator
+    QWidget* m_autoAdvanceWidget;                  ///< Container for auto-advance UI
+    QLabel* m_autoAdvanceLabel;                    ///< Countdown text label
+    QProgressBar* m_autoAdvanceProgress;           ///< Countdown progress bar
 };
 
 } // namespace Clarity

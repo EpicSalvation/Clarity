@@ -70,6 +70,12 @@ class ConfidenceDisplay : public QObject {
     Q_PROPERTY(QString currentTime READ currentTime NOTIFY currentTimeChanged)
     Q_PROPERTY(bool timerRunning READ timerRunning NOTIFY timerRunningChanged)
 
+    // Auto-advance state properties (received from control window)
+    Q_PROPERTY(bool autoAdvanceActive READ autoAdvanceActive NOTIFY autoAdvanceChanged)
+    Q_PROPERTY(bool autoAdvancePaused READ autoAdvancePaused NOTIFY autoAdvanceChanged)
+    Q_PROPERTY(int autoAdvanceRemaining READ autoAdvanceRemaining NOTIFY autoAdvanceChanged)
+    Q_PROPERTY(int autoAdvanceTotal READ autoAdvanceTotal NOTIFY autoAdvanceChanged)
+
     // Display settings (from settings file)
     Q_PROPERTY(QString settingsFontFamily READ settingsFontFamily NOTIFY settingsChanged)
     Q_PROPERTY(int settingsFontSize READ settingsFontSize NOTIFY settingsChanged)
@@ -130,6 +136,12 @@ public:
     QColor settingsTextColor() const;
     QColor settingsBackgroundColor() const;
 
+    // Auto-advance state getters
+    bool autoAdvanceActive() const { return m_autoAdvanceActive; }
+    bool autoAdvancePaused() const { return m_autoAdvancePaused; }
+    int autoAdvanceRemaining() const { return m_autoAdvanceRemaining; }
+    int autoAdvanceTotal() const { return m_autoAdvanceTotal; }
+
     // Timer control methods (can be called from QML)
     Q_INVOKABLE void startTimer();
     Q_INVOKABLE void pauseTimer();
@@ -145,6 +157,7 @@ signals:
     void currentTimeChanged();
     void timerRunningChanged();
     void settingsChanged();
+    void autoAdvanceChanged();
 
     // Signal to toggle visibility of the window
     void toggleVisibility();
@@ -172,6 +185,12 @@ private:
     QElapsedTimer m_elapsedTimer; // Tracks elapsed presentation time
     qint64 m_pausedElapsedMs;    // Elapsed time when paused
     bool m_timerRunning;
+
+    // Auto-advance state (received from control window)
+    bool m_autoAdvanceActive;
+    bool m_autoAdvancePaused;
+    int m_autoAdvanceRemaining;
+    int m_autoAdvanceTotal;
 };
 
 } // namespace Clarity

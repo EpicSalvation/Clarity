@@ -256,6 +256,42 @@ Window {
                 font.family: "Consolas"
             }
 
+            // Auto-advance countdown (center) - only visible when active
+            Column {
+                anchors.centerIn: parent
+                spacing: 2
+                visible: confidenceDisplay.autoAdvanceActive
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: confidenceDisplay.autoAdvancePaused
+                        ? "AUTO " + confidenceDisplay.autoAdvanceRemaining + "s (PAUSED)"
+                        : "AUTO " + confidenceDisplay.autoAdvanceRemaining + "s"
+                    color: confidenceDisplay.autoAdvancePaused ? "#f59e0b" : "#2563eb"
+                    font.pixelSize: 20
+                    font.bold: true
+                    font.family: "Consolas"
+                }
+
+                // Progress bar for auto-advance
+                Rectangle {
+                    width: 200
+                    height: 6
+                    radius: 3
+                    color: "#444444"
+                    anchors.horizontalCenter: parent.horizontalCenter
+
+                    Rectangle {
+                        width: confidenceDisplay.autoAdvanceTotal > 0
+                            ? parent.width * (1.0 - confidenceDisplay.autoAdvanceRemaining / confidenceDisplay.autoAdvanceTotal)
+                            : 0
+                        height: parent.height
+                        radius: 3
+                        color: confidenceDisplay.autoAdvancePaused ? "#f59e0b" : "#2563eb"
+                    }
+                }
+            }
+
             // Current time clock (right side)
             Text {
                 anchors.right: parent.right

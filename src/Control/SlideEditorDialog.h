@@ -103,6 +103,9 @@ private:
     QComboBox* m_transitionTypeCombo;
     QComboBox* m_transitionDurationCombo;
 
+    // Auto-advance timer control
+    QSpinBox* m_autoAdvanceSpinBox;
+
     // Presenter notes
     QTextEdit* m_notesEdit;
 

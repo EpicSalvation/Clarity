@@ -31,14 +31,14 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [ ] Fade in/out options
   - [ ] Continue across slides option
 
-- [ ] **Slide Auto-Advance Timer**
-  - [ ] Per-slide timer duration setting (seconds) to auto-advance to next slide
-  - [ ] Group-level default timer that applies to all slides in a SlideGroupItem
-  - [ ] Per-slide override to customize individual durations within a group
-  - [ ] Visual countdown indicator in control window (optional)
-  - [ ] Pause/resume auto-advance during presentation
-  - [ ] Timer resets when manually navigating away from a timed slide
-  - [ ] Works across item boundaries (last slide in group advances to first slide of next item)
+- [x] **Slide Auto-Advance Timer**
+  - [x] Per-slide timer duration setting (seconds) to auto-advance to next slide
+  - [x] Group-level default timer that applies to all slides in a SlideGroupItem
+  - [x] Per-slide override to customize individual durations within a group
+  - [x] Visual countdown indicator in control window (optional)
+  - [x] Pause/resume auto-advance during presentation
+  - [x] Timer resets when manually navigating away from a timed slide
+  - [x] Works across item boundaries (last slide in group advances to first slide of next item)
 
 - [ ] **Video Playback Controls**
   - [ ] Start time / end time trimming

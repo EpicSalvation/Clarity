@@ -371,6 +371,15 @@ void SlideEditorDialog::setupUI()
     installWheelFilter(m_transitionDurationCombo);
     transitionLayout->addRow("Transition Duration:", m_transitionDurationCombo);
 
+    // Auto-advance timer (0 = disabled, positive = seconds)
+    m_autoAdvanceSpinBox = new QSpinBox(this);
+    m_autoAdvanceSpinBox->setRange(0, 300);
+    m_autoAdvanceSpinBox->setSuffix(" sec");
+    m_autoAdvanceSpinBox->setSpecialValueText("Disabled");
+    m_autoAdvanceSpinBox->setToolTip("Auto-advance to next slide after this many seconds (0 = disabled)");
+    installWheelFilter(m_autoAdvanceSpinBox);
+    transitionLayout->addRow("Auto-Advance:", m_autoAdvanceSpinBox);
+
     leftLayout->addWidget(transitionGroup);
 
     // Presenter notes section
@@ -478,6 +487,9 @@ void SlideEditorDialog::setSlide(const Slide& slide)
         m_transitionDurationCombo->setCurrentIndex(0);  // Default to "Use Default"
     }
 
+    // Load auto-advance timer
+    m_autoAdvanceSpinBox->setValue(slide.autoAdvanceDuration());
+
     // Load presenter notes
     m_notesEdit->setPlainText(slide.notes());
 
@@ -540,6 +552,9 @@ Slide SlideEditorDialog::slide() const
 
     slide.setTransitionType(transitionType);
     slide.setTransitionDuration(transitionDuration);
+
+    // Auto-advance timer
+    slide.setAutoAdvanceDuration(m_autoAdvanceSpinBox->value());
 
     // Presenter notes
     slide.setNotes(m_notesEdit->toPlainText());

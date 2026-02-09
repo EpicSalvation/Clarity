@@ -138,6 +138,27 @@ public:
      */
     QMap<int, SlideStyle> slideStyleOverrides() const { return m_perSlideStyles; }
 
+    // Auto-advance timer (group-level default)
+    /**
+     * @brief Get the default auto-advance duration for slides in this item (seconds, 0 = disabled)
+     */
+    int defaultAutoAdvanceDuration() const { return m_defaultAutoAdvanceDuration; }
+
+    /**
+     * @brief Set the default auto-advance duration for slides in this item
+     * @param seconds Duration in seconds (0 = disabled)
+     */
+    void setDefaultAutoAdvanceDuration(int seconds);
+
+    /**
+     * @brief Get the effective auto-advance duration for a slide
+     *
+     * Returns the per-slide override if set (> 0), otherwise the item-level default.
+     * @param slideIndex Index of the slide within this item
+     * @return Duration in seconds (0 = disabled)
+     */
+    int effectiveAutoAdvanceDuration(int slideIndex) const;
+
     // Unique identifier
     /**
      * @brief Get the unique identifier for this item
@@ -205,6 +226,7 @@ protected:
     SlideStyle m_itemStyle;
     bool m_hasCustomStyle;
     QMap<int, SlideStyle> m_perSlideStyles;  ///< Per-slide style overrides
+    int m_defaultAutoAdvanceDuration;        ///< Group-level auto-advance (seconds, 0 = disabled)
 
     // Slide cache
     mutable QList<Slide> m_cachedSlides;

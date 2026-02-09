@@ -122,6 +122,33 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     confidenceGroupLayout->addLayout(timerButtonLayout);
     layout->addWidget(confidenceGroup);
 
+    // --- Auto-advance countdown indicator ---
+    m_autoAdvanceWidget = new QWidget(this);
+    QVBoxLayout* autoAdvanceLayout = new QVBoxLayout(m_autoAdvanceWidget);
+    autoAdvanceLayout->setContentsMargins(4, 4, 4, 4);
+    autoAdvanceLayout->setSpacing(2);
+
+    m_autoAdvanceLabel = new QLabel(tr("Auto-advance"), m_autoAdvanceWidget);
+    m_autoAdvanceLabel->setAlignment(Qt::AlignCenter);
+    QFont autoFont = m_autoAdvanceLabel->font();
+    autoFont.setPointSize(autoFont.pointSize() - 1);
+    m_autoAdvanceLabel->setFont(autoFont);
+    autoAdvanceLayout->addWidget(m_autoAdvanceLabel);
+
+    m_autoAdvanceProgress = new QProgressBar(m_autoAdvanceWidget);
+    m_autoAdvanceProgress->setRange(0, 100);
+    m_autoAdvanceProgress->setValue(0);
+    m_autoAdvanceProgress->setTextVisible(false);
+    m_autoAdvanceProgress->setFixedHeight(8);
+    m_autoAdvanceProgress->setStyleSheet(
+        "QProgressBar { border: 1px solid palette(mid); border-radius: 3px; background: palette(base); }"
+        "QProgressBar::chunk { background: #2563eb; border-radius: 2px; }"
+    );
+    autoAdvanceLayout->addWidget(m_autoAdvanceProgress);
+
+    m_autoAdvanceWidget->setVisible(false);
+    layout->addWidget(m_autoAdvanceWidget);
+
     // Wire double-click signals from child widgets to panel signals
     connect(m_outputPreview, &LivePreviewWidget::doubleClicked, this, &LivePreviewPanel::outputDoubleClicked);
     connect(m_confidencePreview, &ConfidencePreviewWidget::doubleClicked, this, &LivePreviewPanel::confidenceDoubleClicked);
@@ -200,6 +227,47 @@ void LivePreviewPanel::setBlackoutActive(bool active)
 void LivePreviewPanel::setWhiteoutActive(bool active)
 {
     m_whiteoutButton->setChecked(active);
+}
+
+void LivePreviewPanel::setAutoAdvanceCountdown(int seconds, int total)
+{
+    if (seconds <= 0 || total <= 0) {
+        m_autoAdvanceLabel->setText(tr("Auto-advance"));
+        m_autoAdvanceProgress->setValue(0);
+        return;
+    }
+
+    m_autoAdvanceLabel->setText(tr("Auto-advance: %1s").arg(seconds));
+
+    // Progress goes from 0 (full time remaining) to 100 (expired)
+    int elapsed = total - seconds;
+    int percent = (total > 0) ? qBound(0, (elapsed * 100) / total, 100) : 0;
+    m_autoAdvanceProgress->setValue(percent);
+}
+
+void LivePreviewPanel::setAutoAdvanceActive(bool active)
+{
+    m_autoAdvanceWidget->setVisible(active);
+}
+
+void LivePreviewPanel::setAutoAdvancePaused(bool paused)
+{
+    if (paused) {
+        m_autoAdvanceProgress->setStyleSheet(
+            "QProgressBar { border: 1px solid palette(mid); border-radius: 3px; background: palette(base); }"
+            "QProgressBar::chunk { background: #f59e0b; border-radius: 2px; }"
+        );
+        // Append "(paused)" to label if not already there
+        QString text = m_autoAdvanceLabel->text();
+        if (!text.contains(tr("paused"))) {
+            m_autoAdvanceLabel->setText(text + tr(" (paused)"));
+        }
+    } else {
+        m_autoAdvanceProgress->setStyleSheet(
+            "QProgressBar { border: 1px solid palette(mid); border-radius: 3px; background: palette(base); }"
+            "QProgressBar::chunk { background: #2563eb; border-radius: 2px; }"
+        );
+    }
 }
 
 } // namespace Clarity
