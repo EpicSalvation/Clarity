@@ -83,7 +83,6 @@ private slots:
     // Display control shortcuts
     void blackScreen();
     void whiteScreen();
-    void onOutputDisabledToggled(bool disabled);
     void toggleOutputDisplay();
     void toggleOutputFullscreen();
     void toggleConfidenceMonitor();
@@ -131,18 +130,10 @@ private:
     SlideGridView* m_slideGridView;           ///< Center grid view for slide thumbnails
     SlideGridDelegate* m_slideDelegate;      ///< Custom delegate for grid rendering
     LivePreviewPanel* m_livePreviewPanel;    ///< Right panel live preview
-    QPushButton* m_prevButton;
-    QPushButton* m_nextButton;
-    QPushButton* m_clearButton;
-    QPushButton* m_outputDisabledButton;  ///< Toggle to disable output display
-    QPushButton* m_settingsButton;
     QPushButton* m_addSlideButton;
     QPushButton* m_deleteSlideButton;
     QPushButton* m_moveUpButton;
     QPushButton* m_moveDownButton;
-    QPushButton* m_timerStartButton;
-    QPushButton* m_timerPauseButton;
-    QPushButton* m_timerResetButton;
     QLabel* m_statusLabel;
 
     // Data
@@ -167,8 +158,6 @@ private:
     // Display state tracking for toggle shortcuts
     bool m_isBlackout = false;
     bool m_isWhiteout = false;
-    bool m_isOutputDisabled = false;  ///< Persistent output disable (survives navigation)
-
     // Display visibility tracking for preview borders
     bool m_outputVisible = false;       ///< Whether output display is visible (not just connected)
     bool m_confidenceVisible = false;   ///< Whether confidence monitor is visible (not just connected)

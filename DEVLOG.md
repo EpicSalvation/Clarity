@@ -4,6 +4,47 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-08 - Declutter Control Window: Move Buttons to Preview Panel
+
+### Summary
+Major UI cleanup of the control window. Removed the entire bottom button bar (Prev, Next, Clear, Disable Output, timer controls, Settings) and relocated controls to contextually appropriate locations. Blackout/Whiteout buttons now live under the Output preview, timer controls under the Confidence preview, and Settings moved to the File menu. Each preview and its buttons are visually grouped in bordered frames.
+
+### Work Completed
+
+#### Removed from ControlWindow bottom bar
+- Removed `m_clearButton`, `m_outputDisabledButton`, `m_prevButton`, `m_nextButton`, `m_timerStartButton`, `m_timerPauseButton`, `m_timerResetButton`, `m_settingsButton` members
+- Removed `m_isOutputDisabled` member and all guards (in `broadcastCurrentSlide`, `blackScreen`, `whiteScreen`, song usage tracking)
+- Removed `onOutputDisabledToggled()` slot and `D` keyboard shortcut
+- Removed "D = Toggle output disable" from keyboard shortcuts help dialog
+- Removed entire bottom button bar and settings button row layouts
+
+#### Added to LivePreviewPanel
+- **Blackout/Whiteout buttons** under Output preview: checkable buttons with active-state styling (dark bg for blackout, white bg for whiteout)
+- **Timer buttons** under Confidence preview: play (▶), pause (||), stop/reset (■) icon buttons matching playlist button style (36x28, font-sized per icon)
+- **Visual grouping**: each preview + buttons wrapped in a `QFrame` with `palette(mid)` border, rounded corners, and a computed midpoint background fill between `palette(window)` and `palette(button)`
+- Signals: `blackoutClicked()`, `whiteoutClicked()`, `timerStartClicked()`, `timerPauseClicked()`, `timerResetClicked()`
+- Methods: `setBlackoutActive(bool)`, `setWhiteoutActive(bool)`
+
+#### Settings relocated to File menu
+- Added "Settings..." menu item to File menu (between separator and Exit)
+- Removed settings button entirely (tried gear icon in menu bar corner, ultimately moved to menu item)
+
+#### State management wiring
+- `blackScreen()` / `whiteScreen()` update panel button states after toggling
+- `broadcastCurrentSlide()` resets both blackout/whiteout buttons on navigation
+- Timer signals forwarded from panel to existing `onStartTimer`/`onPauseTimer`/`onResetTimer` slots
+
+### Technical Decisions
+- "Disable Output" removed entirely — blackout/whiteout serve the same purpose more intuitively
+- Timer icon buttons use Unicode glyphs (▶, ||, ■) with per-button font sizing for visual balance
+- Frame background computed as midpoint of `palette(window)` and `palette(button)` to provide subtle but visible grouping
+- Prev/Next buttons removed since keyboard shortcuts (arrows, space, page up/down) are sufficient
+
+### Testing
+- Build verified with Qt 6.10.2 MinGW — compiles and links successfully
+
+---
+
 ## 2026-02-08 - Insert-Between Drag-and-Drop for Slide Grid
 
 ### Summary

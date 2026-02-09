@@ -25,7 +25,6 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QTimer>
-#include <QFrame>
 #include <QShortcut>
 #include <QInputDialog>
 #include <QDialog>
@@ -40,18 +39,10 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_slideGridView(nullptr)
     , m_slideDelegate(nullptr)
     , m_livePreviewPanel(nullptr)
-    , m_prevButton(nullptr)
-    , m_nextButton(nullptr)
-    , m_clearButton(nullptr)
-    , m_outputDisabledButton(nullptr)
-    , m_settingsButton(nullptr)
     , m_addSlideButton(nullptr)
     , m_deleteSlideButton(nullptr)
     , m_moveUpButton(nullptr)
     , m_moveDownButton(nullptr)
-    , m_timerStartButton(nullptr)
-    , m_timerPauseButton(nullptr)
-    , m_timerResetButton(nullptr)
     , m_statusLabel(nullptr)
     , m_presentationModel(new PresentationModel(this))
     , m_itemListModel(new ItemListModel(this))
@@ -259,6 +250,8 @@ void ControlWindow::setupUI()
     fileMenu->addAction(tr("&Save"), QKeySequence::Save, this, &ControlWindow::savePresentation);
     fileMenu->addAction(tr("Save &As..."), QKeySequence::SaveAs, this, &ControlWindow::saveAsPresentation);
     fileMenu->addSeparator();
+    fileMenu->addAction(tr("&Settings..."), this, &ControlWindow::onSettings);
+    fileMenu->addSeparator();
     fileMenu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
 
     // Slide menu
@@ -392,64 +385,19 @@ void ControlWindow::setupUI()
 
     mainLayout->addLayout(contentLayout, 1);  // Content area stretches
 
-    // Control buttons
-    QHBoxLayout* buttonLayout = new QHBoxLayout();
-
-    m_prevButton = new QPushButton(tr("Prev"), this);
-    m_nextButton = new QPushButton(tr("Next"), this);
-    m_clearButton = new QPushButton(tr("Clear"), this);
-
-    // Output disable toggle - checkable button that stays pressed when output is disabled
-    m_outputDisabledButton = new QPushButton(tr("Disable Output"), this);
-    m_outputDisabledButton->setCheckable(true);
-    m_outputDisabledButton->setToolTip(tr("When enabled, blacks out the output display and keeps it disabled during navigation"));
-
-    connect(m_prevButton, &QPushButton::clicked, this, &ControlWindow::onPrevSlide);
-    connect(m_nextButton, &QPushButton::clicked, this, &ControlWindow::onNextSlide);
-    connect(m_clearButton, &QPushButton::clicked, this, &ControlWindow::onClearOutput);
-    connect(m_outputDisabledButton, &QPushButton::toggled, this, &ControlWindow::onOutputDisabledToggled);
-
-    buttonLayout->addWidget(m_prevButton);
-    buttonLayout->addWidget(m_nextButton);
-    buttonLayout->addWidget(m_clearButton);
-    buttonLayout->addWidget(m_outputDisabledButton);
-
-    // Separator
-    QFrame* separator = new QFrame(this);
-    separator->setFrameShape(QFrame::VLine);
-    separator->setFrameShadow(QFrame::Sunken);
-    buttonLayout->addWidget(separator);
-
-    // Timer control buttons
-    m_timerStartButton = new QPushButton(tr("Start"), this);
-    m_timerPauseButton = new QPushButton(tr("Pause"), this);
-    m_timerResetButton = new QPushButton(tr("Reset"), this);
-
-    connect(m_timerStartButton, &QPushButton::clicked, this, &ControlWindow::onStartTimer);
-    connect(m_timerPauseButton, &QPushButton::clicked, this, &ControlWindow::onPauseTimer);
-    connect(m_timerResetButton, &QPushButton::clicked, this, &ControlWindow::onResetTimer);
-
-    buttonLayout->addWidget(m_timerStartButton);
-    buttonLayout->addWidget(m_timerPauseButton);
-    buttonLayout->addWidget(m_timerResetButton);
-    buttonLayout->addStretch();
-
-    mainLayout->addLayout(buttonLayout);
-
-    // Settings button row
-    QHBoxLayout* processLayout = new QHBoxLayout();
-
-    m_settingsButton = new QPushButton(tr("Settings"), this);
-    connect(m_settingsButton, &QPushButton::clicked, this, &ControlWindow::onSettings);
-
-    processLayout->addStretch();
-    processLayout->addWidget(m_settingsButton);
-
-    mainLayout->addLayout(processLayout);
 
     // Connect live preview double-click signals to toggle output/confidence displays
     connect(m_livePreviewPanel, &LivePreviewPanel::outputDoubleClicked, this, &ControlWindow::toggleOutputDisplay);
     connect(m_livePreviewPanel, &LivePreviewPanel::confidenceDoubleClicked, this, &ControlWindow::toggleConfidenceMonitor);
+
+    // Connect blackout/whiteout buttons
+    connect(m_livePreviewPanel, &LivePreviewPanel::blackoutClicked, this, &ControlWindow::blackScreen);
+    connect(m_livePreviewPanel, &LivePreviewPanel::whiteoutClicked, this, &ControlWindow::whiteScreen);
+
+    // Connect timer buttons
+    connect(m_livePreviewPanel, &LivePreviewPanel::timerStartClicked, this, &ControlWindow::onStartTimer);
+    connect(m_livePreviewPanel, &LivePreviewPanel::timerPauseClicked, this, &ControlWindow::onPauseTimer);
+    connect(m_livePreviewPanel, &LivePreviewPanel::timerResetClicked, this, &ControlWindow::onResetTimer);
 
     // Status bar
     m_statusLabel = new QLabel(tr("Ready"), this);
@@ -489,9 +437,6 @@ void ControlWindow::updateUI()
     int currentIndex = m_presentationModel->currentSlideIndex();
     int slideCount = m_presentationModel->rowCount();
 
-    m_prevButton->setEnabled(currentIndex > 0);
-    m_nextButton->setEnabled(currentIndex < slideCount - 1);
-
     // Update selection in item list view (items)
     int itemIndex = m_itemListModel->itemIndexForSlide(currentIndex);
     if (itemIndex >= 0) {
@@ -528,6 +473,8 @@ void ControlWindow::broadcastCurrentSlide()
     // Clear blackout/whiteout state when broadcasting a slide
     m_isBlackout = false;
     m_isWhiteout = false;
+    m_livePreviewPanel->setBlackoutActive(false);
+    m_livePreviewPanel->setWhiteoutActive(false);
 
     Presentation* presentation = m_presentationModel->presentation();
     if (!presentation || presentation->slideCount() == 0) {
@@ -547,31 +494,29 @@ void ControlWindow::broadcastCurrentSlide()
     // Update live preview panel with current and next slides
     m_livePreviewPanel->setSlides(currentSlide, nextSlide, currentIndex, totalSlides);
 
-    // Send standard slideData message to output displays (unless output is disabled)
-    if (!m_isOutputDisabled) {
-        QJsonObject outputMessage;
-        outputMessage["type"] = "slideData";
-        outputMessage["index"] = currentIndex;
-        outputMessage["slide"] = currentSlide.toJson();
+    // Send standard slideData message to output displays
+    QJsonObject outputMessage;
+    outputMessage["type"] = "slideData";
+    outputMessage["index"] = currentIndex;
+    outputMessage["slide"] = currentSlide.toJson();
 
-        // Include transition settings (per-slide override or global default)
-        QString transitionType = currentSlide.transitionType();
-        if (transitionType.isEmpty()) {
-            transitionType = m_settingsManager->transitionType();
-        }
-        outputMessage["transitionType"] = transitionType;
-
-        int transitionDuration = currentSlide.transitionDuration();
-        if (transitionDuration < 0) {
-            transitionDuration = m_settingsManager->transitionDuration();
-        }
-        outputMessage["transitionDuration"] = transitionDuration;
-
-        // Include red letter color for scripture slides with red letter markup
-        outputMessage["redLetterColor"] = m_settingsManager->redLetterColor();
-
-        m_ipcServer->sendToClientType("output", outputMessage);
+    // Include transition settings (per-slide override or global default)
+    QString transitionType = currentSlide.transitionType();
+    if (transitionType.isEmpty()) {
+        transitionType = m_settingsManager->transitionType();
     }
+    outputMessage["transitionType"] = transitionType;
+
+    int transitionDuration = currentSlide.transitionDuration();
+    if (transitionDuration < 0) {
+        transitionDuration = m_settingsManager->transitionDuration();
+    }
+    outputMessage["transitionDuration"] = transitionDuration;
+
+    // Include red letter color for scripture slides with red letter markup
+    outputMessage["redLetterColor"] = m_settingsManager->redLetterColor();
+
+    m_ipcServer->sendToClientType("output", outputMessage);
 
     // Send enhanced confidenceData message to confidence monitors
     QJsonObject confidenceMessage;
@@ -597,8 +542,7 @@ void ControlWindow::broadcastCurrentSlide()
 
         // Record song usage for CCLI reporting (only once per song per session)
         if (currentItem->type() == PresentationItem::SongItemType &&
-            m_settingsManager->usageTrackingEnabled() &&
-            !m_isOutputDisabled) {
+            m_settingsManager->usageTrackingEnabled()) {
             SongItem* songItem = qobject_cast<SongItem*>(currentItem);
             if (songItem && songItem->songId() > 0) {
                 int songId = songItem->songId();
@@ -1644,12 +1588,6 @@ void ControlWindow::setupShortcuts()
     // W = White screen
     new QShortcut(QKeySequence(Qt::Key_W), this, SLOT(whiteScreen()));
 
-    // D = Toggle output disable (persistent blackout)
-    QShortcut* disableShortcut = new QShortcut(QKeySequence(Qt::Key_D), this);
-    connect(disableShortcut, &QShortcut::activated, this, [this]() {
-        m_outputDisabledButton->toggle();
-    });
-
     // Escape = Clear output
     new QShortcut(QKeySequence(Qt::Key_Escape), this, SLOT(onClearOutput()));
 
@@ -1744,14 +1682,9 @@ void ControlWindow::promptGotoSlide()
 
 void ControlWindow::blackScreen()
 {
-    // Ignore if output is persistently disabled
-    if (m_isOutputDisabled) {
-        return;
-    }
-
     // Toggle blackout - if already black, restore slide
     if (m_isBlackout) {
-        // Restore the current slide
+        // Restore the current slide (broadcastCurrentSlide clears both states + buttons)
         m_isBlackout = false;
         broadcastCurrentSlide();
         return;
@@ -1761,20 +1694,19 @@ void ControlWindow::blackScreen()
     m_isWhiteout = false;
     m_isBlackout = true;
 
-    // Clear output (same as Clear button) - shows black screen
+    // Update button states
+    m_livePreviewPanel->setBlackoutActive(true);
+    m_livePreviewPanel->setWhiteoutActive(false);
+
+    // Clear output - shows black screen
     onClearOutput();
 }
 
 void ControlWindow::whiteScreen()
 {
-    // Ignore if output is persistently disabled
-    if (m_isOutputDisabled) {
-        return;
-    }
-
     // Toggle whiteout - if already white, restore slide
     if (m_isWhiteout) {
-        // Restore the current slide
+        // Restore the current slide (broadcastCurrentSlide clears both states + buttons)
         m_isWhiteout = false;
         broadcastCurrentSlide();
         return;
@@ -1783,6 +1715,10 @@ void ControlWindow::whiteScreen()
     // Clear any blackout state
     m_isBlackout = false;
     m_isWhiteout = true;
+
+    // Update button states
+    m_livePreviewPanel->setBlackoutActive(false);
+    m_livePreviewPanel->setWhiteoutActive(true);
 
     // Send a white screen command to displays
     // We'll create a temporary white slide to display
@@ -1809,33 +1745,6 @@ void ControlWindow::whiteScreen()
     whiteSlide.setBackgroundColor(QColor("#ffffff"));
     whiteSlide.setTextColor(QColor("#000000"));
     m_livePreviewPanel->setOutputSlide(whiteSlide);
-}
-
-void ControlWindow::onOutputDisabledToggled(bool disabled)
-{
-    m_isOutputDisabled = disabled;
-
-    if (disabled) {
-        // Black out the output display
-        m_isBlackout = false;  // Clear temporary blackout state
-        m_isWhiteout = false;  // Clear temporary whiteout state
-
-        // Send clear command to black out the output
-        QJsonObject message;
-        message["type"] = "clearOutput";
-        m_ipcServer->sendToClientType("output", message);
-
-        // Update button appearance to indicate active state
-        m_outputDisabledButton->setText("Output Disabled");
-        m_outputDisabledButton->setStyleSheet("QPushButton { background-color: #c0392b; color: white; font-weight: bold; }");
-    } else {
-        // Re-enable output and restore current slide
-        m_outputDisabledButton->setText("Disable Output");
-        m_outputDisabledButton->setStyleSheet("");  // Reset to default style
-
-        // Broadcast current slide to restore display
-        broadcastCurrentSlide();
-    }
 }
 
 void ControlWindow::toggleOutputDisplay()
@@ -1903,7 +1812,6 @@ void ControlWindow::showKeyboardShortcuts()
 <table>
 <tr><td><b>B</b></td><td>Toggle black screen</td></tr>
 <tr><td><b>W</b></td><td>Toggle white screen</td></tr>
-<tr><td><b>D</b></td><td>Toggle output disable (persistent blackout)</td></tr>
 <tr><td><b>Escape</b></td><td>Clear output</td></tr>
 <tr><td><b>O</b></td><td>Toggle output display</td></tr>
 <tr><td><b>F</b></td><td>Toggle output fullscreen</td></tr>

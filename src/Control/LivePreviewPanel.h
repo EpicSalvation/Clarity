@@ -4,6 +4,7 @@
 #include "LivePreviewWidget.h"
 #include "ConfidencePreviewWidget.h"
 #include <QWidget>
+#include <QPushButton>
 
 namespace Clarity {
 
@@ -80,6 +81,16 @@ public:
      */
     QSize minimumSizeHint() const override;
 
+    /**
+     * @brief Set the blackout button active state
+     */
+    void setBlackoutActive(bool active);
+
+    /**
+     * @brief Set the whiteout button active state
+     */
+    void setWhiteoutActive(bool active);
+
 signals:
     /**
      * @brief Emitted when user double-clicks the output preview to toggle display
@@ -91,9 +102,39 @@ signals:
      */
     void confidenceDoubleClicked();
 
+    /**
+     * @brief Emitted when user clicks the Blackout button
+     */
+    void blackoutClicked();
+
+    /**
+     * @brief Emitted when user clicks the Whiteout button
+     */
+    void whiteoutClicked();
+
+    /**
+     * @brief Emitted when user clicks the timer Play button
+     */
+    void timerStartClicked();
+
+    /**
+     * @brief Emitted when user clicks the timer Pause button
+     */
+    void timerPauseClicked();
+
+    /**
+     * @brief Emitted when user clicks the timer Reset button
+     */
+    void timerResetClicked();
+
 private:
     LivePreviewWidget* m_outputPreview;            ///< Output display preview
     ConfidencePreviewWidget* m_confidencePreview;  ///< Confidence monitor preview
+    QPushButton* m_blackoutButton;                 ///< Blackout toggle button
+    QPushButton* m_whiteoutButton;                 ///< Whiteout toggle button
+    QPushButton* m_timerPlayButton;                ///< Timer play button
+    QPushButton* m_timerPauseButton;               ///< Timer pause button
+    QPushButton* m_timerResetButton;               ///< Timer reset button
 };
 
 } // namespace Clarity
