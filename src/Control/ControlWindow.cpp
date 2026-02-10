@@ -781,6 +781,7 @@ void ControlWindow::markClean()
 void ControlWindow::updatePreviewStates()
 {
     // If the client disconnected entirely, it's no longer visible
+    bool wasOutputVisible = m_outputVisible;
     if (!m_ipcServer->hasClientType("output"))
         m_outputVisible = false;
     if (!m_ipcServer->hasClientType("confidence"))
@@ -788,6 +789,11 @@ void ControlWindow::updatePreviewStates()
 
     m_livePreviewPanel->setOutputActive(m_outputVisible);
     m_livePreviewPanel->setConfidenceActive(m_confidenceVisible);
+
+    // Stop auto-advance if output just went away
+    if (wasOutputVisible && !m_outputVisible) {
+        m_autoAdvanceTimer->stop();
+    }
 }
 
 void ControlWindow::applySlidePreviewSize(const QString& size)
@@ -1026,6 +1032,11 @@ void ControlWindow::onSlideContextMenu(const QPoint& pos)
     cloneFormatAction->setShortcut(QKeySequence("Ctrl+Shift+F"));
     connect(cloneFormatAction, &QAction::triggered, this, &ControlWindow::onCloneFormatToGroup);
 
+    contextMenu.addSeparator();
+
+    QAction* autoAdvanceAction = contextMenu.addAction(tr("Set Auto-Advance..."));
+    connect(autoAdvanceAction, &QAction::triggered, this, &ControlWindow::onSetSlideAutoAdvance);
+
     // Enable/disable actions based on whether a slide is selected
     bool hasSelection = index.isValid();
     editAction->setEnabled(hasSelection);
@@ -1033,6 +1044,7 @@ void ControlWindow::onSlideContextMenu(const QPoint& pos)
     applyThemeToSlideAction->setEnabled(hasSelection);
     applyThemeToGroupAction->setEnabled(hasSelection);
     cloneFormatAction->setEnabled(hasSelection);
+    autoAdvanceAction->setEnabled(hasSelection);
 
     // Section operations for song slides
     if (hasSelection) {
@@ -1163,8 +1175,48 @@ void ControlWindow::toggleAutoAdvanceEnabled()
     m_autoAdvanceTimer->setEnabled(!m_autoAdvanceTimer->isEnabled());
 }
 
+void ControlWindow::onSetSlideAutoAdvance()
+{
+    QModelIndex proxyIndex = m_slideGridView->currentIndex();
+    if (!proxyIndex.isValid()) return;
+
+    QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(proxyIndex);
+    if (!sourceIndex.isValid()) return;
+
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) return;
+
+    int flatIndex = sourceIndex.row();
+    Slide slide = presentation->slideAt(flatIndex);
+
+    bool ok;
+    int duration = QInputDialog::getInt(
+        this,
+        tr("Set Auto-Advance"),
+        tr("Duration in seconds (0 = disabled):"),
+        slide.autoAdvanceDuration(),
+        0, 300, 1, &ok);
+
+    if (!ok) return;
+
+    slide.setAutoAdvanceDuration(duration);
+    presentation->updateSlide(flatIndex, slide);
+    markDirty();
+
+    // If this is the currently displayed slide, apply immediately
+    if (flatIndex == presentation->currentSlideIndex()) {
+        startAutoAdvanceForCurrentSlide();
+    }
+}
+
 void ControlWindow::startAutoAdvanceForCurrentSlide()
 {
+    // Don't start auto-advance if output is not actively displaying
+    if (!m_outputVisible || m_isBlackout || m_isWhiteout) {
+        m_autoAdvanceTimer->stop();
+        return;
+    }
+
     Presentation* presentation = m_presentationModel->presentation();
     if (!presentation || presentation->slideCount() == 0) {
         m_autoAdvanceTimer->stop();
@@ -2126,6 +2178,9 @@ void ControlWindow::whiteScreen()
     m_livePreviewPanel->setBlackoutActive(false);
     m_livePreviewPanel->setWhiteoutActive(true);
 
+    // Stop auto-advance timer when output is blanked (matches blackout behavior)
+    m_autoAdvanceTimer->stop();
+
     // Send a white screen command to displays
     // We'll create a temporary white slide to display
     QJsonObject message;
@@ -2169,6 +2224,13 @@ void ControlWindow::toggleOutputDisplay()
         // Client received the toggle, flip our visibility tracking
         m_outputVisible = !m_outputVisible;
         updatePreviewStates();
+
+        // Stop or restart auto-advance based on new visibility
+        if (m_outputVisible) {
+            startAutoAdvanceForCurrentSlide();
+        } else {
+            m_autoAdvanceTimer->stop();
+        }
     }
 }
 

@@ -4,6 +4,30 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-09 - Auto-Advance Output-Aware Timer + Context Menu
+
+### Summary
+Fixed auto-advance timer to be fully output-aware — it now stops whenever the output is not actively displaying (blackout, whiteout, output hidden, or output disconnected). Also added a right-click context menu option for quickly setting auto-advance duration per slide.
+
+### Work Completed
+
+#### Bug Fix: Timer stops when output is not actively displaying
+- **`startAutoAdvanceForCurrentSlide()`** — Added guard at the top: if `!m_outputVisible || m_isBlackout || m_isWhiteout`, stop the timer and return. This is the central fix — no caller can accidentally start the timer when output is inactive.
+- **`whiteScreen()`** — Added explicit `m_autoAdvanceTimer->stop()` to match blackout behavior.
+- **`toggleOutputDisplay()`** — Stop timer when output is hidden; restart via `startAutoAdvanceForCurrentSlide()` when shown again.
+- **`updatePreviewStates()`** — Stop timer when output client disconnects (tracks `wasOutputVisible` to detect the transition).
+
+#### Context Menu: Set Auto-Advance
+- **`src/Control/ControlWindow.h`** — Added `onSetSlideAutoAdvance()` private slot
+- **`src/Control/ControlWindow.cpp`** — Added "Set Auto-Advance..." menu item in `onSlideContextMenu()` (enabled when a slide is selected). Handler uses `QInputDialog::getInt()` with range 0-300 seconds (0 = disabled), updates the slide's `autoAdvanceDuration`, marks dirty, and restarts the timer if editing the current slide.
+
+### Technical Decisions
+- Central guard in `startAutoAdvanceForCurrentSlide()` prevents timer from starting in any non-displaying state, rather than patching each caller individually
+- Used `QInputDialog::getInt()` for simplicity rather than a custom dialog — sufficient for a single integer field
+- Reused existing `Presentation::updateSlide()` to persist the change, which handles all item types properly
+
+---
+
 ## 2026-02-09 - Slide Auto-Advance Timer
 
 ### Summary

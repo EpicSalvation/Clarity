@@ -120,6 +120,7 @@ private slots:
     void onAutoAdvanceExpired();
     void toggleAutoAdvancePause();
     void toggleAutoAdvanceEnabled();
+    void onSetSlideAutoAdvance();
 
     // Remote control
     void onRemoteNavigation(const QString& action);
