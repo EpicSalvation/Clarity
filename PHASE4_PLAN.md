@@ -100,7 +100,7 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
 - [ ] **Other Potential Features**
   - [ ] Radial gradients
   - [ ] Multi-stop gradients
-  - [ ] Drag-and-drop slide reordering (item-level and slide-level)
+  - [x] Drag-and-drop slide reordering (item-level and slide-level)
   - [ ] Undo/redo for edits
   - [ ] Cloud sync for presentations
   - [ ] Presentation templates marketplace
