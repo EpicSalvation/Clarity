@@ -4,6 +4,8 @@
 #include "Core/Slide.h"
 #include <QObject>
 #include <QColor>
+#include <QFile>
+#include <QElapsedTimer>
 
 namespace Clarity {
 
@@ -116,6 +118,9 @@ public:
     // Called by QML when transition is complete
     Q_INVOKABLE void transitionComplete();
 
+    // Called by QML to log blur performance status
+    Q_INVOKABLE void logBlurStatus(const QString& details);
+
 signals:
     void slideTextChanged();
     void slideRichTextChanged();
@@ -175,8 +180,12 @@ private slots:
 private:
     void updateSlide(const Slide& slide);
     void clearDisplay();
+    void initBlurLog();
+    void logBlurConfig(const Slide& slide);
 
     IpcClient* m_ipcClient;
+    QFile* m_blurLogFile = nullptr;
+    QElapsedTimer m_slideUpdateTimer;
 
     QString m_slideText;
     QString m_slideRichText;

@@ -4,6 +4,62 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-10 - Background Blur Effects Implementation
+
+### Summary
+Implemented the actual rendering of background blur effects in the output display. The data model, C++ bridge properties, UI controls, and IPC transport were already fully wired up from earlier work — this session adds the QML rendering that makes the blur visible, plus performance logging to a file for diagnosing any performance impact.
+
+### Work Completed
+
+#### Blur Rendering in OutputDisplay.qml
+- **Overlay blur**: Full-screen frosted glass effect using `ShaderEffectSource` with reduced `textureSize`. The background content (solid color, gradient, image, video) is grouped into a `bgContentA`/`bgContentB` wrapper Item. The ShaderEffectSource captures this group at lower resolution; bilinear filtering when displayed at full size creates the blur. `hideSource` hides the raw background when blur replaces it.
+- **Text container blur**: Frosted glass behind the text container box. Uses a clipped `Item` sized to match the container, with a `ShaderEffectSource` inside positioned via negative offsets to align the captured background region with the actual background coordinates.
+- **Text band blur**: Same technique as container blur but applied to the full-width text band strip.
+- **Drop shadow blur**: Wrapper `Item` around the shadow text with `layer.enabled: true` and reduced `layer.textureSize`. Extra margin (`blur * 4` pixels) gives the blur room to spread beyond text edges.
+- All four blur types work for both containers A and B (transition support preserved).
+- Blur radius 0-50 maps to downsample divisor via `blurDivisor(radius) = 1 + radius * 0.3`, giving a range from 1x (no blur) to 16x (heavy blur).
+
+#### Performance Logging (OutputDisplay.cpp)
+- **`initBlurLog()`**: Creates/opens `clarity_blur_perf.log` in the app data directory (via `QStandardPaths::AppDataLocation`). Writes session header on startup.
+- **`logBlurConfig()`**: Called during `updateSlide()` — logs which blur effects are active and their radius values when a slide with blur is displayed.
+- **`logBlurStatus()`**: `Q_INVOKABLE` method called from QML every 5 seconds when blur is active — logs the current blur state including active container, window size, and texture dimensions.
+- **Slide update timing**: `QElapsedTimer` measures how long `updateSlide()` takes and logs the duration with each slide change.
+- Log format uses pipe-delimited fields with ISO timestamps for easy parsing.
+
+#### PHASE4_PLAN.md Updates
+- Marked "Background Blur Effects" as complete with implementation details.
+- Created new "User-Requested Features" section for features that will only be implemented if requested by users.
+- Moved Ken Burns Effect and Lower-Third Animations to the user-requested section.
+- Moved SongSelect Direct API Integration to user-requested section.
+- Added "Blur Architecture" section to Technical Considerations documenting the implementation approach.
+
+### Technical Decisions
+- **ShaderEffectSource downsample approach**: Chosen because it works with vanilla Qt6 Quick — no need for Qt5Compat.GraphicalEffects or other external modules. The downsampled texture with bilinear interpolation produces an acceptable frosted glass appearance.
+- **No external modules**: The implementation deliberately avoids `Qt5Compat.GraphicalEffects` (FastBlur, DropShadow) since they may not be available on all target systems. The downsample approach is self-contained.
+- **hideSource for overlay blur**: When the full-screen overlay blur is active, `hideSource: true` hides the original background so only the blurred version is visible. Other ShaderEffectSources (container/band blur) still capture from the source even when hidden.
+- **File-based logging instead of console**: Console output doesn't work reliably on Windows (the primary development platform). Performance data goes to `clarity_blur_perf.log` in the app data directory.
+- **Blur divisor formula**: Linear `1 + radius * 0.3` chosen over exponential for more predictable user control. At blur=50, the texture is 16x smaller (e.g., 120x68 for a 1920x1080 display).
+
+### Testing
+- Manual testing required: Enable overlay/container/band blur in slide editor, verify visual blur effect in output display, check log file for performance data.
+- Test with different background types: solid color, gradient, image, video.
+- Test transitions between blurred and non-blurred slides.
+- Check that blur=0 produces identical output to the previous no-blur behavior.
+
+### Issues/Blockers
+- Qt5Compat.GraphicalEffects not available in the build environment — the downsample approach is a workaround that produces acceptable but not Gaussian-quality blur.
+- Rounded-corner clipping for text container blur is rectangular only (`clip: true` on Item). The container's rounded-corner `Rectangle` sits on top and mostly masks the sharp edges.
+
+### Next Steps
+- Test blur rendering on Windows with actual presentation content.
+- Evaluate whether the downsample blur quality is sufficient or if a multi-pass approach is needed.
+- Consider adding blur to the ThemeEditorDialog so themes can include default blur settings.
+
+### Commit(s)
+- Branch: `claude/review-phase4-tasks-KYBPA`
+
+---
+
 ## 2026-02-09 - Auto-Advance Output-Aware Timer + Context Menu
 
 ### Summary
