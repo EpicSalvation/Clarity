@@ -29,6 +29,7 @@ Slide::Slide()
     , m_textBandColor("#80000000")  // 50% black
     , m_textBandBlur(0)
     , m_transitionDuration(-1)
+    , m_autoAdvanceDuration(0)
     , m_groupIndex(-1)
 {
 }
@@ -61,6 +62,7 @@ Slide::Slide(const QString& text, const QColor& backgroundColor, const QColor& t
     , m_textBandColor("#80000000")  // 50% black
     , m_textBandBlur(0)
     , m_transitionDuration(-1)
+    , m_autoAdvanceDuration(0)
     , m_groupIndex(-1)
 {
 }
@@ -120,6 +122,11 @@ QJsonObject Slide::toJson() const
     }
     if (m_transitionDuration >= 0) {
         json["transitionDuration"] = m_transitionDuration;
+    }
+
+    // Phase 4: Auto-advance timer (only include if enabled)
+    if (m_autoAdvanceDuration > 0) {
+        json["autoAdvanceDuration"] = m_autoAdvanceDuration;
     }
 
     // Phase 3: Presenter notes (only include if not empty)
@@ -209,6 +216,9 @@ Slide Slide::fromJson(const QJsonObject& json)
     if (json.contains("transitionDuration")) {
         slide.m_transitionDuration = json["transitionDuration"].toInt();
     }
+
+    // Phase 4: Auto-advance timer
+    slide.m_autoAdvanceDuration = json["autoAdvanceDuration"].toInt(0);
 
     // Phase 3: Presenter notes
     if (json.contains("notes")) {

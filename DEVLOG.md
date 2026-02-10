@@ -4,6 +4,83 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-09 - Slide Auto-Advance Timer
+
+### Summary
+Implemented the slide auto-advance timer feature from Phase 4. Slides can now be configured to automatically advance to the next slide after a specified number of seconds. Supports per-slide duration settings, group-level (item-level) defaults, visual countdown indicators in both the control window and confidence monitor, pause/resume via keyboard shortcut (P), and proper timer reset on manual navigation. Works across item boundaries.
+
+### Work Completed
+
+#### Data Model Changes
+- **`src/Core/Slide.h/.cpp`** — Added `m_autoAdvanceDuration` property (int, seconds, 0 = disabled) with getter, setter, and JSON serialization (`autoAdvanceDuration` field, only written when > 0)
+- **`src/Core/PresentationItem.h/.cpp`** — Added `m_defaultAutoAdvanceDuration` (group-level default), `setDefaultAutoAdvanceDuration()`, and `effectiveAutoAdvanceDuration(slideIndex)` method that returns per-slide override if set, otherwise the item-level default. JSON serialization via `defaultAutoAdvanceDuration` field
+
+#### AutoAdvanceTimer Engine
+- **`src/Core/AutoAdvanceTimer.h/.cpp`** (new) — QTimer-based countdown engine:
+  - `startCountdown(seconds)`: Starts countdown, replaces any active countdown
+  - `stop()`: Cancels without triggering advance
+  - `pause()/resume()/togglePause()`: Pause support preserving remaining time
+  - `setEnabled(bool)`: Global enable/disable for auto-advance
+  - `expired` signal: Fires when countdown reaches zero
+  - `tick(seconds)` signal: Fires every second with remaining time for UI updates
+  - `stateChanged` signal: Fires on any state transition
+  - `progress()`: Returns elapsed fraction (0.0 to 1.0) for progress bars
+
+#### Slide Editor Integration
+- **`src/Control/SlideEditorDialog.h/.cpp`** — Added `m_autoAdvanceSpinBox` (QSpinBox, 0-300 seconds, "Disabled" special text) in the Transition Override section; loads/saves `autoAdvanceDuration`
+
+#### Control Window Integration
+- **`src/Control/ControlWindow.h/.cpp`** — Full timer lifecycle management:
+  - `m_autoAdvanceTimer` member initialized in constructor
+  - `startAutoAdvanceForCurrentSlide()`: Queries effective duration from current item/slide, starts or stops timer accordingly
+  - `onAutoAdvanceExpired()`: Connected to `expired` signal, calls `onNextSlide()`
+  - `toggleAutoAdvancePause()`: Keyboard shortcut handler (P key)
+  - `broadcastAutoAdvanceState()`: Sends `autoAdvanceState` IPC message to confidence monitor
+  - Timer auto-resets on all navigation paths (broadcastCurrentSlide calls startAutoAdvance)
+  - Timer stops on clear output, blackout, whiteout
+  - Keyboard shortcut help dialog updated with auto-advance section
+
+#### Visual Countdown Indicator (Control Window)
+- **`src/Control/LivePreviewPanel.h/.cpp`** — Auto-advance countdown UI:
+  - `m_autoAdvanceWidget`: Container with label + progress bar
+  - `setAutoAdvanceCountdown(seconds, total)`: Updates countdown text and progress
+  - `setAutoAdvanceActive(bool)`: Shows/hides the widget
+  - `setAutoAdvancePaused(bool)`: Switches progress bar color (blue → amber when paused)
+
+#### Confidence Monitor Integration
+- **`src/Confidence/ConfidenceDisplay.h/.cpp`** — Added Q_PROPERTYs: `autoAdvanceActive`, `autoAdvancePaused`, `autoAdvanceRemaining`, `autoAdvanceTotal` with `autoAdvanceChanged` signal; handles `autoAdvanceState` IPC message
+- **`src/Confidence/qml/ConfidenceMonitor.qml`** — Auto-advance countdown display in timer bar: centered text showing remaining seconds (blue normal, amber paused) with progress bar
+
+#### Build System
+- **`CMakeLists.txt`** — Added `AutoAdvanceTimer.h/.cpp` to ClarityCore library
+
+### Technical Decisions
+- Auto-advance duration stored in seconds (not milliseconds) for user-friendliness; internal timer ticks at 1-second intervals
+- Per-slide override (Slide.autoAdvanceDuration) takes priority over item-level default (PresentationItem.defaultAutoAdvanceDuration)
+- Timer is managed entirely in the control window (not output display) to keep the "control drives everything" architecture
+- 0 means disabled at both slide and item level, avoiding -1 sentinel values
+- Timer automatically handles item boundary crossing via standard nextSlide() navigation
+
+### Testing
+- Manual testing approach per Phase 1 guidelines
+- Verify: Set auto-advance on a slide, see countdown appear, slide advances automatically
+- Verify: Press P to pause/resume countdown
+- Verify: Manual navigation resets timer for new slide
+- Verify: Blackout/whiteout/clear stops the timer
+- Verify: Group-level default applies to all slides in item unless per-slide override set
+
+### Issues/Blockers
+- Qt6 SDK not available in current environment; compilation verified through code review and consistency checking
+
+### Next Steps
+- Audio playback support (Phase 4)
+- Video playback controls (Phase 4)
+
+### Commit(s)
+- Branch: `claude/implement-slide-auto-advance-ObHtg`
+
+---
+
 ## 2026-02-08 - Drag-and-Drop Media onto Slides, Image Optimization, Theme Shadows
 
 ### Summary

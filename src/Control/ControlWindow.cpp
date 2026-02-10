@@ -60,6 +60,7 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_mediaLibrary(new MediaLibrary(this))
     , m_thumbnailGenerator(new VideoThumbnailGenerator(this))
     , m_remoteServer(new RemoteServer(8080, this))
+    , m_autoAdvanceTimer(new AutoAdvanceTimer(this))
     , m_remoteStatusLabel(nullptr)
     , m_currentFilePath("")
     , m_isDirty(false)
@@ -179,6 +180,21 @@ ControlWindow::ControlWindow(QWidget* parent)
             m_remoteStatusLabel->setText("");
             qDebug() << "Remote control server stopped";
         }
+    });
+
+    // Connect auto-advance timer
+    connect(m_autoAdvanceTimer, &AutoAdvanceTimer::expired, this, &ControlWindow::onAutoAdvanceExpired);
+    connect(m_autoAdvanceTimer, &AutoAdvanceTimer::tick, this, [this](int seconds) {
+        m_livePreviewPanel->setAutoAdvanceCountdown(seconds, m_autoAdvanceTimer->totalDuration());
+        broadcastAutoAdvanceState();
+    });
+    connect(m_autoAdvanceTimer, &AutoAdvanceTimer::stateChanged, this, [this]() {
+        m_livePreviewPanel->setAutoAdvanceActive(m_autoAdvanceTimer->isActive());
+        m_livePreviewPanel->setAutoAdvancePaused(m_autoAdvanceTimer->isPaused());
+        if (!m_autoAdvanceTimer->isActive()) {
+            m_livePreviewPanel->setAutoAdvanceCountdown(0, 0);
+        }
+        broadcastAutoAdvanceState();
     });
 
     // Connect presentation modification signal
@@ -627,6 +643,9 @@ void ControlWindow::broadcastCurrentSlide()
 
     // Update remote control clients
     updateRemoteServer();
+
+    // Start auto-advance timer for the new slide
+    startAutoAdvanceForCurrentSlide();
 }
 
 void ControlWindow::onPrevSlide()
@@ -649,6 +668,9 @@ void ControlWindow::onNextSlide()
 
 void ControlWindow::onClearOutput()
 {
+    // Stop auto-advance timer when output is cleared
+    m_autoAdvanceTimer->stop();
+
     // Clear the live preview panel
     m_livePreviewPanel->clearAll();
 
@@ -1122,6 +1144,65 @@ void ControlWindow::onResetTimer()
 {
     QJsonObject message;
     message["type"] = "timerReset";
+    m_ipcServer->sendToClientType("confidence", message);
+}
+
+void ControlWindow::onAutoAdvanceExpired()
+{
+    // Timer expired - advance to next slide
+    onNextSlide();
+}
+
+void ControlWindow::toggleAutoAdvancePause()
+{
+    m_autoAdvanceTimer->togglePause();
+}
+
+void ControlWindow::toggleAutoAdvanceEnabled()
+{
+    m_autoAdvanceTimer->setEnabled(!m_autoAdvanceTimer->isEnabled());
+}
+
+void ControlWindow::startAutoAdvanceForCurrentSlide()
+{
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation || presentation->slideCount() == 0) {
+        m_autoAdvanceTimer->stop();
+        return;
+    }
+
+    int currentIndex = presentation->currentSlideIndex();
+    SlidePosition pos = presentation->positionForFlatIndex(currentIndex);
+    if (!pos.isValid()) {
+        m_autoAdvanceTimer->stop();
+        return;
+    }
+
+    // Get the effective auto-advance duration:
+    // 1. Per-slide override (from the Slide itself)
+    // 2. Item-level default (from the PresentationItem)
+    PresentationItem* item = presentation->itemAt(pos.itemIndex);
+    int duration = 0;
+    if (item) {
+        duration = item->effectiveAutoAdvanceDuration(pos.slideInItem);
+    }
+
+    if (duration > 0) {
+        m_autoAdvanceTimer->startCountdown(duration);
+    } else {
+        m_autoAdvanceTimer->stop();
+    }
+}
+
+void ControlWindow::broadcastAutoAdvanceState()
+{
+    QJsonObject message;
+    message["type"] = "autoAdvanceState";
+    message["active"] = m_autoAdvanceTimer->isActive();
+    message["paused"] = m_autoAdvanceTimer->isPaused();
+    message["remainingSeconds"] = m_autoAdvanceTimer->remainingSeconds();
+    message["totalDuration"] = m_autoAdvanceTimer->totalDuration();
+    message["enabled"] = m_autoAdvanceTimer->isEnabled();
     m_ipcServer->sendToClientType("confidence", message);
 }
 
@@ -1922,6 +2003,9 @@ void ControlWindow::setupShortcuts()
     // C = Toggle confidence monitor
     new QShortcut(QKeySequence(Qt::Key_C), this, SLOT(toggleConfidenceMonitor()));
 
+    // P = Pause/Resume auto-advance timer
+    new QShortcut(QKeySequence(Qt::Key_P), this, SLOT(toggleAutoAdvancePause()));
+
     // Slide management shortcuts
     // Ctrl+Up = Move slide up
     new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Up), this, SLOT(onMoveSlideUp()));
@@ -2159,6 +2243,11 @@ void ControlWindow::showKeyboardShortcuts()
 <tr><td><b>Ctrl+N</b></td><td>New presentation</td></tr>
 <tr><td><b>Ctrl+O</b></td><td>Open presentation</td></tr>
 <tr><td><b>Ctrl+S</b></td><td>Save presentation</td></tr>
+</table>
+
+<h3>Auto-Advance</h3>
+<table>
+<tr><td><b>P</b></td><td>Pause/resume auto-advance timer</td></tr>
 </table>
 
 <h3>Content</h3>

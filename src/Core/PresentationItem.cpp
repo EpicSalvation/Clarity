@@ -7,6 +7,7 @@ PresentationItem::PresentationItem(QObject* parent)
     : QObject(parent)
     , m_uuid(QUuid::createUuid().toString(QUuid::WithoutBraces))
     , m_hasCustomStyle(false)
+    , m_defaultAutoAdvanceDuration(0)
     , m_cacheValid(false)
 {
 }
@@ -83,6 +84,28 @@ void PresentationItem::clearSlideStyleOverride(int slideIndex)
     }
 }
 
+void PresentationItem::setDefaultAutoAdvanceDuration(int seconds)
+{
+    if (m_defaultAutoAdvanceDuration != seconds) {
+        m_defaultAutoAdvanceDuration = qMax(0, seconds);
+        emit itemChanged();
+    }
+}
+
+int PresentationItem::effectiveAutoAdvanceDuration(int slideIndex) const
+{
+    // Per-slide override takes priority (if slide has autoAdvanceDuration > 0)
+    QList<Slide> slides = cachedSlides();
+    if (slideIndex >= 0 && slideIndex < slides.count()) {
+        int perSlide = slides.at(slideIndex).autoAdvanceDuration();
+        if (perSlide > 0) {
+            return perSlide;
+        }
+    }
+    // Fall back to item-level default
+    return m_defaultAutoAdvanceDuration;
+}
+
 QJsonObject PresentationItem::toJson() const
 {
     return baseToJson();
@@ -127,6 +150,11 @@ QJsonObject PresentationItem::baseToJson() const
         }
 
         json["style"] = styleJson;
+    }
+
+    // Auto-advance timer (item-level default)
+    if (m_defaultAutoAdvanceDuration > 0) {
+        json["defaultAutoAdvanceDuration"] = m_defaultAutoAdvanceDuration;
     }
 
     // Serialize per-slide style overrides
@@ -201,6 +229,9 @@ void PresentationItem::applyBaseJson(const QJsonObject& json)
 
         m_hasCustomStyle = true;
     }
+
+    // Auto-advance timer (item-level default)
+    m_defaultAutoAdvanceDuration = json["defaultAutoAdvanceDuration"].toInt(0);
 
     // Deserialize per-slide style overrides
     if (json.contains("slideStyles")) {

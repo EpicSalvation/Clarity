@@ -14,6 +14,10 @@ ConfidenceDisplay::ConfidenceDisplay(QObject* parent)
     , m_updateTimer(new QTimer(this))
     , m_pausedElapsedMs(0)
     , m_timerRunning(false)
+    , m_autoAdvanceActive(false)
+    , m_autoAdvancePaused(false)
+    , m_autoAdvanceRemaining(0)
+    , m_autoAdvanceTotal(0)
 {
     connect(m_ipcClient, &IpcClient::connected, this, &ConfidenceDisplay::onConnected);
     connect(m_ipcClient, &IpcClient::disconnected, this, &ConfidenceDisplay::onDisconnected);
@@ -139,6 +143,12 @@ void ConfidenceDisplay::onMessageReceived(const QJsonObject& message)
         // Settings were changed in Control app, notify QML to re-read them
         emit settingsChanged();
         qDebug() << "ConfidenceDisplay: Settings refreshed";
+    } else if (type == "autoAdvanceState") {
+        m_autoAdvanceActive = message["active"].toBool(false);
+        m_autoAdvancePaused = message["paused"].toBool(false);
+        m_autoAdvanceRemaining = message["remainingSeconds"].toInt(0);
+        m_autoAdvanceTotal = message["totalDuration"].toInt(0);
+        emit autoAdvanceChanged();
     } else if (type == "toggleVisibility") {
         emit toggleVisibility();
     } else {

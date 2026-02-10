@@ -13,6 +13,7 @@
 #include "Core/MediaLibrary.h"
 #include "Core/VideoThumbnailGenerator.h"
 #include "Core/RemoteServer.h"
+#include "Core/AutoAdvanceTimer.h"
 #include "ProcessManager.h"
 #include "SlideGridDelegate.h"
 #include "SlideGridView.h"
@@ -115,6 +116,11 @@ private slots:
     void onPauseTimer();
     void onResetTimer();
 
+    // Auto-advance
+    void onAutoAdvanceExpired();
+    void toggleAutoAdvancePause();
+    void toggleAutoAdvanceEnabled();
+
     // Remote control
     void onRemoteNavigation(const QString& action);
     void updateRemoteServer();
@@ -138,6 +144,8 @@ private:
     void markClean();
     void updatePreviewStates();
     void applySlidePreviewSize(const QString& size);
+    void startAutoAdvanceForCurrentSlide();
+    void broadcastAutoAdvanceState();
 
     // UI components
     QListView* m_slideListView;              ///< Left panel list view (playlist)
@@ -166,6 +174,7 @@ private:
     MediaLibrary* m_mediaLibrary;
     VideoThumbnailGenerator* m_thumbnailGenerator;
     RemoteServer* m_remoteServer;
+    AutoAdvanceTimer* m_autoAdvanceTimer;
     QLabel* m_remoteStatusLabel;
 
     // File management
