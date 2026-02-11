@@ -2,6 +2,10 @@
 #include <QDebug>
 #include <QFileInfo>
 #include <QUrl>
+#include <QStandardPaths>
+#include <QDir>
+#include <QDateTime>
+#include <QTextStream>
 
 namespace Clarity {
 
@@ -42,6 +46,9 @@ OutputDisplay::OutputDisplay(QObject* parent)
     connect(m_ipcClient, &IpcClient::connected, this, &OutputDisplay::onConnected);
     connect(m_ipcClient, &IpcClient::disconnected, this, &OutputDisplay::onDisconnected);
     connect(m_ipcClient, &IpcClient::messageReceived, this, &OutputDisplay::onMessageReceived);
+
+    // Initialize blur performance log
+    initBlurLog();
 
     // Connect to server
     m_ipcClient->connectToServer();
@@ -115,6 +122,7 @@ void OutputDisplay::onMessageReceived(const QJsonObject& message)
 
 void OutputDisplay::updateSlide(const Slide& slide)
 {
+    m_slideUpdateTimer.start();
     bool changed = false;
 
     if (m_slideText != slide.text()) {
@@ -321,7 +329,20 @@ void OutputDisplay::updateSlide(const Slide& slide)
     }
 
     if (changed) {
+        qint64 elapsed = m_slideUpdateTimer.elapsed();
         qDebug() << "OutputDisplay: Updated slide:" << m_slideText.left(30);
+
+        // Log blur configuration if any blur is active
+        logBlurConfig(slide);
+
+        if (m_blurLogFile && m_blurLogFile->isOpen()) {
+            QTextStream stream(m_blurLogFile);
+            stream << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
+                   << " | SLIDE_UPDATE | duration=" << elapsed << "ms"
+                   << " | text=" << m_slideText.left(30)
+                   << "\n";
+            stream.flush();
+        }
     }
 }
 
@@ -399,6 +420,67 @@ void OutputDisplay::transitionComplete()
     // Called by QML when transition animation finishes
     // Slide data was already applied before transition started
     qDebug() << "OutputDisplay: Transition complete";
+}
+
+void OutputDisplay::initBlurLog()
+{
+    QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(logDir);
+    QString logPath = logDir + "/clarity_blur_perf.log";
+
+    m_blurLogFile = new QFile(logPath, this);
+    if (m_blurLogFile->open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        QTextStream stream(m_blurLogFile);
+        stream << "\n=== Clarity Blur Performance Log ===\n"
+               << "Session started: " << QDateTime::currentDateTime().toString(Qt::ISODateWithMs) << "\n"
+               << "Log file: " << logPath << "\n"
+               << "---\n";
+        stream.flush();
+        qDebug() << "OutputDisplay: Blur performance log at:" << logPath;
+    } else {
+        qWarning() << "OutputDisplay: Failed to open blur log at:" << logPath;
+    }
+}
+
+void OutputDisplay::logBlurConfig(const Slide& slide)
+{
+    if (!m_blurLogFile || !m_blurLogFile->isOpen())
+        return;
+
+    bool hasOverlayBlur = slide.overlayEnabled() && slide.overlayBlur() > 0;
+    bool hasContainerBlur = slide.textContainerEnabled() && slide.textContainerBlur() > 0;
+    bool hasBandBlur = slide.textBandEnabled() && slide.textBandBlur() > 0;
+    bool hasShadowBlur = slide.dropShadowEnabled() && slide.dropShadowBlur() > 0;
+
+    if (!hasOverlayBlur && !hasContainerBlur && !hasBandBlur && !hasShadowBlur)
+        return;
+
+    QTextStream stream(m_blurLogFile);
+    stream << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
+           << " | BLUR_CONFIG";
+
+    if (hasOverlayBlur)
+        stream << " | overlay_blur=" << slide.overlayBlur();
+    if (hasContainerBlur)
+        stream << " | container_blur=" << slide.textContainerBlur();
+    if (hasBandBlur)
+        stream << " | band_blur=" << slide.textBandBlur();
+    if (hasShadowBlur)
+        stream << " | shadow_blur=" << slide.dropShadowBlur();
+
+    stream << "\n";
+    stream.flush();
+}
+
+void OutputDisplay::logBlurStatus(const QString& details)
+{
+    if (!m_blurLogFile || !m_blurLogFile->isOpen())
+        return;
+
+    QTextStream stream(m_blurLogFile);
+    stream << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
+           << " | BLUR_STATUS | " << details << "\n";
+    stream.flush();
 }
 
 } // namespace Clarity

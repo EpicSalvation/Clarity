@@ -10,6 +10,14 @@ import QtMultimedia
  * - Each container has its own cached copy of slide data
  * - When transitioning, outgoing keeps old data while incoming shows new data
  * - Supports: cut, fade, slideLeft, slideRight, slideUp, slideDown
+ *
+ * Blur Implementation:
+ * - Uses ShaderEffectSource with reduced textureSize for background blur
+ * - Bilinear filtering when displaying at full size creates the blur appearance
+ * - Overlay blur: full-screen frosted background behind the overlay tint
+ * - Text container blur: frosted glass behind the text container box
+ * - Text band blur: frosted glass behind the text band strip
+ * - Drop shadow blur: layer rendering at reduced resolution for soft shadows
  */
 Window {
     id: root
@@ -163,10 +171,76 @@ Window {
         textBandBlurB = displayController.textBandBlur
     }
 
+    // Calculate downsample divisor from blur radius (0-50).
+    // Higher radius = larger divisor = smaller texture = more blur.
+    // Returns a divisor applied to the texture dimensions.
+    function blurDivisor(radius) {
+        if (radius <= 0) return 1
+        // Linear mapping: blur 1 → divisor 1.3, blur 50 → divisor 16
+        return 1 + radius * 0.3
+    }
+
+    // Check if any blur effect is active on the currently-showing container
+    function isBlurActive() {
+        if (root.showingA) {
+            return (root.overlayEnabledA && root.overlayBlurA > 0) ||
+                   (root.textContainerEnabledA && root.textContainerBlurA > 0) ||
+                   (root.textBandEnabledA && root.textBandBlurA > 0) ||
+                   (root.dropShadowEnabledA && root.dropShadowBlurA > 0)
+        } else {
+            return (root.overlayEnabledB && root.overlayBlurB > 0) ||
+                   (root.textContainerEnabledB && root.textContainerBlurB > 0) ||
+                   (root.textBandEnabledB && root.textBandBlurB > 0) ||
+                   (root.dropShadowEnabledB && root.dropShadowBlurB > 0)
+        }
+    }
+
+    // Build a description string of active blur effects for logging
+    function getBlurDetails() {
+        var parts = []
+        if (root.showingA) {
+            if (root.overlayEnabledA && root.overlayBlurA > 0)
+                parts.push("overlay=" + root.overlayBlurA + " tex=" +
+                    Math.max(4, Math.round(root.width / root.blurDivisor(root.overlayBlurA))) + "x" +
+                    Math.max(4, Math.round(root.height / root.blurDivisor(root.overlayBlurA))))
+            if (root.textContainerEnabledA && root.textContainerBlurA > 0)
+                parts.push("container=" + root.textContainerBlurA)
+            if (root.textBandEnabledA && root.textBandBlurA > 0)
+                parts.push("band=" + root.textBandBlurA)
+            if (root.dropShadowEnabledA && root.dropShadowBlurA > 0)
+                parts.push("shadow=" + root.dropShadowBlurA)
+        } else {
+            if (root.overlayEnabledB && root.overlayBlurB > 0)
+                parts.push("overlay=" + root.overlayBlurB + " tex=" +
+                    Math.max(4, Math.round(root.width / root.blurDivisor(root.overlayBlurB))) + "x" +
+                    Math.max(4, Math.round(root.height / root.blurDivisor(root.overlayBlurB))))
+            if (root.textContainerEnabledB && root.textContainerBlurB > 0)
+                parts.push("container=" + root.textContainerBlurB)
+            if (root.textBandEnabledB && root.textBandBlurB > 0)
+                parts.push("band=" + root.textBandBlurB)
+            if (root.dropShadowEnabledB && root.dropShadowBlurB > 0)
+                parts.push("shadow=" + root.dropShadowBlurB)
+        }
+        return "container=" + (root.showingA ? "A" : "B") +
+               " window=" + root.width + "x" + root.height +
+               " " + parts.join(" | ")
+    }
+
+    // Periodic blur performance reporter - logs status every 5 seconds when blur is active
+    Timer {
+        id: blurPerfTimer
+        interval: 5000
+        repeat: true
+        running: root.isBlurActive()
+        onTriggered: {
+            displayController.logBlurStatus(root.getBlurDetails())
+        }
+    }
+
     // Initialize container A with first slide
     Component.onCompleted: {
         copyToContainerA()
-        console.log("OutputDisplay QML loaded with transition support")
+        console.log("OutputDisplay QML loaded with transition and blur support")
     }
 
     // Listen for signals from C++
@@ -364,7 +438,9 @@ Window {
         console.log("OutputDisplay: Transition interrupted")
     }
 
+    // =========================================================================
     // Slide container A
+    // =========================================================================
     Item {
         id: slideA
         width: parent.width
@@ -378,65 +454,91 @@ Window {
             opacity = (displayController.transitionType === "fade") ? 0 : 1
         }
 
-        // Solid color background
-        Rectangle {
+        // Background content group - wraps all background layers so they can
+        // be captured as a single source by ShaderEffectSource for blur
+        Item {
+            id: bgContentA
             anchors.fill: parent
-            color: root.backgroundTypeA === "solidColor" ? root.backgroundColorA : "black"
-            visible: root.backgroundTypeA === "solidColor"
-        }
 
-        // Gradient background
-        Rectangle {
-            anchors.centerIn: parent
-            property real angleRad: root.gradientAngleA * Math.PI / 180.0
-            property real absSin: Math.abs(Math.sin(angleRad))
-            property real absCos: Math.abs(Math.cos(angleRad))
-            width: parent.width * absCos + parent.height * absSin
-            height: parent.width * absSin + parent.height * absCos
-            visible: root.backgroundTypeA === "gradient"
-            rotation: root.gradientAngleA
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: root.gradientStartColorA }
-                GradientStop { position: 1.0; color: root.gradientEndColorA }
+            // Solid color background
+            Rectangle {
+                anchors.fill: parent
+                color: root.backgroundTypeA === "solidColor" ? root.backgroundColorA : "black"
+                visible: root.backgroundTypeA === "solidColor"
+            }
+
+            // Gradient background
+            Rectangle {
+                anchors.centerIn: parent
+                property real angleRad: root.gradientAngleA * Math.PI / 180.0
+                property real absSin: Math.abs(Math.sin(angleRad))
+                property real absCos: Math.abs(Math.cos(angleRad))
+                width: parent.width * absCos + parent.height * absSin
+                height: parent.width * absSin + parent.height * absCos
+                visible: root.backgroundTypeA === "gradient"
+                rotation: root.gradientAngleA
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: root.gradientStartColorA }
+                    GradientStop { position: 1.0; color: root.gradientEndColorA }
+                }
+            }
+
+            // Background image
+            Image {
+                anchors.fill: parent
+                visible: root.backgroundTypeA === "image"
+                source: root.backgroundTypeA === "image" && root.backgroundImageDataBase64A !== ""
+                        ? "data:application/octet-stream;base64," + root.backgroundImageDataBase64A : ""
+                fillMode: Image.PreserveAspectCrop
+                smooth: true
+            }
+
+            // Background video
+            Video {
+                id: videoA
+                anchors.fill: parent
+                visible: root.backgroundTypeA === "video"
+                source: root.backgroundTypeA === "video" ? root.backgroundVideoSourceA : ""
+                loops: root.videoLoopA ? MediaPlayer.Infinite : 1
+                muted: true  // Always muted for background videos
+                fillMode: VideoOutput.PreserveAspectCrop
+                // Auto-play when source changes and video is visible
+                onSourceChanged: {
+                    if (source !== "" && root.backgroundTypeA === "video") {
+                        play()
+                    }
+                }
+                // Also play when becoming visible during transitions
+                onVisibleChanged: {
+                    if (visible && source !== "") {
+                        play()
+                    } else if (!visible) {
+                        stop()
+                    }
+                }
             }
         }
 
-        // Background image
-        Image {
+        // Overlay blur - captures background at reduced resolution for frosted glass effect.
+        // ShaderEffectSource renders sourceItem into a texture at textureSize resolution,
+        // then displays it at its own size. The upscaling with bilinear filtering creates
+        // the blur appearance. hideSource hides the original background when blur is active
+        // so only the blurred version is visible.
+        ShaderEffectSource {
+            id: overlayBlurSourceA
             anchors.fill: parent
-            visible: root.backgroundTypeA === "image"
-            source: root.backgroundTypeA === "image" && root.backgroundImageDataBase64A !== ""
-                    ? "data:application/octet-stream;base64," + root.backgroundImageDataBase64A : ""
-            fillMode: Image.PreserveAspectCrop
+            sourceItem: bgContentA
+            hideSource: root.overlayEnabledA && root.overlayBlurA > 0
+            textureSize: Qt.size(
+                Math.max(4, Math.round(parent.width / root.blurDivisor(root.overlayBlurA))),
+                Math.max(4, Math.round(parent.height / root.blurDivisor(root.overlayBlurA)))
+            )
+            visible: root.overlayEnabledA && root.overlayBlurA > 0
             smooth: true
+            live: true
         }
 
-        // Background video
-        Video {
-            id: videoA
-            anchors.fill: parent
-            visible: root.backgroundTypeA === "video"
-            source: root.backgroundTypeA === "video" ? root.backgroundVideoSourceA : ""
-            loops: root.videoLoopA ? MediaPlayer.Infinite : 1
-            muted: true  // Always muted for background videos
-            fillMode: VideoOutput.PreserveAspectCrop
-            // Auto-play when source changes and video is visible
-            onSourceChanged: {
-                if (source !== "" && root.backgroundTypeA === "video") {
-                    play()
-                }
-            }
-            // Also play when becoming visible during transitions
-            onVisibleChanged: {
-                if (visible && source !== "") {
-                    play()
-                } else if (!visible) {
-                    stop()
-                }
-            }
-        }
-
-        // Background overlay - darkens the entire background for better text visibility
+        // Background overlay - semi-transparent tint on top of (optionally blurred) background
         Rectangle {
             id: overlayA
             anchors.fill: parent
@@ -444,7 +546,35 @@ Window {
             visible: root.overlayEnabledA
         }
 
-        // Text band - horizontal strip behind text area
+        // Text band blur - frosted glass effect behind the text band strip.
+        // Uses a clipped Item to show only the band-shaped region of the blurred background.
+        // The ShaderEffectSource inside is positioned to align with the actual background.
+        Item {
+            id: textBandBlurClipA
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            height: textContentA.height + root.textContainerPaddingA * 2
+            clip: true
+            visible: root.textBandEnabledA && root.textBandBlurA > 0
+
+            ShaderEffectSource {
+                sourceItem: bgContentA
+                // Offset to align the captured texture with the actual background position
+                x: 0
+                y: -textBandBlurClipA.y
+                width: bgContentA.width
+                height: bgContentA.height
+                textureSize: Qt.size(
+                    Math.max(4, Math.round(bgContentA.width / root.blurDivisor(root.textBandBlurA))),
+                    Math.max(4, Math.round(bgContentA.height / root.blurDivisor(root.textBandBlurA)))
+                )
+                smooth: true
+                live: true
+            }
+        }
+
+        // Text band - horizontal strip behind text area (semi-transparent color tint)
         Rectangle {
             id: textBandA
             anchors.left: parent.left
@@ -455,7 +585,33 @@ Window {
             visible: root.textBandEnabledA
         }
 
-        // Text container - box behind text
+        // Text container blur - frosted glass effect behind the text container box.
+        // Same technique as band blur but sized and positioned to match the container.
+        Item {
+            id: textContainerBlurClipA
+            anchors.centerIn: parent
+            width: textContentA.width + root.textContainerPaddingA * 2
+            height: textContentA.height + root.textContainerPaddingA * 2
+            clip: true
+            visible: root.textContainerEnabledA && root.textContainerBlurA > 0
+
+            ShaderEffectSource {
+                sourceItem: bgContentA
+                // Offset to align the captured texture with the actual background position
+                x: -textContainerBlurClipA.x
+                y: -textContainerBlurClipA.y
+                width: bgContentA.width
+                height: bgContentA.height
+                textureSize: Qt.size(
+                    Math.max(4, Math.round(bgContentA.width / root.blurDivisor(root.textContainerBlurA))),
+                    Math.max(4, Math.round(bgContentA.height / root.blurDivisor(root.textContainerBlurA)))
+                )
+                smooth: true
+                live: true
+            }
+        }
+
+        // Text container - box behind text (semi-transparent color tint)
         Rectangle {
             id: textContainerA
             anchors.centerIn: parent
@@ -466,26 +622,43 @@ Window {
             visible: root.textContainerEnabledA
         }
 
-        // Text shadow (rendered behind main text for drop shadow effect)
-        // Must use same text format as main text to ensure identical layout
-        Text {
-            id: textShadowA
+        // Text shadow with optional blur.
+        // When blur > 0, the wrapper Item uses layer rendering at reduced resolution.
+        // The layer captures the shadow text + margin into a texture, downsamples it,
+        // then displays it upscaled with bilinear filtering for a soft shadow effect.
+        // Extra margin around the text gives the blur room to spread beyond text edges.
+        Item {
+            id: textShadowWrapperA
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: root.dropShadowOffsetXA
             anchors.verticalCenterOffset: root.dropShadowOffsetYA
-            // Use same format as main text but override all colors to shadow color
-            text: root.useRichTextA
-                ? "<style>*{color:" + root.dropShadowColorA + "}.jesus{color:" + root.dropShadowColorA + "}</style>" + root.slideRichTextA
-                : root.slideTextA
-            textFormat: root.useRichTextA ? Text.RichText : Text.PlainText
-            color: root.dropShadowColorA
-            font.family: root.fontFamilyA
-            font.pixelSize: root.fontSizeA
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            wrapMode: Text.WordWrap
-            width: parent.width * 0.8
+            width: textShadowInnerA.width + root.dropShadowBlurA * 4
+            height: textShadowInnerA.paintedHeight + root.dropShadowBlurA * 4
             visible: root.dropShadowEnabledA
+
+            layer.enabled: root.dropShadowBlurA > 0
+            layer.smooth: true
+            layer.textureSize: root.dropShadowBlurA > 0 ? Qt.size(
+                Math.max(4, Math.round(width / root.blurDivisor(root.dropShadowBlurA))),
+                Math.max(4, Math.round(height / root.blurDivisor(root.dropShadowBlurA)))
+            ) : Qt.size(0, 0)
+
+            Text {
+                id: textShadowInnerA
+                anchors.centerIn: parent
+                // Use same format as main text but override all colors to shadow color
+                text: root.useRichTextA
+                    ? "<style>*{color:" + root.dropShadowColorA + "}.jesus{color:" + root.dropShadowColorA + "}</style>" + root.slideRichTextA
+                    : root.slideTextA
+                textFormat: root.useRichTextA ? Text.RichText : Text.PlainText
+                color: root.dropShadowColorA
+                font.family: root.fontFamilyA
+                font.pixelSize: root.fontSizeA
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                wrapMode: Text.WordWrap
+                width: root.width * 0.8
+            }
         }
 
         // Main text content - supports rich text for red letter display
@@ -509,7 +682,9 @@ Window {
         }
     }
 
+    // =========================================================================
     // Slide container B
+    // =========================================================================
     Item {
         id: slideB
         width: parent.width
@@ -523,65 +698,86 @@ Window {
             opacity = (displayController.transitionType === "fade") ? 0 : 1
         }
 
-        // Solid color background
-        Rectangle {
+        // Background content group - wraps all background layers for blur capture
+        Item {
+            id: bgContentB
             anchors.fill: parent
-            color: root.backgroundTypeB === "solidColor" ? root.backgroundColorB : "black"
-            visible: root.backgroundTypeB === "solidColor"
-        }
 
-        // Gradient background
-        Rectangle {
-            anchors.centerIn: parent
-            property real angleRad: root.gradientAngleB * Math.PI / 180.0
-            property real absSin: Math.abs(Math.sin(angleRad))
-            property real absCos: Math.abs(Math.cos(angleRad))
-            width: parent.width * absCos + parent.height * absSin
-            height: parent.width * absSin + parent.height * absCos
-            visible: root.backgroundTypeB === "gradient"
-            rotation: root.gradientAngleB
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: root.gradientStartColorB }
-                GradientStop { position: 1.0; color: root.gradientEndColorB }
+            // Solid color background
+            Rectangle {
+                anchors.fill: parent
+                color: root.backgroundTypeB === "solidColor" ? root.backgroundColorB : "black"
+                visible: root.backgroundTypeB === "solidColor"
+            }
+
+            // Gradient background
+            Rectangle {
+                anchors.centerIn: parent
+                property real angleRad: root.gradientAngleB * Math.PI / 180.0
+                property real absSin: Math.abs(Math.sin(angleRad))
+                property real absCos: Math.abs(Math.cos(angleRad))
+                width: parent.width * absCos + parent.height * absSin
+                height: parent.width * absSin + parent.height * absCos
+                visible: root.backgroundTypeB === "gradient"
+                rotation: root.gradientAngleB
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: root.gradientStartColorB }
+                    GradientStop { position: 1.0; color: root.gradientEndColorB }
+                }
+            }
+
+            // Background image
+            Image {
+                anchors.fill: parent
+                visible: root.backgroundTypeB === "image"
+                source: root.backgroundTypeB === "image" && root.backgroundImageDataBase64B !== ""
+                        ? "data:application/octet-stream;base64," + root.backgroundImageDataBase64B : ""
+                fillMode: Image.PreserveAspectCrop
+                smooth: true
+            }
+
+            // Background video
+            Video {
+                id: videoB
+                anchors.fill: parent
+                visible: root.backgroundTypeB === "video"
+                source: root.backgroundTypeB === "video" ? root.backgroundVideoSourceB : ""
+                loops: root.videoLoopB ? MediaPlayer.Infinite : 1
+                muted: true  // Always muted for background videos
+                fillMode: VideoOutput.PreserveAspectCrop
+                // Auto-play when source changes and video is visible
+                onSourceChanged: {
+                    if (source !== "" && root.backgroundTypeB === "video") {
+                        play()
+                    }
+                }
+                // Also play when becoming visible during transitions
+                onVisibleChanged: {
+                    if (visible && source !== "") {
+                        play()
+                    } else if (!visible) {
+                        stop()
+                    }
+                }
             }
         }
 
-        // Background image
-        Image {
+        // Overlay blur - frosted glass effect on the full background
+        ShaderEffectSource {
+            id: overlayBlurSourceB
             anchors.fill: parent
-            visible: root.backgroundTypeB === "image"
-            source: root.backgroundTypeB === "image" && root.backgroundImageDataBase64B !== ""
-                    ? "data:application/octet-stream;base64," + root.backgroundImageDataBase64B : ""
-            fillMode: Image.PreserveAspectCrop
+            sourceItem: bgContentB
+            hideSource: root.overlayEnabledB && root.overlayBlurB > 0
+            textureSize: Qt.size(
+                Math.max(4, Math.round(parent.width / root.blurDivisor(root.overlayBlurB))),
+                Math.max(4, Math.round(parent.height / root.blurDivisor(root.overlayBlurB)))
+            )
+            visible: root.overlayEnabledB && root.overlayBlurB > 0
             smooth: true
+            live: true
         }
 
-        // Background video
-        Video {
-            id: videoB
-            anchors.fill: parent
-            visible: root.backgroundTypeB === "video"
-            source: root.backgroundTypeB === "video" ? root.backgroundVideoSourceB : ""
-            loops: root.videoLoopB ? MediaPlayer.Infinite : 1
-            muted: true  // Always muted for background videos
-            fillMode: VideoOutput.PreserveAspectCrop
-            // Auto-play when source changes and video is visible
-            onSourceChanged: {
-                if (source !== "" && root.backgroundTypeB === "video") {
-                    play()
-                }
-            }
-            // Also play when becoming visible during transitions
-            onVisibleChanged: {
-                if (visible && source !== "") {
-                    play()
-                } else if (!visible) {
-                    stop()
-                }
-            }
-        }
-
-        // Background overlay - darkens the entire background for better text visibility
+        // Background overlay - semi-transparent tint on top of (optionally blurred) background
         Rectangle {
             id: overlayB
             anchors.fill: parent
@@ -589,7 +785,32 @@ Window {
             visible: root.overlayEnabledB
         }
 
-        // Text band - horizontal strip behind text area
+        // Text band blur - frosted glass effect behind the text band strip
+        Item {
+            id: textBandBlurClipB
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            height: textContentB.height + root.textContainerPaddingB * 2
+            clip: true
+            visible: root.textBandEnabledB && root.textBandBlurB > 0
+
+            ShaderEffectSource {
+                sourceItem: bgContentB
+                x: 0
+                y: -textBandBlurClipB.y
+                width: bgContentB.width
+                height: bgContentB.height
+                textureSize: Qt.size(
+                    Math.max(4, Math.round(bgContentB.width / root.blurDivisor(root.textBandBlurB))),
+                    Math.max(4, Math.round(bgContentB.height / root.blurDivisor(root.textBandBlurB)))
+                )
+                smooth: true
+                live: true
+            }
+        }
+
+        // Text band - horizontal strip behind text area (semi-transparent color tint)
         Rectangle {
             id: textBandB
             anchors.left: parent.left
@@ -600,7 +821,31 @@ Window {
             visible: root.textBandEnabledB
         }
 
-        // Text container - box behind text
+        // Text container blur - frosted glass effect behind the text container box
+        Item {
+            id: textContainerBlurClipB
+            anchors.centerIn: parent
+            width: textContentB.width + root.textContainerPaddingB * 2
+            height: textContentB.height + root.textContainerPaddingB * 2
+            clip: true
+            visible: root.textContainerEnabledB && root.textContainerBlurB > 0
+
+            ShaderEffectSource {
+                sourceItem: bgContentB
+                x: -textContainerBlurClipB.x
+                y: -textContainerBlurClipB.y
+                width: bgContentB.width
+                height: bgContentB.height
+                textureSize: Qt.size(
+                    Math.max(4, Math.round(bgContentB.width / root.blurDivisor(root.textContainerBlurB))),
+                    Math.max(4, Math.round(bgContentB.height / root.blurDivisor(root.textContainerBlurB)))
+                )
+                smooth: true
+                live: true
+            }
+        }
+
+        // Text container - box behind text (semi-transparent color tint)
         Rectangle {
             id: textContainerB
             anchors.centerIn: parent
@@ -611,26 +856,38 @@ Window {
             visible: root.textContainerEnabledB
         }
 
-        // Text shadow (rendered behind main text for drop shadow effect)
-        // Must use same text format as main text to ensure identical layout
-        Text {
-            id: textShadowB
+        // Text shadow with optional blur
+        Item {
+            id: textShadowWrapperB
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: root.dropShadowOffsetXB
             anchors.verticalCenterOffset: root.dropShadowOffsetYB
-            // Use same format as main text but override all colors to shadow color
-            text: root.useRichTextB
-                ? "<style>*{color:" + root.dropShadowColorB + "}.jesus{color:" + root.dropShadowColorB + "}</style>" + root.slideRichTextB
-                : root.slideTextB
-            textFormat: root.useRichTextB ? Text.RichText : Text.PlainText
-            color: root.dropShadowColorB
-            font.family: root.fontFamilyB
-            font.pixelSize: root.fontSizeB
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            wrapMode: Text.WordWrap
-            width: parent.width * 0.8
+            width: textShadowInnerB.width + root.dropShadowBlurB * 4
+            height: textShadowInnerB.paintedHeight + root.dropShadowBlurB * 4
             visible: root.dropShadowEnabledB
+
+            layer.enabled: root.dropShadowBlurB > 0
+            layer.smooth: true
+            layer.textureSize: root.dropShadowBlurB > 0 ? Qt.size(
+                Math.max(4, Math.round(width / root.blurDivisor(root.dropShadowBlurB))),
+                Math.max(4, Math.round(height / root.blurDivisor(root.dropShadowBlurB)))
+            ) : Qt.size(0, 0)
+
+            Text {
+                id: textShadowInnerB
+                anchors.centerIn: parent
+                text: root.useRichTextB
+                    ? "<style>*{color:" + root.dropShadowColorB + "}.jesus{color:" + root.dropShadowColorB + "}</style>" + root.slideRichTextB
+                    : root.slideTextB
+                textFormat: root.useRichTextB ? Text.RichText : Text.PlainText
+                color: root.dropShadowColorB
+                font.family: root.fontFamilyB
+                font.pixelSize: root.fontSizeB
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                wrapMode: Text.WordWrap
+                width: root.width * 0.8
+            }
         }
 
         // Main text content - supports rich text for red letter display

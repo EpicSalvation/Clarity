@@ -81,10 +81,23 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
 
 ### Low Priority
 
-- [ ] **Background Blur Effects**
-  - [ ] Blur behind text for legibility
-  - [ ] Frosted glass effect for text containers
-  - [ ] Variable blur radius
+- [x] **Background Blur Effects**
+  - [x] Blur behind text for legibility (overlay blur with ShaderEffectSource downsampling)
+  - [x] Frosted glass effect for text containers (text container blur + text band blur)
+  - [x] Variable blur radius (0-50 range, maps to texture downsample divisor 1-16x)
+  - [x] Performance logging to file (clarity_blur_perf.log in app data directory)
+
+- [ ] **Other Potential Features**
+  - [ ] Radial gradients
+  - [ ] Multi-stop gradients
+  - [x] Drag-and-drop slide reordering (item-level and slide-level)
+  - [ ] Undo/redo for edits
+  - [ ] Cloud sync for presentations
+  - [ ] Presentation templates marketplace
+
+## User-Requested Features
+
+These features will only be implemented if specifically requested by users:
 
 - [ ] **Ken Burns Effect**
   - [ ] Configurable start and end positions
@@ -97,13 +110,9 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [ ] Typewriter effect
   - [ ] Configurable timing
 
-- [ ] **Other Potential Features**
-  - [ ] Radial gradients
-  - [ ] Multi-stop gradients
-  - [ ] Drag-and-drop slide reordering (item-level and slide-level)
-  - [ ] Undo/redo for edits
-  - [ ] Cloud sync for presentations
-  - [ ] Presentation templates marketplace
+- [ ] **SongSelect Direct API Integration**
+  - [ ] Requires CCLI developer account
+  - [ ] Direct song search and download from within the app
 
 ## Technical Considerations
 
@@ -121,15 +130,24 @@ The transition interruption feature requires careful handling:
 - Separate audio player from video player for background music
 - Audio state should persist across slide changes when configured
 
+### Blur Architecture
+- Uses ShaderEffectSource with reduced textureSize for background blur (no external Qt modules needed)
+- Bilinear filtering when displaying the downsampled texture at full size creates the blur appearance
+- Four blur types: overlay (full-screen), text container (box behind text), text band (strip), drop shadow (soft shadow via layer rendering)
+- Blur radius 0-50 maps to downsample divisor via `1 + radius * 0.3` (range 1x to 16x)
+- Performance logging writes to `clarity_blur_perf.log` in the app data directory
+- hideSource on overlay blur ShaderEffectSource hides original background when blur replaces it
+
 ## Success Criteria
 
 - Transitions feel responsive even during rapid navigation
 - Audio playback is reliable and doesn't affect slide performance
+- Blur effects render correctly for overlay, text container, text band, and drop shadow
 - Advanced effects don't impact presentation stability
 - All features maintain the "reliability first" philosophy
 
 ## Notes
 
 - Phase 4 features are enhancements; core functionality from Phases 1-3 must remain stable
-- Performance testing required for Ken Burns and blur effects on lower-end hardware
+- Performance testing required for blur effects on lower-end hardware
 - Consider feature flags for experimental features
