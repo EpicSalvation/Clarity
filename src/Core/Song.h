@@ -51,11 +51,18 @@ struct SlideStyle {
     QString fontFamily;
     int fontSize;
 
-    // Gradient support
+    // Gradient support (multi-stop + radial)
     Slide::BackgroundType backgroundType;
-    QColor gradientStartColor;
-    QColor gradientEndColor;
+    QList<GradientStop> gradientStops;
+    GradientType gradientType;
     int gradientAngle;
+    double radialCenterX;
+    double radialCenterY;
+    double radialRadius;
+
+    // Backward-compat convenience accessors
+    QColor gradientStartColor() const { return gradientStops.isEmpty() ? QColor("#1e3a8a") : gradientStops.first().color; }
+    QColor gradientEndColor() const { return gradientStops.isEmpty() ? QColor("#60a5fa") : gradientStops.last().color; }
 
     // Image/video background support
     QString backgroundImagePath;
@@ -69,16 +76,22 @@ struct SlideStyle {
         , fontFamily("Arial")
         , fontSize(48)
         , backgroundType(Slide::SolidColor)
-        , gradientStartColor("#1e3a8a")
-        , gradientEndColor("#60a5fa")
-        , gradientAngle(135) {}
+        , gradientStops({GradientStop(0.0, QColor("#1e3a8a")), GradientStop(1.0, QColor("#60a5fa"))})
+        , gradientType(LinearGradient)
+        , gradientAngle(135)
+        , radialCenterX(0.5)
+        , radialCenterY(0.5)
+        , radialRadius(0.5) {}
 
     SlideStyle(const QColor& bg, const QColor& text, const QString& font, int size)
         : backgroundColor(bg), textColor(text), fontFamily(font), fontSize(size)
         , backgroundType(Slide::SolidColor)
-        , gradientStartColor("#1e3a8a")
-        , gradientEndColor("#60a5fa")
-        , gradientAngle(135) {}
+        , gradientStops({GradientStop(0.0, QColor("#1e3a8a")), GradientStop(1.0, QColor("#60a5fa"))})
+        , gradientType(LinearGradient)
+        , gradientAngle(135)
+        , radialCenterX(0.5)
+        , radialCenterY(0.5)
+        , radialRadius(0.5) {}
 
     /**
      * @brief Apply this style to a slide (sets all style properties)
@@ -90,9 +103,12 @@ struct SlideStyle {
         slide.setFontFamily(fontFamily);
         slide.setFontSize(fontSize);
         if (backgroundType == Slide::Gradient) {
-            slide.setGradientStartColor(gradientStartColor);
-            slide.setGradientEndColor(gradientEndColor);
+            slide.setGradientStops(gradientStops);
+            slide.setGradientType(gradientType);
             slide.setGradientAngle(gradientAngle);
+            slide.setRadialCenterX(radialCenterX);
+            slide.setRadialCenterY(radialCenterY);
+            slide.setRadialRadius(radialRadius);
         }
         if (backgroundType == Slide::Image) {
             slide.setBackgroundImagePath(backgroundImagePath);

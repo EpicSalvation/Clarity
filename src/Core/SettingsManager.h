@@ -110,6 +110,10 @@ public:
     QString defaultEventName() const;        // Default event name (e.g., "Sunday Service")
     void setDefaultEventName(const QString& name);
 
+    // Library settings
+    bool autoSyncLibraryGroups() const;
+    void setAutoSyncLibraryGroups(bool enabled);
+
     // Reset all settings to defaults
     void resetToDefaults();
 

@@ -115,10 +115,19 @@ public:
      */
     PresentationItem* itemAt(int index) const;
 
+    /**
+     * @brief Notify that a group item's slides changed (added/removed/reordered)
+     *
+     * Call this after directly modifying a SlideGroupItem's slides to trigger
+     * a model reset so views reflect the new slide count.
+     */
+    void notifyGroupItemChanged();
+
 signals:
     void currentSlideChanged(int index);
     void presentationModified();
     void itemsChanged();
+    void aboutToMutate(const QString& description);
 
 private slots:
     void onSlidesChanged();

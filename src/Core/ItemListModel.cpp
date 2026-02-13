@@ -105,6 +105,8 @@ bool ItemListModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
     if (!data->hasFormat("application/x-clarity-item-index")) return false;
     if (!m_presentation) return false;
 
+    emit aboutToMutate(tr("Reorder Items"));
+
     // Decode the source row
     QByteArray encodedData = data->data("application/x-clarity-item-index");
     QDataStream stream(&encodedData, QIODevice::ReadOnly);

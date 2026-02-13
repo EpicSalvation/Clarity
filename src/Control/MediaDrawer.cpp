@@ -8,6 +8,8 @@
 #include <QPixmap>
 #include <QPainter>
 #include <QApplication>
+#include <QInputDialog>
+#include <QMenu>
 #include <QDebug>
 
 namespace Clarity {
@@ -110,10 +112,12 @@ static QPixmap createCenteredThumbnail(const QPixmap& source, const QSize& targe
 
 MediaDrawer::MediaDrawer(MediaLibrary* library,
                          VideoThumbnailGenerator* thumbnailGen,
+                         SlideGroupLibrary* slideGroupLibrary,
                          QWidget* parent)
     : QWidget(parent)
     , m_library(library)
     , m_thumbnailGen(thumbnailGen)
+    , m_slideGroupLibrary(slideGroupLibrary)
 {
     setupUI();
     populateList();
@@ -126,6 +130,16 @@ MediaDrawer::MediaDrawer(MediaLibrary* library,
     if (m_thumbnailGen) {
         connect(m_thumbnailGen, &VideoThumbnailGenerator::thumbnailReady,
                 this, &MediaDrawer::onThumbnailReady);
+    }
+
+    // Slide group library signals
+    if (m_slideGroupLibrary) {
+        connect(m_slideGroupLibrary, &SlideGroupLibrary::groupAdded,
+                this, &MediaDrawer::onGroupAdded);
+        connect(m_slideGroupLibrary, &SlideGroupLibrary::groupRemoved,
+                this, &MediaDrawer::onGroupRemoved);
+        connect(m_slideGroupLibrary, &SlideGroupLibrary::groupUpdated,
+                this, &MediaDrawer::onGroupUpdated);
     }
 }
 
@@ -170,11 +184,11 @@ void MediaDrawer::setupUI()
     contentLayout->setContentsMargins(4, 4, 4, 4);
     contentLayout->setSpacing(4);
 
-    // Header bar with tabs and import button
+    // Header bar with tabs and action buttons
     QHBoxLayout* headerLayout = new QHBoxLayout();
     headerLayout->setContentsMargins(0, 0, 0, 0);
 
-    // Tab buttons (checkable toggle pair)
+    // Tab buttons (checkable toggle group)
     m_imagesButton = new QPushButton(tr("Images"), this);
     m_imagesButton->setCheckable(true);
     m_imagesButton->setChecked(true);
@@ -188,12 +202,26 @@ void MediaDrawer::setupUI()
     connect(m_videosButton, &QPushButton::clicked, this, &MediaDrawer::onTabChanged);
     headerLayout->addWidget(m_videosButton);
 
+    m_slideGroupsButton = new QPushButton(tr("Slide Groups"), this);
+    m_slideGroupsButton->setCheckable(true);
+    m_slideGroupsButton->setFixedHeight(24);
+    connect(m_slideGroupsButton, &QPushButton::clicked, this, &MediaDrawer::onTabChanged);
+    headerLayout->addWidget(m_slideGroupsButton);
+
     headerLayout->addStretch();
 
+    // Import button (visible for Images/Videos tabs)
     m_importButton = new QPushButton(tr("Import..."), this);
     m_importButton->setFixedHeight(24);
     connect(m_importButton, &QPushButton::clicked, this, &MediaDrawer::onImportClicked);
     headerLayout->addWidget(m_importButton);
+
+    // Save Group button (visible for Slide Groups tab)
+    m_saveGroupButton = new QPushButton(tr("Save to Library"), this);
+    m_saveGroupButton->setFixedHeight(24);
+    m_saveGroupButton->setVisible(false);
+    connect(m_saveGroupButton, &QPushButton::clicked, this, &MediaDrawer::onSaveGroupClicked);
+    headerLayout->addWidget(m_saveGroupButton);
 
     contentLayout->addLayout(headerLayout);
 
@@ -212,6 +240,18 @@ void MediaDrawer::setupUI()
 
     contentLayout->addWidget(m_listWidget);
 
+    // Slide group list (name-based list, hidden by default)
+    m_slideGroupListWidget = new QListWidget(this);
+    m_slideGroupListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_slideGroupListWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+    m_slideGroupListWidget->setVisible(false);
+    connect(m_slideGroupListWidget, &QListWidget::itemDoubleClicked,
+            this, &MediaDrawer::onGroupDoubleClicked);
+    connect(m_slideGroupListWidget, &QWidget::customContextMenuRequested,
+            this, &MediaDrawer::onGroupContextMenu);
+
+    contentLayout->addWidget(m_slideGroupListWidget);
+
     m_contentWidget->setVisible(false);
     layout->addWidget(m_contentWidget);
 
@@ -223,7 +263,7 @@ void MediaDrawer::updateToggleBar()
 {
     // Up chevron when collapsed (click to open upward), down chevron when expanded (click to close)
     QString chevron = m_expanded ? QStringLiteral("\u25BC") : QStringLiteral("\u25B2");
-    m_toggleBar->setText(chevron + tr("  Media"));
+    m_toggleBar->setText(chevron + tr("  Library"));
 }
 
 void MediaDrawer::setExpanded(bool expanded)
@@ -249,6 +289,31 @@ void MediaDrawer::setExpanded(bool expanded)
 void MediaDrawer::onToggleClicked()
 {
     setExpanded(!m_expanded);
+}
+
+void MediaDrawer::switchToTab(DrawerTab tab)
+{
+    m_currentTab = tab;
+
+    // Update button states
+    m_imagesButton->setChecked(tab == ImagesTab);
+    m_videosButton->setChecked(tab == VideosTab);
+    m_slideGroupsButton->setChecked(tab == SlideGroupsTab);
+
+    // Show/hide appropriate widgets
+    bool isMedia = (tab == ImagesTab || tab == VideosTab);
+    m_listWidget->setVisible(isMedia);
+    m_importButton->setVisible(isMedia);
+    m_slideGroupListWidget->setVisible(tab == SlideGroupsTab);
+    m_saveGroupButton->setVisible(tab == SlideGroupsTab);
+
+    if (isMedia) {
+        m_currentType = (tab == VideosTab) ? MediaLibrary::Video : MediaLibrary::Image;
+        m_listWidget->setCurrentMediaType(m_currentType);
+        populateList();
+    } else {
+        populateSlideGroupList();
+    }
 }
 
 void MediaDrawer::populateList()
@@ -294,21 +359,33 @@ void MediaDrawer::populateList()
     }
 }
 
+void MediaDrawer::populateSlideGroupList()
+{
+    m_slideGroupListWidget->clear();
+
+    if (!m_slideGroupLibrary) {
+        return;
+    }
+
+    QList<LibrarySlideGroup> groups = m_slideGroupLibrary->allGroups();
+    for (const LibrarySlideGroup& group : groups) {
+        QString label = QString("%1  (%2 slides)").arg(group.name).arg(group.slides.count());
+        QListWidgetItem* item = new QListWidgetItem(label);
+        item->setData(Qt::UserRole, group.id);
+        m_slideGroupListWidget->addItem(item);
+    }
+}
+
 void MediaDrawer::onTabChanged()
 {
-    // Toggle: ensure only one button is checked
     QPushButton* clicked = qobject_cast<QPushButton*>(sender());
     if (clicked == m_imagesButton) {
-        m_imagesButton->setChecked(true);
-        m_videosButton->setChecked(false);
-        m_currentType = MediaLibrary::Image;
-    } else {
-        m_videosButton->setChecked(true);
-        m_imagesButton->setChecked(false);
-        m_currentType = MediaLibrary::Video;
+        switchToTab(ImagesTab);
+    } else if (clicked == m_videosButton) {
+        switchToTab(VideosTab);
+    } else if (clicked == m_slideGroupsButton) {
+        switchToTab(SlideGroupsTab);
     }
-    m_listWidget->setCurrentMediaType(m_currentType);
-    populateList();
 }
 
 void MediaDrawer::onImportClicked()
@@ -347,16 +424,25 @@ void MediaDrawer::onImportClicked()
     // No need to manually repopulate — onMediaAdded signal will handle it
 }
 
+void MediaDrawer::onSaveGroupClicked()
+{
+    emit saveGroupToLibraryRequested();
+}
+
 void MediaDrawer::onMediaAdded(const MediaLibrary::MediaItem& item)
 {
     Q_UNUSED(item);
-    populateList();
+    if (m_currentTab != SlideGroupsTab) {
+        populateList();
+    }
 }
 
 void MediaDrawer::onMediaRemoved(const QString& libraryPath)
 {
     Q_UNUSED(libraryPath);
-    populateList();
+    if (m_currentTab != SlideGroupsTab) {
+        populateList();
+    }
 }
 
 void MediaDrawer::onThumbnailReady(const QString& videoPath, const QImage& thumbnail)
@@ -374,6 +460,76 @@ void MediaDrawer::onThumbnailReady(const QString& videoPath, const QImage& thumb
             }
             break;
         }
+    }
+}
+
+void MediaDrawer::onGroupDoubleClicked(QListWidgetItem* item)
+{
+    if (!item) return;
+    int groupId = item->data(Qt::UserRole).toInt();
+    emit slideGroupInsertRequested(groupId);
+}
+
+void MediaDrawer::onGroupContextMenu(const QPoint& pos)
+{
+    QListWidgetItem* item = m_slideGroupListWidget->itemAt(pos);
+    if (!item) return;
+
+    int groupId = item->data(Qt::UserRole).toInt();
+
+    QMenu menu(this);
+    QAction* insertAction = menu.addAction(tr("Insert into Presentation"));
+    QAction* renameAction = menu.addAction(tr("Rename..."));
+    menu.addSeparator();
+    QAction* deleteAction = menu.addAction(tr("Delete"));
+
+    QAction* chosen = menu.exec(m_slideGroupListWidget->mapToGlobal(pos));
+    if (!chosen) return;
+
+    if (chosen == insertAction) {
+        emit slideGroupInsertRequested(groupId);
+    } else if (chosen == renameAction) {
+        LibrarySlideGroup group = m_slideGroupLibrary->getGroup(groupId);
+        bool ok;
+        QString newName = QInputDialog::getText(this, tr("Rename Slide Group"),
+            tr("Name:"), QLineEdit::Normal, group.name, &ok);
+        if (ok && !newName.isEmpty()) {
+            m_slideGroupLibrary->renameGroup(groupId, newName);
+            m_slideGroupLibrary->saveLibrary();
+        }
+    } else if (chosen == deleteAction) {
+        LibrarySlideGroup group = m_slideGroupLibrary->getGroup(groupId);
+        int result = QMessageBox::question(this, tr("Delete Slide Group"),
+            tr("Delete \"%1\" from the library?").arg(group.name),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        if (result == QMessageBox::Yes) {
+            m_slideGroupLibrary->removeGroup(groupId);
+            m_slideGroupLibrary->saveLibrary();
+        }
+    }
+}
+
+void MediaDrawer::onGroupAdded(int id)
+{
+    Q_UNUSED(id);
+    if (m_currentTab == SlideGroupsTab) {
+        populateSlideGroupList();
+    }
+}
+
+void MediaDrawer::onGroupRemoved(int id)
+{
+    Q_UNUSED(id);
+    if (m_currentTab == SlideGroupsTab) {
+        populateSlideGroupList();
+    }
+}
+
+void MediaDrawer::onGroupUpdated(int id)
+{
+    Q_UNUSED(id);
+    if (m_currentTab == SlideGroupsTab) {
+        populateSlideGroupList();
     }
 }
 

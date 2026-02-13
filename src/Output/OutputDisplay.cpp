@@ -20,9 +20,12 @@ OutputDisplay::OutputDisplay(QObject* parent)
     , m_fontSize(48)
     , m_isCleared(true)
     , m_backgroundType("solidColor")
-    , m_gradientStartColor("#1e3a8a")
-    , m_gradientEndColor("#60a5fa")
+    , m_gradientStopsJson("[]")
+    , m_gradientType("linear")
     , m_gradientAngle(135)
+    , m_radialCenterX(0.5)
+    , m_radialCenterY(0.5)
+    , m_radialRadius(0.5)
     , m_videoLoop(true)
     , m_dropShadowEnabled(true)
     , m_dropShadowColor("#000000")
@@ -191,22 +194,42 @@ void OutputDisplay::updateSlide(const Slide& slide)
         changed = true;
     }
 
-    // Handle gradient properties
-    if (m_gradientStartColor != slide.gradientStartColor()) {
-        m_gradientStartColor = slide.gradientStartColor();
-        emit gradientStartColorChanged();
+    // Handle gradient properties (multi-stop + radial)
+    QString newStopsJson = slide.gradientStopsJson();
+    if (m_gradientStopsJson != newStopsJson) {
+        m_gradientStopsJson = newStopsJson;
+        emit gradientStopsJsonChanged();
         changed = true;
     }
 
-    if (m_gradientEndColor != slide.gradientEndColor()) {
-        m_gradientEndColor = slide.gradientEndColor();
-        emit gradientEndColorChanged();
+    QString newGradientType = (slide.gradientType() == RadialGradient) ? "radial" : "linear";
+    if (m_gradientType != newGradientType) {
+        m_gradientType = newGradientType;
+        emit gradientTypeChanged();
         changed = true;
     }
 
     if (m_gradientAngle != slide.gradientAngle()) {
         m_gradientAngle = slide.gradientAngle();
         emit gradientAngleChanged();
+        changed = true;
+    }
+
+    if (!qFuzzyCompare(m_radialCenterX, slide.radialCenterX())) {
+        m_radialCenterX = slide.radialCenterX();
+        emit radialCenterXChanged();
+        changed = true;
+    }
+
+    if (!qFuzzyCompare(m_radialCenterY, slide.radialCenterY())) {
+        m_radialCenterY = slide.radialCenterY();
+        emit radialCenterYChanged();
+        changed = true;
+    }
+
+    if (!qFuzzyCompare(m_radialRadius, slide.radialRadius())) {
+        m_radialRadius = slide.radialRadius();
+        emit radialRadiusChanged();
         changed = true;
     }
 
@@ -354,9 +377,12 @@ void OutputDisplay::clearDisplay()
     m_backgroundColor = QColor("#000000");
     m_backgroundType = "solidColor";
     m_backgroundImageData.clear();
-    m_gradientStartColor = QColor("#1e3a8a");
-    m_gradientEndColor = QColor("#60a5fa");
+    m_gradientStopsJson = "[]";
+    m_gradientType = "linear";
     m_gradientAngle = 135;
+    m_radialCenterX = 0.5;
+    m_radialCenterY = 0.5;
+    m_radialRadius = 0.5;
     m_backgroundVideoSource.clear();
     m_videoLoop = true;
 
@@ -386,9 +412,12 @@ void OutputDisplay::clearDisplay()
     emit backgroundColorChanged();
     emit backgroundTypeChanged();
     emit backgroundImageDataChanged();
-    emit gradientStartColorChanged();
-    emit gradientEndColorChanged();
+    emit gradientStopsJsonChanged();
+    emit gradientTypeChanged();
     emit gradientAngleChanged();
+    emit radialCenterXChanged();
+    emit radialCenterYChanged();
+    emit radialRadiusChanged();
     emit backgroundVideoSourceChanged();
     emit videoLoopChanged();
 
@@ -447,7 +476,7 @@ void OutputDisplay::logBlurConfig(const Slide& slide)
     if (!m_blurLogFile || !m_blurLogFile->isOpen())
         return;
 
-    bool hasOverlayBlur = slide.overlayEnabled() && slide.overlayBlur() > 0;
+    bool hasOverlayBlur = slide.overlayBlur() > 0;
     bool hasContainerBlur = slide.textContainerEnabled() && slide.textContainerBlur() > 0;
     bool hasBandBlur = slide.textBandEnabled() && slide.textBandBlur() > 0;
     bool hasShadowBlur = slide.dropShadowEnabled() && slide.dropShadowBlur() > 0;

@@ -1,4 +1,5 @@
 #include "SlideEditorDialog.h"
+#include "GradientEditorWidget.h"
 #include "MediaLibraryDialog.h"
 #include "Core/SettingsManager.h"
 #include "Core/MediaLibrary.h"
@@ -126,27 +127,9 @@ void SlideEditorDialog::setupUI()
     solidColorLayout->addRow("Background Color:", m_backgroundColorButton);
     m_backgroundStack->addWidget(solidColorPage);
 
-    // Page 1: Gradient
-    QWidget* gradientPage = new QWidget(this);
-    QFormLayout* gradientLayout = new QFormLayout(gradientPage);
-
-    m_gradientStartColorButton = new QPushButton("Choose Color", this);
-    connect(m_gradientStartColorButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseGradientStartColor);
-    gradientLayout->addRow("Start Color:", m_gradientStartColorButton);
-
-    m_gradientEndColorButton = new QPushButton("Choose Color", this);
-    connect(m_gradientEndColorButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseGradientEndColor);
-    gradientLayout->addRow("End Color:", m_gradientEndColorButton);
-
-    m_gradientAngleSpinBox = new QSpinBox(this);
-    m_gradientAngleSpinBox->setRange(0, 359);
-    m_gradientAngleSpinBox->setValue(135);
-    m_gradientAngleSpinBox->setSuffix("°");
-    m_gradientAngleSpinBox->setToolTip("0° = top to bottom, 90° = left to right, 180° = bottom to top, 270° = right to left");
-    installWheelFilter(m_gradientAngleSpinBox);
-    gradientLayout->addRow("Gradient Angle:", m_gradientAngleSpinBox);
-
-    m_backgroundStack->addWidget(gradientPage);
+    // Page 1: Gradient (multi-stop editor)
+    m_gradientEditor = new GradientEditorWidget(m_settings, this);
+    m_backgroundStack->addWidget(m_gradientEditor);
 
     // Page 2: Image
     QWidget* imagePage = new QWidget(this);
@@ -214,6 +197,19 @@ void SlideEditorDialog::setupUI()
     m_backgroundStack->addWidget(videoPage);
 
     backgroundLayout->addWidget(m_backgroundStack);
+
+    // Background Blur (part of background section, independent of overlay)
+    QFormLayout* blurLayout = new QFormLayout();
+
+    m_overlayBlurSpinBox = new QSpinBox(this);
+    m_overlayBlurSpinBox->setRange(0, 50);
+    m_overlayBlurSpinBox->setValue(0);
+    m_overlayBlurSpinBox->setSuffix(" px");
+    m_overlayBlurSpinBox->setToolTip("Blur the background (0 = no blur, works with or without overlay)");
+    installWheelFilter(m_overlayBlurSpinBox);
+    blurLayout->addRow("Background Blur:", m_overlayBlurSpinBox);
+
+    backgroundLayout->addLayout(blurLayout);
     leftLayout->addWidget(backgroundGroup);
 
     // === RIGHT COLUMN ===
@@ -254,31 +250,23 @@ void SlideEditorDialog::setupUI()
 
     m_dropShadowBlurSpinBox = new QSpinBox(this);
     m_dropShadowBlurSpinBox->setRange(0, 50);
-    m_dropShadowBlurSpinBox->setValue(4);
+    m_dropShadowBlurSpinBox->setValue(0);
     m_dropShadowBlurSpinBox->setSuffix(" px");
     installWheelFilter(m_dropShadowBlurSpinBox);
     shadowLayout->addRow("Blur Radius:", m_dropShadowBlurSpinBox);
 
     legibilityLayout->addWidget(shadowGroup);
 
-    // Background Overlay subsection
+    // Background Overlay subsection (color tint over background)
     QGroupBox* overlayGroup = new QGroupBox("Background Overlay", this);
     QFormLayout* overlayLayout = new QFormLayout(overlayGroup);
 
-    m_overlayEnabledCheck = new QCheckBox("Enable background darkening overlay", this);
+    m_overlayEnabledCheck = new QCheckBox("Enable background color overlay", this);
     overlayLayout->addRow(m_overlayEnabledCheck);
 
     m_overlayColorButton = new QPushButton("Choose Color", this);
     connect(m_overlayColorButton, &QPushButton::clicked, this, &SlideEditorDialog::onChooseOverlayColor);
     overlayLayout->addRow("Overlay Color:", m_overlayColorButton);
-
-    m_overlayBlurSpinBox = new QSpinBox(this);
-    m_overlayBlurSpinBox->setRange(0, 50);
-    m_overlayBlurSpinBox->setValue(0);
-    m_overlayBlurSpinBox->setSuffix(" px");
-    m_overlayBlurSpinBox->setToolTip("Blur the background under the overlay (0 = no blur)");
-    installWheelFilter(m_overlayBlurSpinBox);
-    overlayLayout->addRow("Background Blur:", m_overlayBlurSpinBox);
 
     legibilityLayout->addWidget(overlayGroup);
 
@@ -431,9 +419,12 @@ void SlideEditorDialog::setSlide(const Slide& slide)
 
     updateColorButton(m_textColorButton, slide.textColor());
     updateColorButton(m_backgroundColorButton, slide.backgroundColor());
-    updateColorButton(m_gradientStartColorButton, slide.gradientStartColor());
-    updateColorButton(m_gradientEndColorButton, slide.gradientEndColor());
-    m_gradientAngleSpinBox->setValue(slide.gradientAngle());
+    m_gradientEditor->setGradientStops(slide.gradientStops());
+    m_gradientEditor->setGradientType(slide.gradientType());
+    m_gradientEditor->setGradientAngle(slide.gradientAngle());
+    m_gradientEditor->setRadialCenterX(slide.radialCenterX());
+    m_gradientEditor->setRadialCenterY(slide.radialCenterY());
+    m_gradientEditor->setRadialRadius(slide.radialRadius());
 
     // Set background type
     switch (slide.backgroundType()) {
@@ -535,7 +526,12 @@ Slide SlideEditorDialog::slide() const
             break;
         case 1: // Gradient
             slide.setBackgroundType(Slide::Gradient);
-            slide.setGradientAngle(m_gradientAngleSpinBox->value());
+            slide.setGradientStops(m_gradientEditor->gradientStops());
+            slide.setGradientType(m_gradientEditor->gradientType());
+            slide.setGradientAngle(m_gradientEditor->gradientAngle());
+            slide.setRadialCenterX(m_gradientEditor->radialCenterX());
+            slide.setRadialCenterY(m_gradientEditor->radialCenterY());
+            slide.setRadialRadius(m_gradientEditor->radialRadius());
             break;
         case 2: // Image
             slide.setBackgroundType(Slide::Image);
@@ -604,26 +600,6 @@ void SlideEditorDialog::onChooseTextColor()
     if (color.isValid()) {
         m_slide.setTextColor(color);
         updateColorButton(m_textColorButton, color);
-    }
-}
-
-void SlideEditorDialog::onChooseGradientStartColor()
-{
-    QColor currentColor = m_slide.gradientStartColor();
-    QColor color = QColorDialog::getColor(currentColor, this, "Choose Gradient Start Color");
-    if (color.isValid()) {
-        m_slide.setGradientStartColor(color);
-        updateColorButton(m_gradientStartColorButton, color);
-    }
-}
-
-void SlideEditorDialog::onChooseGradientEndColor()
-{
-    QColor currentColor = m_slide.gradientEndColor();
-    QColor color = QColorDialog::getColor(currentColor, this, "Choose Gradient End Color");
-    if (color.isValid()) {
-        m_slide.setGradientEndColor(color);
-        updateColorButton(m_gradientEndColorButton, color);
     }
 }
 

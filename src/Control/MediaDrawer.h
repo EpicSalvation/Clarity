@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/MediaLibrary.h"
+#include "Core/SlideGroupLibrary.h"
 #include <QWidget>
 #include <QListWidget>
 #include <QPushButton>
@@ -41,12 +42,11 @@ private:
 };
 
 /**
- * @brief Collapsible media drawer that sits at the bottom of the control window
+ * @brief Collapsible library drawer that sits at the bottom of the control window
  *
  * Has a clickable toggle bar that's always visible at the bottom of the screen.
- * Clicking it expands/collapses the thumbnail grid content. The toggle bar shows
- * a chevron and "Media" label. When expanded, shows Images/Videos tabs and
- * a thumbnail grid with import capability.
+ * Clicking it expands/collapses the content. The toggle bar shows a chevron and
+ * "Library" label. When expanded, shows Images/Videos/Slide Groups tabs.
  */
 class MediaDrawer : public QWidget {
     Q_OBJECT
@@ -54,31 +54,46 @@ class MediaDrawer : public QWidget {
 public:
     explicit MediaDrawer(MediaLibrary* library,
                          VideoThumbnailGenerator* thumbnailGen,
+                         SlideGroupLibrary* slideGroupLibrary,
                          QWidget* parent = nullptr);
     ~MediaDrawer();
 
     bool isExpanded() const { return m_expanded; }
     void setExpanded(bool expanded);
 
+    enum DrawerTab { ImagesTab, VideosTab, SlideGroupsTab };
+
 signals:
     void expandedChanged(bool expanded);
+    void slideGroupInsertRequested(int groupId);
+    void saveGroupToLibraryRequested();
 
 private slots:
     void onToggleClicked();
     void onTabChanged();
     void onImportClicked();
+    void onSaveGroupClicked();
     void onMediaAdded(const MediaLibrary::MediaItem& item);
     void onMediaRemoved(const QString& libraryPath);
     void onThumbnailReady(const QString& videoPath, const QImage& thumbnail);
+    void onGroupDoubleClicked(QListWidgetItem* item);
+    void onGroupContextMenu(const QPoint& pos);
+    void onGroupAdded(int id);
+    void onGroupRemoved(int id);
+    void onGroupUpdated(int id);
 
 private:
     void setupUI();
     void populateList();
+    void populateSlideGroupList();
     void updateToggleBar();
+    void switchToTab(DrawerTab tab);
 
     MediaLibrary* m_library;
     VideoThumbnailGenerator* m_thumbnailGen;
+    SlideGroupLibrary* m_slideGroupLibrary;
     MediaLibrary::MediaType m_currentType = MediaLibrary::Image;
+    DrawerTab m_currentTab = ImagesTab;
     bool m_expanded = false;
 
     // Toggle bar (always visible)
@@ -89,7 +104,12 @@ private:
     MediaListWidget* m_listWidget;
     QPushButton* m_imagesButton;
     QPushButton* m_videosButton;
+    QPushButton* m_slideGroupsButton;
     QPushButton* m_importButton;
+    QPushButton* m_saveGroupButton;
+
+    // Slide groups list
+    QListWidget* m_slideGroupListWidget;
 };
 
 } // namespace Clarity

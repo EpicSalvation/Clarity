@@ -41,6 +41,7 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_importTranslationButton(nullptr)
     , m_deleteTranslationButton(nullptr)
     , m_bibleDatabase(nullptr)
+    , m_autoSyncLibraryGroupsCheckBox(nullptr)
     , m_redLettersEnabledCheckBox(nullptr)
     , m_redLetterColorButton(nullptr)
     , m_redLetterColor("#cc0000")
@@ -174,6 +175,24 @@ void SettingsDialog::createGeneralPage()
     uiBehaviorLayout->addWidget(uiBehaviorHelpLabel);
 
     pageLayout->addWidget(uiBehaviorGroup);
+
+    // Library Settings group
+    QGroupBox* libraryGroup = new QGroupBox(tr("Library"), generalPage);
+    QVBoxLayout* libraryLayout = new QVBoxLayout(libraryGroup);
+
+    m_autoSyncLibraryGroupsCheckBox = new QCheckBox(
+        tr("Automatically update library when slide groups are edited"), libraryGroup);
+    libraryLayout->addWidget(m_autoSyncLibraryGroupsCheckBox);
+
+    QLabel* librarySyncHelpLabel = new QLabel(
+        tr("When enabled, changes to slide groups that were inserted from the library "
+           "are automatically saved back. You can always update manually via right-click."),
+        libraryGroup);
+    librarySyncHelpLabel->setWordWrap(true);
+    librarySyncHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    libraryLayout->addWidget(librarySyncHelpLabel);
+
+    pageLayout->addWidget(libraryGroup);
 
     pageLayout->addStretch(); // Push content to top
 
@@ -703,6 +722,7 @@ void SettingsDialog::loadSettings()
     // Load UI behavior settings
     m_scrollWheelChangesInputsCheckBox->setChecked(m_settingsManager->scrollWheelChangesInputs());
     m_showAllSlidesInGridCheckBox->setChecked(m_settingsManager->showAllSlidesInGrid());
+    m_autoSyncLibraryGroupsCheckBox->setChecked(m_settingsManager->autoSyncLibraryGroups());
 
     // Load slide preview size
     QString previewSize = m_settingsManager->slidePreviewSize();
@@ -769,6 +789,7 @@ void SettingsDialog::saveSettings()
     // Save UI behavior settings
     m_settingsManager->setScrollWheelChangesInputs(m_scrollWheelChangesInputsCheckBox->isChecked());
     m_settingsManager->setShowAllSlidesInGrid(m_showAllSlidesInGridCheckBox->isChecked());
+    m_settingsManager->setAutoSyncLibraryGroups(m_autoSyncLibraryGroupsCheckBox->isChecked());
     m_settingsManager->setSlidePreviewSize(m_slidePreviewSizeComboBox->currentData().toString());
 
     // Save language setting

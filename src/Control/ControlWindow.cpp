@@ -41,6 +41,7 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_slideDelegate(nullptr)
     , m_livePreviewPanel(nullptr)
     , m_mediaDrawer(nullptr)
+    , m_addSlideToGroupBtn(nullptr)
     , m_mainSplitter(nullptr)
     , m_toggleMediaDrawerAction(nullptr)
     , m_addSlideButton(nullptr)
@@ -56,11 +57,15 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_settingsManager(new SettingsManager(this))
     , m_bibleDatabase(new BibleDatabase(this))
     , m_songLibrary(new SongLibrary(this))
+    , m_slideGroupLibrary(new SlideGroupLibrary(this))
     , m_themeManager(new ThemeManager(this))
     , m_mediaLibrary(new MediaLibrary(this))
     , m_thumbnailGenerator(new VideoThumbnailGenerator(this))
     , m_remoteServer(new RemoteServer(8080, this))
     , m_autoAdvanceTimer(new AutoAdvanceTimer(this))
+    , m_undoManager(new UndoManager(this))
+    , m_undoAction(nullptr)
+    , m_redoAction(nullptr)
     , m_remoteStatusLabel(nullptr)
     , m_currentFilePath("")
     , m_isDirty(false)
@@ -87,6 +92,9 @@ ControlWindow::ControlWindow(QWidget* parent)
 
     // Load song library
     m_songLibrary->loadLibrary();
+
+    // Load slide group library
+    m_slideGroupLibrary->loadLibrary();
 
     // Pass settings manager to process manager
     m_processManager->setSettingsManager(m_settingsManager);
@@ -200,6 +208,24 @@ ControlWindow::ControlWindow(QWidget* parent)
     // Connect presentation modification signal
     connect(m_presentationModel, &PresentationModel::presentationModified, this, &ControlWindow::onPresentationModified);
 
+    // Connect undo/redo state updates
+    connect(m_undoManager, &UndoManager::undoRedoStateChanged, this, [this]() {
+        m_undoAction->setEnabled(m_undoManager->canUndo());
+        m_redoAction->setEnabled(m_undoManager->canRedo());
+        m_undoAction->setText(m_undoManager->canUndo()
+            ? tr("&Undo %1").arg(m_undoManager->undoDescription())
+            : tr("&Undo"));
+        m_redoAction->setText(m_undoManager->canRedo()
+            ? tr("&Redo %1").arg(m_undoManager->redoDescription())
+            : tr("&Redo"));
+    });
+
+    // Connect drag-drop aboutToMutate signals for undo snapshots
+    connect(m_presentationModel, &PresentationModel::aboutToMutate,
+            this, &ControlWindow::saveUndoSnapshot);
+    connect(m_itemListModel, &ItemListModel::aboutToMutate,
+            this, &ControlWindow::saveUndoSnapshot);
+
     // Update UI after drag-drop reorder in playlist
     connect(m_presentationModel, &PresentationModel::itemsChanged, this, [this]() {
         m_slideDelegate->invalidateCache();
@@ -279,6 +305,13 @@ void ControlWindow::setupUI()
     fileMenu->addSeparator();
     fileMenu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
 
+    // Edit menu (Undo/Redo)
+    QMenu* editMenu = menuBar->addMenu(tr("&Edit"));
+    m_undoAction = editMenu->addAction(tr("&Undo"), QKeySequence::Undo, this, &ControlWindow::onUndo);
+    m_redoAction = editMenu->addAction(tr("&Redo"), QKeySequence::Redo, this, &ControlWindow::onRedo);
+    m_undoAction->setEnabled(false);
+    m_redoAction->setEnabled(false);
+
     // Slide menu
     QMenu* slideMenu = menuBar->addMenu(tr("&Slide"));
     slideMenu->addAction(tr("&Add Slide"), QKeySequence("Ctrl+Shift+N"), this, &ControlWindow::onAddSlide);
@@ -287,6 +320,7 @@ void ControlWindow::setupUI()
     slideMenu->addSeparator();
     slideMenu->addAction(tr("Insert &Scripture..."), QKeySequence("Ctrl+B"), this, &ControlWindow::onInsertScripture);
     slideMenu->addAction(tr("Insert S&ong..."), QKeySequence("Ctrl+L"), this, &ControlWindow::onInsertSong);
+    slideMenu->addAction(tr("Insert Slide &Group..."), QKeySequence("Ctrl+G"), this, &ControlWindow::onInsertSlideGroup);
     slideMenu->addSeparator();
     slideMenu->addAction(tr("Apply &Theme..."), QKeySequence("Ctrl+T"), this, &ControlWindow::onApplyTheme);
     slideMenu->addAction(tr("Apply Theme to Current Slide..."), this, &ControlWindow::onApplyThemeToSlide);
@@ -295,7 +329,7 @@ void ControlWindow::setupUI()
 
     // View menu
     QMenu* viewMenu = menuBar->addMenu(tr("&View"));
-    m_toggleMediaDrawerAction = viewMenu->addAction(tr("&Media Library"), QKeySequence("Ctrl+M"),
+    m_toggleMediaDrawerAction = viewMenu->addAction(tr("&Library"), QKeySequence("Ctrl+M"),
                                                      this, &ControlWindow::toggleMediaDrawer);
     m_toggleMediaDrawerAction->setCheckable(true);
     m_toggleMediaDrawerAction->setChecked(false);
@@ -414,7 +448,27 @@ void ControlWindow::setupUI()
     // Media drag-and-drop from the media drawer onto slides
     connect(m_slideGridView, &SlideGridView::mediaDropped, this, &ControlWindow::onMediaDroppedOnSlide);
 
-    contentLayout->addWidget(m_slideGridView, 1);  // Grid takes remaining space
+    // Wrap grid view with a '+' button bar for slide groups
+    QWidget* gridPanel = new QWidget(this);
+    QVBoxLayout* gridPanelLayout = new QVBoxLayout(gridPanel);
+    gridPanelLayout->setContentsMargins(0, 0, 0, 0);
+    gridPanelLayout->setSpacing(0);
+
+    // Grid toolbar — only visible when current item is a SlideGroupItem
+    QHBoxLayout* gridToolbar = new QHBoxLayout();
+    gridToolbar->setContentsMargins(0, 0, 0, 2);
+    m_addSlideToGroupBtn = new QPushButton(tr("+"), this);
+    m_addSlideToGroupBtn->setToolTip(tr("Add slide to group"));
+    m_addSlideToGroupBtn->setFixedSize(28, 24);
+    m_addSlideToGroupBtn->setVisible(false);
+    connect(m_addSlideToGroupBtn, &QPushButton::clicked, this, &ControlWindow::onAddSlideToGroup);
+    gridToolbar->addWidget(m_addSlideToGroupBtn);
+    gridToolbar->addStretch();
+    gridPanelLayout->addLayout(gridToolbar);
+
+    gridPanelLayout->addWidget(m_slideGridView, 1);
+
+    contentLayout->addWidget(gridPanel, 1);  // Grid panel takes remaining space
 
     // Right panel: Live preview
     m_livePreviewPanel = new LivePreviewPanel(this);
@@ -426,7 +480,7 @@ void ControlWindow::setupUI()
     contentWidget->setLayout(contentLayout);
 
     // Create media drawer (bottom panel — toggle bar always visible, content starts collapsed)
-    m_mediaDrawer = new MediaDrawer(m_mediaLibrary, m_thumbnailGenerator, this);
+    m_mediaDrawer = new MediaDrawer(m_mediaLibrary, m_thumbnailGenerator, m_slideGroupLibrary, this);
 
     // Sync View menu and adjust splitter when drawer is toggled
     connect(m_mediaDrawer, &MediaDrawer::expandedChanged, this, [this](bool expanded) {
@@ -453,6 +507,12 @@ void ControlWindow::setupUI()
         }
         m_mainSplitter->setSizes(sizes);
     });
+
+    // Slide group library signals
+    connect(m_mediaDrawer, &MediaDrawer::slideGroupInsertRequested,
+            this, &ControlWindow::onInsertSlideGroupFromLibrary);
+    connect(m_mediaDrawer, &MediaDrawer::saveGroupToLibraryRequested,
+            this, &ControlWindow::onSaveCurrentGroupToLibrary);
 
     // Vertical splitter: content on top, media drawer on bottom
     m_mainSplitter = new QSplitter(Qt::Vertical, this);
@@ -502,8 +562,8 @@ void ControlWindow::createDemoPresentation()
     demo->addSlide(Slide("Was blind but now I see", QColor("#064e3b"), QColor("#ffffff")));
     demo->addSlide(Slide("John 3:16\n\nFor God so loved the world...", QColor("#7c2d12"), QColor("#ffffff")));
 
-    m_presentationModel->setPresentation(demo);
     m_itemListModel->setPresentation(demo);
+    m_presentationModel->setPresentation(demo);
 
     // Initialize filter to first item
     m_slideFilterProxy->setFilterItemIndex(0);
@@ -539,6 +599,14 @@ void ControlWindow::updateUI()
             m_slideGridView->setCurrentIndex(proxyIndex);
         }
     }
+
+    // Show/hide the '+' button based on whether current item is a SlideGroupItem
+    Presentation* pres = m_presentationModel->presentation();
+    bool isSlideGroup = false;
+    if (pres && pres->currentItem()) {
+        isSlideGroup = (pres->currentItem()->type() == PresentationItem::SlideGroupItemType);
+    }
+    m_addSlideToGroupBtn->setVisible(isSlideGroup);
 
     // Update the delegate to show "live" indicator on current slide
     m_slideDelegate->setCurrentSlideIndex(currentIndex);
@@ -768,6 +836,7 @@ void ControlWindow::markDirty()
         m_isDirty = true;
         updateWindowTitle();
     }
+    autoSyncCurrentGroupToLibrary();
 }
 
 void ControlWindow::markClean()
@@ -868,6 +937,65 @@ void ControlWindow::onItemDoubleClicked(const QModelIndex& index)
     onItemClicked(index);
 }
 
+void ControlWindow::saveUndoSnapshot(const QString& description)
+{
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) return;
+    m_undoManager->pushSnapshot(presentation->toJson(), description);
+}
+
+void ControlWindow::restoreFromSnapshot(const QJsonObject& snapshot)
+{
+    Presentation* restored = Presentation::fromJson(
+        snapshot, m_songLibrary, m_bibleDatabase, m_settingsManager);
+    // ItemListModel must be set first: PresentationModel::setPresentation deletes
+    // the old Presentation and emits itemsChanged, whose handler calls updateUI()
+    // which accesses m_itemListModel->presentation(). If ItemListModel still holds
+    // the old (deleted) pointer, that's a use-after-free.
+    m_itemListModel->setPresentation(restored);
+    m_presentationModel->setPresentation(restored);
+
+    // Reset filter proxy
+    int currentIndex = restored->currentSlideIndex();
+    int itemIndex = m_itemListModel->itemIndexForSlide(currentIndex);
+    if (itemIndex >= 0) {
+        m_slideFilterProxy->setFilterItemIndex(itemIndex);
+    } else {
+        m_slideFilterProxy->setFilterItemIndex(0);
+    }
+
+    m_slideDelegate->invalidateCache();
+    updateUI();
+    broadcastCurrentSlide();
+    markDirty();
+}
+
+void ControlWindow::onUndo()
+{
+    if (!m_undoManager->canUndo()) return;
+
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) return;
+
+    QJsonObject previous = m_undoManager->undo(presentation->toJson());
+    if (previous.isEmpty()) return;
+
+    restoreFromSnapshot(previous);
+}
+
+void ControlWindow::onRedo()
+{
+    if (!m_undoManager->canRedo()) return;
+
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) return;
+
+    QJsonObject next = m_undoManager->redo(presentation->toJson());
+    if (next.isEmpty()) return;
+
+    restoreFromSnapshot(next);
+}
+
 void ControlWindow::onAddSlide()
 {
     // Create a new slide with default values
@@ -881,6 +1009,7 @@ void ControlWindow::onAddSlide()
     dialog.setSlide(newSlide);
 
     if (dialog.exec() == QDialog::Accepted) {
+        saveUndoSnapshot(tr("Add Slide"));
         Slide editedSlide = dialog.slide();
         m_presentationModel->addSlide(editedSlide);
 
@@ -910,6 +1039,7 @@ void ControlWindow::onEditSlide()
     dialog.setSlide(currentSlide);
 
     if (dialog.exec() == QDialog::Accepted) {
+        saveUndoSnapshot(tr("Edit Slide"));
         Slide editedSlide = dialog.slide();
         m_presentationModel->updateSlide(index, editedSlide);
 
@@ -941,6 +1071,7 @@ void ControlWindow::onDeleteSlide()
     );
 
     if (reply == QMessageBox::Yes) {
+        saveUndoSnapshot(tr("Delete Slide"));
         m_presentationModel->removeSlide(index);
 
         // Update UI to select next available slide
@@ -970,6 +1101,7 @@ void ControlWindow::onMoveSlideUp()
     }
 
     // Move item up in the playlist
+    saveUndoSnapshot(tr("Move Item Up"));
     presentation->moveItem(itemIndex, itemIndex - 1);
 
     // Refresh models and UI
@@ -991,6 +1123,7 @@ void ControlWindow::onMoveSlideDown()
     }
 
     // Move item down in the playlist
+    saveUndoSnapshot(tr("Move Item Down"));
     presentation->moveItem(itemIndex, itemIndex + 1);
 
     // Refresh models and UI
@@ -1063,6 +1196,27 @@ void ControlWindow::onSlideContextMenu(const QPoint& pos)
             QAction* delSectionAction = contextMenu.addAction(tr("Delete Section%1").arg(labelSuffix));
             connect(delSectionAction, &QAction::triggered, this, &ControlWindow::onDeleteSection);
         }
+
+        if (itemType == PresentationItem::SlideGroupItemType) {
+            contextMenu.addSeparator();
+
+            QAction* addToGroupAction = contextMenu.addAction(tr("Add Slide to Group"));
+            connect(addToGroupAction, &QAction::triggered, this, &ControlWindow::onAddSlideToGroup);
+
+            QAction* dupSlideAction = contextMenu.addAction(tr("Duplicate Slide"));
+            connect(dupSlideAction, &QAction::triggered, this, &ControlWindow::onDuplicateSlideInGroup);
+
+            // Show "Update in Library" if this group came from the library
+            int itemIdx = index.data(PresentationModel::ItemIndexRole).toInt();
+            Presentation* pres = m_presentationModel->presentation();
+            if (pres) {
+                auto* grpItem = qobject_cast<SlideGroupItem*>(pres->itemAt(itemIdx));
+                if (grpItem && grpItem->libraryGroupId() >= 0) {
+                    QAction* updateLibAction = contextMenu.addAction(tr("Update in Library"));
+                    connect(updateLibAction, &QAction::triggered, this, &ControlWindow::onUpdateLibraryGroup);
+                }
+            }
+        }
     }
 
     // If clicked on a slide, select it first
@@ -1094,6 +1248,7 @@ void ControlWindow::onDuplicateSection()
     int orderIndex = songItem->sectionOrderIndexForSlide(slideInItem);
     if (orderIndex < 0) return;
 
+    saveUndoSnapshot(tr("Duplicate Section"));
     songItem->duplicateSongSection(orderIndex);
     m_slideDelegate->invalidateCache();
     markDirty();
@@ -1128,6 +1283,7 @@ void ControlWindow::onDeleteSection()
         return;
     }
 
+    saveUndoSnapshot(tr("Delete Section"));
     if (!songItem->removeSongSection(orderIndex)) {
         QMessageBox::information(this, tr("Cannot Delete"),
                                  tr("Cannot delete the only remaining section."));
@@ -1199,6 +1355,7 @@ void ControlWindow::onSetSlideAutoAdvance()
 
     if (!ok) return;
 
+    saveUndoSnapshot(tr("Set Auto-Advance"));
     slide.setAutoAdvanceDuration(duration);
     presentation->updateSlide(flatIndex, slide);
     markDirty();
@@ -1300,12 +1457,13 @@ void ControlWindow::newPresentation()
     Presentation* newPres = new Presentation("Untitled");
     newPres->addSlide(Slide("New Slide", QColor("#1e3a8a"), QColor("#ffffff")));
 
-    m_presentationModel->setPresentation(newPres);
     m_itemListModel->setPresentation(newPres);
+    m_presentationModel->setPresentation(newPres);
 
     // Reset filter to first item
     m_slideFilterProxy->setFilterItemIndex(0);
 
+    m_undoManager->clear();
     m_currentFilePath.clear();
     m_isDirty = false;
     updateWindowTitle();
@@ -1349,12 +1507,13 @@ void ControlWindow::openPresentation()
 
     // Load presentation with song library, bible database, and settings for item resolution
     Presentation* loaded = Presentation::fromJson(doc.object(), m_songLibrary, m_bibleDatabase, m_settingsManager);
-    m_presentationModel->setPresentation(loaded);
     m_itemListModel->setPresentation(loaded);
+    m_presentationModel->setPresentation(loaded);
 
     // Reset filter to first item
     m_slideFilterProxy->setFilterItemIndex(0);
 
+    m_undoManager->clear();
     m_currentFilePath = filePath;
     m_isDirty = false;
     updateWindowTitle();
@@ -1488,6 +1647,8 @@ void ControlWindow::onInsertScripture()
             return;
         }
 
+        saveUndoSnapshot(tr("Insert Scripture"));
+
         // Create a ScriptureItem with the selected passage
         ScriptureItem* scriptureItem = new ScriptureItem(
             reference,
@@ -1546,6 +1707,8 @@ void ControlWindow::onInsertSong()
             return;
         }
 
+        saveUndoSnapshot(tr("Insert Song"));
+
         // Mark the song as used
         m_songLibrary->markAsUsed(songId);
         m_songLibrary->saveLibrary();
@@ -1581,11 +1744,241 @@ void ControlWindow::onInsertSong()
     }
 }
 
+void ControlWindow::onInsertSlideGroup()
+{
+    bool ok;
+    QString name = QInputDialog::getText(this, tr("Insert Slide Group"),
+        tr("Group name:"), QLineEdit::Normal, tr("New Group"), &ok);
+    if (!ok || name.isEmpty()) return;
+
+    saveUndoSnapshot(tr("Insert Slide Group"));
+
+    // Create a slide group with one blank slide
+    Slide blankSlide;
+    blankSlide.setText("");
+    blankSlide.setBackgroundColor(QColor("#1e3a8a"));
+    blankSlide.setTextColor(QColor("#ffffff"));
+
+    SlideGroupItem* groupItem = new SlideGroupItem(name, {blankSlide});
+
+    Presentation* presentation = m_presentationModel->presentation();
+    SlidePosition currentPos = presentation->positionForFlatIndex(presentation->currentSlideIndex());
+    int insertItemIndex = currentPos.isValid() ? currentPos.itemIndex + 1 : presentation->itemCount();
+
+    m_presentationModel->insertItem(insertItemIndex, groupItem);
+
+    // Navigate to first slide of the new item
+    Presentation* updatedPres = m_presentationModel->presentation();
+    int firstSlideIndex = updatedPres->flatIndexForPosition(insertItemIndex, 0);
+    if (firstSlideIndex >= 0) {
+        m_slideGridView->setCurrentIndex(m_presentationModel->index(firstSlideIndex, 0));
+        m_presentationModel->setCurrentSlideIndex(firstSlideIndex);
+    }
+    broadcastCurrentSlide();
+    updateUI();
+
+    qDebug() << "Inserted new slide group:" << name;
+}
+
+void ControlWindow::onAddSlideToGroup()
+{
+    QModelIndex proxyIndex = m_slideGridView->currentIndex();
+    if (!proxyIndex.isValid()) return;
+
+    QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(proxyIndex);
+    int flatIndex = sourceIndex.isValid() ? sourceIndex.row() : proxyIndex.row();
+
+    Presentation* presentation = m_presentationModel->presentation();
+    SlidePosition pos = presentation->positionForFlatIndex(flatIndex);
+    if (!pos.isValid()) return;
+
+    PresentationItem* item = presentation->itemAt(pos.itemIndex);
+    auto* groupItem = qobject_cast<SlideGroupItem*>(item);
+    if (!groupItem) return;
+
+    saveUndoSnapshot(tr("Add Slide to Group"));
+
+    // Create a default slide; apply the group's theme if one is set
+    Slide newSlide;
+    if (groupItem->hasCustomStyle()) {
+        groupItem->itemStyle().applyTo(newSlide);
+    }
+
+    // Insert after the current slide within the group
+    int insertAt = pos.slideInItem + 1;
+
+    // Block signals to prevent itemChanged() from triggering nested model notifications
+    groupItem->blockSignals(true);
+    groupItem->insertSlide(insertAt, newSlide);
+    groupItem->invalidateSlideCache();
+    groupItem->blockSignals(false);
+    m_presentationModel->notifyGroupItemChanged();
+
+    // Navigate to the new slide
+    int newFlatIndex = presentation->flatIndexForPosition(pos.itemIndex, insertAt);
+    if (newFlatIndex >= 0) {
+        m_slideGridView->setCurrentIndex(m_presentationModel->index(newFlatIndex, 0));
+        m_presentationModel->setCurrentSlideIndex(newFlatIndex);
+    }
+    broadcastCurrentSlide();
+    updateUI();
+    markDirty();
+}
+
+void ControlWindow::onDuplicateSlideInGroup()
+{
+    QModelIndex proxyIndex = m_slideGridView->currentIndex();
+    if (!proxyIndex.isValid()) return;
+
+    QModelIndex sourceIndex = m_slideFilterProxy->mapToSource(proxyIndex);
+    int flatIndex = sourceIndex.isValid() ? sourceIndex.row() : proxyIndex.row();
+
+    Presentation* presentation = m_presentationModel->presentation();
+    SlidePosition pos = presentation->positionForFlatIndex(flatIndex);
+    if (!pos.isValid()) return;
+
+    PresentationItem* item = presentation->itemAt(pos.itemIndex);
+    auto* groupItem = qobject_cast<SlideGroupItem*>(item);
+    if (!groupItem) return;
+
+    saveUndoSnapshot(tr("Duplicate Slide"));
+
+    // Get the current slide and duplicate it after the current position
+    Slide duplicated = groupItem->slideAt(pos.slideInItem);
+    int insertAt = pos.slideInItem + 1;
+
+    // Block signals to prevent itemChanged() from triggering nested model notifications
+    groupItem->blockSignals(true);
+    groupItem->insertSlide(insertAt, duplicated);
+    groupItem->invalidateSlideCache();
+    groupItem->blockSignals(false);
+    m_presentationModel->notifyGroupItemChanged();
+
+    // Navigate to the duplicated slide
+    int newFlatIndex = presentation->flatIndexForPosition(pos.itemIndex, insertAt);
+    if (newFlatIndex >= 0) {
+        m_slideGridView->setCurrentIndex(m_presentationModel->index(newFlatIndex, 0));
+        m_presentationModel->setCurrentSlideIndex(newFlatIndex);
+    }
+    broadcastCurrentSlide();
+    updateUI();
+    markDirty();
+}
+
+void ControlWindow::onUpdateLibraryGroup()
+{
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) return;
+
+    PresentationItem* item = presentation->currentItem();
+    auto* groupItem = qobject_cast<SlideGroupItem*>(item);
+    if (!groupItem || groupItem->libraryGroupId() < 0) return;
+
+    int libId = groupItem->libraryGroupId();
+    LibrarySlideGroup libGroup = m_slideGroupLibrary->getGroup(libId);
+    if (libGroup.id == 0) return;  // Not found
+
+    libGroup.slides = groupItem->cachedSlides();
+    libGroup.name = groupItem->name();
+    libGroup.lastUsed = QDateTime::currentDateTime();
+    m_slideGroupLibrary->updateGroup(libId, libGroup);
+    m_slideGroupLibrary->saveLibrary();
+
+    qDebug() << "Updated library group:" << libGroup.name << "(" << libGroup.slides.count() << "slides)";
+}
+
+void ControlWindow::autoSyncCurrentGroupToLibrary()
+{
+    if (!m_settingsManager->autoSyncLibraryGroups()) return;
+
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) return;
+
+    PresentationItem* item = presentation->currentItem();
+    auto* groupItem = qobject_cast<SlideGroupItem*>(item);
+    if (!groupItem || groupItem->libraryGroupId() < 0) return;
+
+    int libId = groupItem->libraryGroupId();
+    LibrarySlideGroup libGroup = m_slideGroupLibrary->getGroup(libId);
+    if (libGroup.id == 0) return;
+
+    libGroup.slides = groupItem->cachedSlides();
+    libGroup.name = groupItem->name();
+    libGroup.lastUsed = QDateTime::currentDateTime();
+    m_slideGroupLibrary->updateGroup(libId, libGroup);
+    m_slideGroupLibrary->saveLibrary();
+}
+
+void ControlWindow::onInsertSlideGroupFromLibrary(int groupId)
+{
+    LibrarySlideGroup group = m_slideGroupLibrary->getGroup(groupId);
+    if (group.slides.isEmpty()) {
+        return;
+    }
+
+    saveUndoSnapshot(tr("Insert Slide Group"));
+
+    // Deep copy: create a new SlideGroupItem from the library group's slides
+    SlideGroupItem* groupItem = new SlideGroupItem(group.name, group.slides);
+    groupItem->setLibraryGroupId(groupId);
+
+    Presentation* presentation = m_presentationModel->presentation();
+    SlidePosition currentPos = presentation->positionForFlatIndex(presentation->currentSlideIndex());
+    int insertItemIndex = currentPos.isValid() ? currentPos.itemIndex + 1 : presentation->itemCount();
+
+    m_presentationModel->insertItem(insertItemIndex, groupItem);
+
+    // Navigate to first slide of the new item
+    Presentation* updatedPres = m_presentationModel->presentation();
+    int firstSlideIndex = updatedPres->flatIndexForPosition(insertItemIndex, 0);
+    if (firstSlideIndex >= 0) {
+        m_slideGridView->setCurrentIndex(m_presentationModel->index(firstSlideIndex, 0));
+        m_presentationModel->setCurrentSlideIndex(firstSlideIndex);
+    }
+    broadcastCurrentSlide();
+    updateUI();
+
+    // Update lastUsed in library
+    group.lastUsed = QDateTime::currentDateTime();
+    m_slideGroupLibrary->updateGroup(groupId, group);
+    m_slideGroupLibrary->saveLibrary();
+
+    qDebug() << "Inserted slide group from library:" << group.name;
+}
+
+void ControlWindow::onSaveCurrentGroupToLibrary()
+{
+    Presentation* presentation = m_presentationModel->presentation();
+    if (!presentation) return;
+
+    PresentationItem* item = presentation->currentItem();
+    if (!item) return;
+
+    QList<Slide> slides = item->cachedSlides();
+    if (slides.isEmpty()) return;
+
+    bool ok;
+    QString name = QInputDialog::getText(this, tr("Save to Library"),
+        tr("Group name:"), QLineEdit::Normal, item->displayName(), &ok);
+    if (!ok || name.isEmpty()) return;
+
+    LibrarySlideGroup group;
+    group.name = name;
+    group.slides = slides;
+    group.dateAdded = QDateTime::currentDateTime();
+
+    m_slideGroupLibrary->addGroup(group);
+    m_slideGroupLibrary->saveLibrary();
+
+    qDebug() << "Saved slide group to library:" << name << "with" << slides.count() << "slides";
+}
+
 void ControlWindow::onApplyTheme()
 {
     ThemeSelectorDialog dialog(m_themeManager, m_settingsManager, this);
 
     if (dialog.exec() == QDialog::Accepted && dialog.hasSelection()) {
+        saveUndoSnapshot(tr("Apply Theme"));
         Theme theme = dialog.selectedTheme();
         bool applyToAll = dialog.applyToAllSlides();
 
@@ -1638,6 +2031,7 @@ void ControlWindow::onApplyThemeToSlide()
     ThemeSelectorDialog dialog(m_themeManager, m_settingsManager, this);
 
     if (dialog.exec() == QDialog::Accepted && dialog.hasSelection()) {
+        saveUndoSnapshot(tr("Apply Theme to Slide"));
         Theme theme = dialog.selectedTheme();
 
         // Map from proxy index to source index
@@ -1694,6 +2088,7 @@ void ControlWindow::onApplyThemeToGroup()
     ThemeSelectorDialog dialog(m_themeManager, m_settingsManager, this);
 
     if (dialog.exec() == QDialog::Accepted && dialog.hasSelection()) {
+        saveUndoSnapshot(tr("Apply Theme to Group"));
         Theme theme = dialog.selectedTheme();
 
         // Map from proxy index to source index
@@ -1769,6 +2164,8 @@ void ControlWindow::onCloneFormatToGroup()
     PresentationItem* item = presentation->itemAt(pos.itemIndex);
     if (!item) return;
 
+    saveUndoSnapshot(tr("Clone Format"));
+
     // Get the source slide to clone formatting from
     Slide sourceSlide = m_presentationModel->getSlide(flatIndex);
 
@@ -1781,9 +2178,12 @@ void ControlWindow::onCloneFormatToGroup()
             // Copy all formatting properties (but not text content)
             slide.setBackgroundType(sourceSlide.backgroundType());
             slide.setBackgroundColor(sourceSlide.backgroundColor());
-            slide.setGradientStartColor(sourceSlide.gradientStartColor());
-            slide.setGradientEndColor(sourceSlide.gradientEndColor());
+            slide.setGradientStops(sourceSlide.gradientStops());
+            slide.setGradientType(sourceSlide.gradientType());
             slide.setGradientAngle(sourceSlide.gradientAngle());
+            slide.setRadialCenterX(sourceSlide.radialCenterX());
+            slide.setRadialCenterY(sourceSlide.radialCenterY());
+            slide.setRadialRadius(sourceSlide.radialRadius());
             slide.setBackgroundImageData(sourceSlide.backgroundImageData());
             slide.setBackgroundImagePath(sourceSlide.backgroundImagePath());
             slide.setBackgroundVideoPath(sourceSlide.backgroundVideoPath());
@@ -1824,9 +2224,12 @@ void ControlWindow::onCloneFormatToGroup()
         style.fontFamily = sourceSlide.fontFamily();
         style.fontSize = sourceSlide.fontSize();
         style.backgroundType = sourceSlide.backgroundType();
-        style.gradientStartColor = sourceSlide.gradientStartColor();
-        style.gradientEndColor = sourceSlide.gradientEndColor();
+        style.gradientStops = sourceSlide.gradientStops();
+        style.gradientType = sourceSlide.gradientType();
         style.gradientAngle = sourceSlide.gradientAngle();
+        style.radialCenterX = sourceSlide.radialCenterX();
+        style.radialCenterY = sourceSlide.radialCenterY();
+        style.radialRadius = sourceSlide.radialRadius();
         item->setItemStyle(style);
     }
 
@@ -1861,6 +2264,8 @@ void ControlWindow::onMediaDroppedOnSlide(const QModelIndex& proxyIndex, const Q
 
     Presentation* presentation = m_presentationModel->presentation();
     if (!presentation) return;
+
+    saveUndoSnapshot(tr("Set Background"));
 
     // Prepare the background data based on media type
     Slide::BackgroundType bgType;
@@ -1912,9 +2317,12 @@ void ControlWindow::onMediaDroppedOnSlide(const QModelIndex& proxyIndex, const Q
             style.fontFamily = refSlide.fontFamily();
             style.fontSize = refSlide.fontSize();
             style.backgroundType = bgType;
-            style.gradientStartColor = refSlide.gradientStartColor();
-            style.gradientEndColor = refSlide.gradientEndColor();
+            style.gradientStops = refSlide.gradientStops();
+            style.gradientType = refSlide.gradientType();
             style.gradientAngle = refSlide.gradientAngle();
+            style.radialCenterX = refSlide.radialCenterX();
+            style.radialCenterY = refSlide.radialCenterY();
+            style.radialRadius = refSlide.radialRadius();
             if (bgType == Slide::Image) {
                 style.backgroundImagePath = path;
                 style.backgroundImageData = imageData;
@@ -1962,9 +2370,12 @@ void ControlWindow::onMediaDroppedOnSlide(const QModelIndex& proxyIndex, const Q
             style.fontFamily = refSlide.fontFamily();
             style.fontSize = refSlide.fontSize();
             style.backgroundType = bgType;
-            style.gradientStartColor = refSlide.gradientStartColor();
-            style.gradientEndColor = refSlide.gradientEndColor();
+            style.gradientStops = refSlide.gradientStops();
+            style.gradientType = refSlide.gradientType();
             style.gradientAngle = refSlide.gradientAngle();
+            style.radialCenterX = refSlide.radialCenterX();
+            style.radialCenterY = refSlide.radialCenterY();
+            style.radialRadius = refSlide.radialRadius();
             if (bgType == Slide::Image) {
                 style.backgroundImagePath = path;
                 style.backgroundImageData = imageData;
@@ -2317,7 +2728,7 @@ void ControlWindow::showKeyboardShortcuts()
 <tr><td><b>Ctrl+B</b></td><td>Insert Bible verse</td></tr>
 <tr><td><b>Ctrl+L</b></td><td>Insert song lyrics</td></tr>
 <tr><td><b>Ctrl+T</b></td><td>Apply theme</td></tr>
-<tr><td><b>Ctrl+M</b></td><td>Toggle media library drawer</td></tr>
+<tr><td><b>Ctrl+M</b></td><td>Toggle library drawer</td></tr>
 </table>
 )";
 

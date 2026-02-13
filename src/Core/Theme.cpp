@@ -1,5 +1,6 @@
 #include "Theme.h"
 #include <QJsonArray>
+#include <algorithm>
 
 namespace Clarity {
 
@@ -14,9 +15,12 @@ Theme::Theme()
     , m_titleFontSize(72)
     , m_bodyFontSize(48)
     , m_backgroundType(Slide::SolidColor)
-    , m_gradientStartColor(QColor("#1e3a8a"))
-    , m_gradientEndColor(QColor("#60a5fa"))
+    , m_gradientStops({GradientStop(0.0, QColor("#1e3a8a")), GradientStop(1.0, QColor("#60a5fa"))})
+    , m_gradientType(LinearGradient)
     , m_gradientAngle(135)
+    , m_radialCenterX(0.5)
+    , m_radialCenterY(0.5)
+    , m_radialRadius(0.5)
 {
 }
 
@@ -31,9 +35,12 @@ Theme::Theme(const QString& name, const QString& description)
     , m_titleFontSize(72)
     , m_bodyFontSize(48)
     , m_backgroundType(Slide::SolidColor)
-    , m_gradientStartColor(QColor("#1e3a8a"))
-    , m_gradientEndColor(QColor("#60a5fa"))
+    , m_gradientStops({GradientStop(0.0, QColor("#1e3a8a")), GradientStop(1.0, QColor("#60a5fa"))})
+    , m_gradientType(LinearGradient)
     , m_gradientAngle(135)
+    , m_radialCenterX(0.5)
+    , m_radialCenterY(0.5)
+    , m_radialRadius(0.5)
 {
 }
 
@@ -53,9 +60,12 @@ void Theme::applyToSlide(Slide& slide) const
         break;
 
     case Slide::Gradient:
-        slide.setGradientStartColor(m_gradientStartColor);
-        slide.setGradientEndColor(m_gradientEndColor);
+        slide.setGradientStops(m_gradientStops);
+        slide.setGradientType(m_gradientType);
         slide.setGradientAngle(m_gradientAngle);
+        slide.setRadialCenterX(m_radialCenterX);
+        slide.setRadialCenterY(m_radialCenterY);
+        slide.setRadialRadius(m_radialRadius);
         break;
 
     case Slide::Image:
@@ -87,9 +97,12 @@ SlideStyle Theme::toSlideStyle() const
     style.fontFamily = m_fontFamily;
     style.fontSize = m_bodyFontSize;
     style.backgroundType = m_backgroundType;
-    style.gradientStartColor = m_gradientStartColor;
-    style.gradientEndColor = m_gradientEndColor;
+    style.gradientStops = m_gradientStops;
+    style.gradientType = m_gradientType;
     style.gradientAngle = m_gradientAngle;
+    style.radialCenterX = m_radialCenterX;
+    style.radialCenterY = m_radialCenterY;
+    style.radialRadius = m_radialRadius;
     return style;
 }
 
@@ -128,9 +141,25 @@ QJsonObject Theme::toJson() const
     json["backgroundType"] = typeStr;
 
     // Gradient settings (always include for completeness)
-    json["gradientStartColor"] = m_gradientStartColor.name();
-    json["gradientEndColor"] = m_gradientEndColor.name();
+    QJsonArray stopsArray;
+    for (const auto& stop : m_gradientStops) {
+        QJsonObject stopObj;
+        stopObj["position"] = stop.position;
+        stopObj["color"] = stop.color.name(QColor::HexArgb);
+        stopsArray.append(stopObj);
+    }
+    json["gradientStops"] = stopsArray;
+    json["gradientType"] = (m_gradientType == RadialGradient) ? "radial" : "linear";
     json["gradientAngle"] = m_gradientAngle;
+    json["radialCenterX"] = m_radialCenterX;
+    json["radialCenterY"] = m_radialCenterY;
+    json["radialRadius"] = m_radialRadius;
+
+    // Legacy fields for backward compat
+    if (!m_gradientStops.isEmpty()) {
+        json["gradientStartColor"] = m_gradientStops.first().color.name();
+        json["gradientEndColor"] = m_gradientStops.last().color.name();
+    }
 
     // Image data (only if present)
     if (!m_backgroundImageData.isEmpty()) {
@@ -176,10 +205,32 @@ Theme Theme::fromJson(const QJsonObject& json)
         theme.m_backgroundType = Slide::SolidColor;
     }
 
-    // Gradient settings
-    theme.m_gradientStartColor = QColor(json["gradientStartColor"].toString("#1e3a8a"));
-    theme.m_gradientEndColor = QColor(json["gradientEndColor"].toString("#60a5fa"));
+    // Gradient settings (multi-stop with legacy fallback)
+    if (json.contains("gradientStops")) {
+        theme.m_gradientStops.clear();
+        QJsonArray stopsArray = json["gradientStops"].toArray();
+        for (const auto& val : stopsArray) {
+            QJsonObject stopObj = val.toObject();
+            double pos = stopObj["position"].toDouble(0.0);
+            QColor col = QColor(stopObj["color"].toString("#000000"));
+            theme.m_gradientStops.append(GradientStop(pos, col));
+        }
+        std::sort(theme.m_gradientStops.begin(), theme.m_gradientStops.end(),
+                  [](const GradientStop& a, const GradientStop& b) { return a.position < b.position; });
+        while (theme.m_gradientStops.size() < 2) {
+            theme.m_gradientStops.append(GradientStop(1.0, QColor("#60a5fa")));
+        }
+    } else {
+        QColor startCol = QColor(json["gradientStartColor"].toString("#1e3a8a"));
+        QColor endCol = QColor(json["gradientEndColor"].toString("#60a5fa"));
+        theme.m_gradientStops = {GradientStop(0.0, startCol), GradientStop(1.0, endCol)};
+    }
+    QString gtStr = json["gradientType"].toString("linear");
+    theme.m_gradientType = (gtStr == "radial") ? RadialGradient : LinearGradient;
     theme.m_gradientAngle = json["gradientAngle"].toInt(135);
+    theme.m_radialCenterX = json["radialCenterX"].toDouble(0.5);
+    theme.m_radialCenterY = json["radialCenterY"].toDouble(0.5);
+    theme.m_radialRadius = json["radialRadius"].toDouble(0.5);
 
     // Image data
     if (json.contains("backgroundImageData")) {

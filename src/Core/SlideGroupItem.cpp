@@ -137,6 +137,9 @@ QJsonObject SlideGroupItem::toJson() const
 {
     QJsonObject json = baseToJson();
     json["name"] = m_name;
+    if (m_libraryGroupId >= 0) {
+        json["libraryGroupId"] = m_libraryGroupId;
+    }
 
     QJsonArray slidesArray;
     for (const Slide& slide : m_slides) {
@@ -157,6 +160,7 @@ SlideGroupItem* SlideGroupItem::fromJson(const QJsonObject& json)
     SlideGroupItem* item = new SlideGroupItem();
     item->applyBaseJson(json);
     item->m_name = json["name"].toString(tr("Slide Group"));
+    item->m_libraryGroupId = json["libraryGroupId"].toInt(-1);
 
     QJsonArray slidesArray = json["slides"].toArray();
     for (const QJsonValue& value : slidesArray) {

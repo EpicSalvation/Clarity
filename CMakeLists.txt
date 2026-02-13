@@ -64,6 +64,10 @@ add_library(ClarityCore STATIC
     src/Core/BibleImporter.cpp
     src/Core/AutoAdvanceTimer.h
     src/Core/AutoAdvanceTimer.cpp
+    src/Core/SlideGroupLibrary.h
+    src/Core/SlideGroupLibrary.cpp
+    src/Core/UndoManager.h
+    src/Core/UndoManager.cpp
 )
 
 target_link_libraries(ClarityCore
@@ -97,6 +101,8 @@ add_executable(Clarity
     src/Control/SettingsDialog.cpp
     src/Control/SlideEditorDialog.h
     src/Control/SlideEditorDialog.cpp
+    src/Control/GradientEditorWidget.h
+    src/Control/GradientEditorWidget.cpp
     src/Control/ScriptureDialog.h
     src/Control/ScriptureDialog.cpp
     src/Control/SongLibraryDialog.h
@@ -119,6 +125,8 @@ add_executable(Clarity
     src/Control/ConfidencePreviewWidget.cpp
     src/Control/MediaLibraryDialog.h
     src/Control/MediaLibraryDialog.cpp
+    src/Control/MediaDrawer.h
+    src/Control/MediaDrawer.cpp
     src/Control/BibleImportDialog.h
     src/Control/BibleImportDialog.cpp
     src/Control/BatchImportDialog.h

@@ -31,9 +31,12 @@ class OutputDisplay : public QObject {
     Q_PROPERTY(QString backgroundType READ backgroundType NOTIFY backgroundTypeChanged)
     Q_PROPERTY(QByteArray backgroundImageData READ backgroundImageData NOTIFY backgroundImageDataChanged)
     Q_PROPERTY(QString backgroundImageDataBase64 READ backgroundImageDataBase64 NOTIFY backgroundImageDataChanged)
-    Q_PROPERTY(QColor gradientStartColor READ gradientStartColor NOTIFY gradientStartColorChanged)
-    Q_PROPERTY(QColor gradientEndColor READ gradientEndColor NOTIFY gradientEndColorChanged)
+    Q_PROPERTY(QString gradientStopsJson READ gradientStopsJson NOTIFY gradientStopsJsonChanged)
+    Q_PROPERTY(QString gradientType READ gradientType NOTIFY gradientTypeChanged)
     Q_PROPERTY(int gradientAngle READ gradientAngle NOTIFY gradientAngleChanged)
+    Q_PROPERTY(double radialCenterX READ radialCenterX NOTIFY radialCenterXChanged)
+    Q_PROPERTY(double radialCenterY READ radialCenterY NOTIFY radialCenterYChanged)
+    Q_PROPERTY(double radialRadius READ radialRadius NOTIFY radialRadiusChanged)
     Q_PROPERTY(QString backgroundVideoSource READ backgroundVideoSource NOTIFY backgroundVideoSourceChanged)
     Q_PROPERTY(bool videoLoop READ videoLoop NOTIFY videoLoopChanged)
 
@@ -81,9 +84,12 @@ public:
     QString backgroundType() const { return m_backgroundType; }
     QByteArray backgroundImageData() const { return m_backgroundImageData; }
     QString backgroundImageDataBase64() const { return QString(m_backgroundImageData.toBase64()); }
-    QColor gradientStartColor() const { return m_gradientStartColor; }
-    QColor gradientEndColor() const { return m_gradientEndColor; }
+    QString gradientStopsJson() const { return m_gradientStopsJson; }
+    QString gradientType() const { return m_gradientType; }
     int gradientAngle() const { return m_gradientAngle; }
+    double radialCenterX() const { return m_radialCenterX; }
+    double radialCenterY() const { return m_radialCenterY; }
+    double radialRadius() const { return m_radialRadius; }
     QString backgroundVideoSource() const { return m_backgroundVideoSource; }
     bool videoLoop() const { return m_videoLoop; }
 
@@ -133,9 +139,12 @@ signals:
     void isClearedChanged();
     void backgroundTypeChanged();
     void backgroundImageDataChanged();
-    void gradientStartColorChanged();
-    void gradientEndColorChanged();
+    void gradientStopsJsonChanged();
+    void gradientTypeChanged();
     void gradientAngleChanged();
+    void radialCenterXChanged();
+    void radialCenterYChanged();
+    void radialRadiusChanged();
     void backgroundVideoSourceChanged();
     void videoLoopChanged();
 
@@ -198,9 +207,12 @@ private:
     bool m_isCleared;
     QString m_backgroundType;
     QByteArray m_backgroundImageData;
-    QColor m_gradientStartColor;
-    QColor m_gradientEndColor;
+    QString m_gradientStopsJson;
+    QString m_gradientType;
     int m_gradientAngle;
+    double m_radialCenterX;
+    double m_radialCenterY;
+    double m_radialRadius;
     QString m_backgroundVideoSource;
     bool m_videoLoop;
 

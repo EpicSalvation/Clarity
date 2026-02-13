@@ -17,127 +17,303 @@ ThemeManager::ThemeManager(QObject* parent)
 
 void ThemeManager::initBuiltInThemes()
 {
-    // Theme 1: Classic Blue
+    // =========================================================================
+    // General-Purpose Themes
+    // =========================================================================
+
+    // Theme 1: Classic Blue — traditional church standby
     {
-        Theme theme("Classic Blue", "Traditional dark blue background with white text");
+        Theme theme("Classic Blue", "Traditional blue gradient with white text");
         theme.setBuiltIn(true);
-        theme.setBackgroundType(Slide::SolidColor);
-        theme.setBackgroundColor(QColor("#1e3a8a"));
+        theme.setBackgroundType(Slide::Gradient);
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#1e3a8a")),
+            GradientStop(0.6, QColor("#1e40af")),
+            GradientStop(1.0, QColor("#2563eb"))
+        });
+        theme.setGradientType(LinearGradient);
+        theme.setGradientAngle(160);
         theme.setTextColor(QColor("#ffffff"));
         theme.setAccentColor(QColor("#fbbf24"));
         theme.setFontFamily("Arial");
         theme.setTitleFontSize(72);
         theme.setBodyFontSize(48);
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(10, 20, 60, 160));
+        theme.setDropShadowOffsetX(2);
+        theme.setDropShadowOffsetY(3);
+        theme.setDropShadowBlur(6);
         m_builtInThemes.append(theme);
     }
 
-    // Theme 2: Modern Dark
+    // Theme 2: Modern Dark — sleek and contemporary
     {
-        Theme theme("Modern Dark", "Near-black background with clean white text");
+        Theme theme("Modern Dark", "Dark gradient with clean white text");
         theme.setBuiltIn(true);
-        theme.setBackgroundType(Slide::SolidColor);
-        theme.setBackgroundColor(QColor("#0f0f0f"));
-        theme.setTextColor(QColor("#ffffff"));
+        theme.setBackgroundType(Slide::Gradient);
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#0a0a0a")),
+            GradientStop(1.0, QColor("#1a1a2e"))
+        });
+        theme.setGradientType(RadialGradient);
+        theme.setRadialCenterX(0.5);
+        theme.setRadialCenterY(0.4);
+        theme.setRadialRadius(0.7);
+        theme.setTextColor(QColor("#f0f0f0"));
         theme.setAccentColor(QColor("#60a5fa"));
         theme.setFontFamily("Helvetica");
         theme.setTitleFontSize(72);
         theme.setBodyFontSize(48);
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(0, 0, 0, 180));
+        theme.setDropShadowOffsetX(2);
+        theme.setDropShadowOffsetY(3);
+        theme.setDropShadowBlur(8);
         m_builtInThemes.append(theme);
     }
 
-    // Theme 3: Warm Earth
+    // Theme 3: Warm Earth — rich and inviting
     {
-        Theme theme("Warm Earth", "Earthy brown gradient with cream text");
+        Theme theme("Warm Earth", "Earthy brown gradient with warm cream text");
         theme.setBuiltIn(true);
         theme.setBackgroundType(Slide::Gradient);
-        theme.setGradientStartColor(QColor("#78350f"));
-        theme.setGradientEndColor(QColor("#451a03"));
-        theme.setGradientAngle(180);
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#78350f")),
+            GradientStop(0.5, QColor("#5c2d0e")),
+            GradientStop(1.0, QColor("#3b1a08"))
+        });
+        theme.setGradientType(LinearGradient);
+        theme.setGradientAngle(170);
         theme.setTextColor(QColor("#fef3c7"));
         theme.setAccentColor(QColor("#d97706"));
         theme.setFontFamily("Georgia");
         theme.setTitleFontSize(72);
         theme.setBodyFontSize(48);
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(30, 15, 5, 170));
+        theme.setDropShadowOffsetX(2);
+        theme.setDropShadowOffsetY(3);
+        theme.setDropShadowBlur(6);
         m_builtInThemes.append(theme);
     }
 
-    // Theme 4: Ocean
+    // Theme 4: Ocean — calming and refreshing
     {
-        Theme theme("Ocean", "Blue ocean gradient with white text");
+        Theme theme("Ocean", "Deep blue ocean gradient with white text");
         theme.setBuiltIn(true);
         theme.setBackgroundType(Slide::Gradient);
-        theme.setGradientStartColor(QColor("#0c4a6e"));
-        theme.setGradientEndColor(QColor("#0369a1"));
-        theme.setGradientAngle(135);
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#0c4a6e")),
+            GradientStop(0.4, QColor("#0e5a8a")),
+            GradientStop(1.0, QColor("#0284c7"))
+        });
+        theme.setGradientType(LinearGradient);
+        theme.setGradientAngle(140);
         theme.setTextColor(QColor("#ffffff"));
         theme.setAccentColor(QColor("#38bdf8"));
         theme.setFontFamily("Verdana");
         theme.setTitleFontSize(72);
         theme.setBodyFontSize(48);
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(5, 30, 60, 170));
+        theme.setDropShadowOffsetX(2);
+        theme.setDropShadowOffsetY(3);
+        theme.setDropShadowBlur(6);
         m_builtInThemes.append(theme);
     }
 
-    // Theme 5: Sunrise
+    // Theme 5: Sunrise — warm and uplifting
     {
-        Theme theme("Sunrise", "Warm orange/yellow gradient for bright themes");
+        Theme theme("Sunrise", "Warm sunrise gradient with dark text");
         theme.setBuiltIn(true);
         theme.setBackgroundType(Slide::Gradient);
-        theme.setGradientStartColor(QColor("#ea580c"));
-        theme.setGradientEndColor(QColor("#facc15"));
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#f97316")),
+            GradientStop(0.5, QColor("#fb923c")),
+            GradientStop(1.0, QColor("#fbbf24"))
+        });
+        theme.setGradientType(LinearGradient);
         theme.setGradientAngle(45);
         theme.setTextColor(QColor("#1c1917"));
         theme.setAccentColor(QColor("#7c2d12"));
         theme.setFontFamily("Arial");
         theme.setTitleFontSize(72);
         theme.setBodyFontSize(48);
-        theme.setDropShadowColor(QColor(255, 255, 240, 100));  // Warm white glow
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(255, 240, 200, 140));
+        theme.setDropShadowOffsetX(1);
+        theme.setDropShadowOffsetY(2);
+        theme.setDropShadowBlur(5);
         m_builtInThemes.append(theme);
     }
 
-    // Theme 6: Forest
+    // Theme 6: Forest — natural and peaceful
     {
-        Theme theme("Forest", "Natural green gradient with white text");
+        Theme theme("Forest", "Lush green gradient with white text");
         theme.setBuiltIn(true);
         theme.setBackgroundType(Slide::Gradient);
-        theme.setGradientStartColor(QColor("#064e3b"));
-        theme.setGradientEndColor(QColor("#065f46"));
-        theme.setGradientAngle(180);
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#064e3b")),
+            GradientStop(0.5, QColor("#065f46")),
+            GradientStop(1.0, QColor("#047857"))
+        });
+        theme.setGradientType(LinearGradient);
+        theme.setGradientAngle(160);
         theme.setTextColor(QColor("#ffffff"));
         theme.setAccentColor(QColor("#34d399"));
         theme.setFontFamily("Arial");
         theme.setTitleFontSize(72);
         theme.setBodyFontSize(48);
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(3, 30, 20, 170));
+        theme.setDropShadowOffsetX(2);
+        theme.setDropShadowOffsetY(3);
+        theme.setDropShadowBlur(6);
         m_builtInThemes.append(theme);
     }
 
-    // Theme 7: Royal Purple
+    // Theme 7: Royal Purple — elegant and reverent
     {
-        Theme theme("Royal Purple", "Elegant purple gradient with gold accents");
+        Theme theme("Royal Purple", "Rich purple gradient with gold accents");
         theme.setBuiltIn(true);
         theme.setBackgroundType(Slide::Gradient);
-        theme.setGradientStartColor(QColor("#581c87"));
-        theme.setGradientEndColor(QColor("#7e22ce"));
-        theme.setGradientAngle(135);
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#4c1d95")),
+            GradientStop(0.5, QColor("#5b21b6")),
+            GradientStop(1.0, QColor("#7c3aed"))
+        });
+        theme.setGradientType(LinearGradient);
+        theme.setGradientAngle(150);
         theme.setTextColor(QColor("#ffffff"));
         theme.setAccentColor(QColor("#fbbf24"));
-        theme.setFontFamily("Times New Roman");
+        theme.setFontFamily("Georgia");
         theme.setTitleFontSize(72);
         theme.setBodyFontSize(48);
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(25, 10, 50, 170));
+        theme.setDropShadowOffsetX(2);
+        theme.setDropShadowOffsetY(3);
+        theme.setDropShadowBlur(6);
         m_builtInThemes.append(theme);
     }
 
-    // Theme 8: Clean White
+    // Theme 8: Clean White — bright and crisp for well-lit rooms
     {
-        Theme theme("Clean White", "White background with dark text - ideal for bright rooms");
+        Theme theme("Clean White", "Light gradient with dark text for bright rooms");
         theme.setBuiltIn(true);
-        theme.setBackgroundType(Slide::SolidColor);
-        theme.setBackgroundColor(QColor("#ffffff"));
+        theme.setBackgroundType(Slide::Gradient);
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#ffffff")),
+            GradientStop(1.0, QColor("#e8ecf1"))
+        });
+        theme.setGradientType(RadialGradient);
+        theme.setRadialCenterX(0.5);
+        theme.setRadialCenterY(0.4);
+        theme.setRadialRadius(0.8);
         theme.setTextColor(QColor("#1f2937"));
         theme.setAccentColor(QColor("#2563eb"));
         theme.setFontFamily("Arial");
         theme.setTitleFontSize(72);
         theme.setBodyFontSize(48);
-        theme.setDropShadowColor(QColor(180, 180, 190, 80));  // Subtle cool gray
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(160, 170, 190, 80));
+        theme.setDropShadowOffsetX(1);
+        theme.setDropShadowOffsetY(2);
+        theme.setDropShadowBlur(4);
+        m_builtInThemes.append(theme);
+    }
+
+    // Theme 9: Midnight Sky — deep and contemplative
+    {
+        Theme theme("Midnight Sky", "Deep navy radial gradient with soft white text");
+        theme.setBuiltIn(true);
+        theme.setBackgroundType(Slide::Gradient);
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#1e293b")),
+            GradientStop(0.6, QColor("#0f172a")),
+            GradientStop(1.0, QColor("#020617"))
+        });
+        theme.setGradientType(RadialGradient);
+        theme.setRadialCenterX(0.5);
+        theme.setRadialCenterY(0.3);
+        theme.setRadialRadius(0.7);
+        theme.setTextColor(QColor("#e2e8f0"));
+        theme.setAccentColor(QColor("#818cf8"));
+        theme.setFontFamily("Verdana");
+        theme.setTitleFontSize(72);
+        theme.setBodyFontSize(48);
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(0, 0, 0, 200));
+        theme.setDropShadowOffsetX(2);
+        theme.setDropShadowOffsetY(3);
+        theme.setDropShadowBlur(8);
+        m_builtInThemes.append(theme);
+    }
+
+    // Theme 10: Golden Hour — warm and joyful
+    {
+        Theme theme("Golden Hour", "Soft amber radial glow with warm white text");
+        theme.setBuiltIn(true);
+        theme.setBackgroundType(Slide::Gradient);
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#b45309")),
+            GradientStop(0.5, QColor("#92400e")),
+            GradientStop(1.0, QColor("#6b2f0a"))
+        });
+        theme.setGradientType(RadialGradient);
+        theme.setRadialCenterX(0.5);
+        theme.setRadialCenterY(0.5);
+        theme.setRadialRadius(0.65);
+        theme.setTextColor(QColor("#fef9ef"));
+        theme.setAccentColor(QColor("#fbbf24"));
+        theme.setFontFamily("Georgia");
+        theme.setTitleFontSize(72);
+        theme.setBodyFontSize(48);
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(50, 20, 5, 160));
+        theme.setDropShadowOffsetX(2);
+        theme.setDropShadowOffsetY(3);
+        theme.setDropShadowBlur(6);
+        m_builtInThemes.append(theme);
+    }
+
+    // Theme 11: Soft Teal — fresh and welcoming
+    {
+        Theme theme("Soft Teal", "Gentle teal gradient with white text");
+        theme.setBuiltIn(true);
+        theme.setBackgroundType(Slide::Gradient);
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#134e4a")),
+            GradientStop(0.5, QColor("#115e59")),
+            GradientStop(1.0, QColor("#0f766e"))
+        });
+        theme.setGradientType(LinearGradient);
+        theme.setGradientAngle(155);
+        theme.setTextColor(QColor("#ffffff"));
+        theme.setAccentColor(QColor("#5eead4"));
+        theme.setFontFamily("Arial");
+        theme.setTitleFontSize(72);
+        theme.setBodyFontSize(48);
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(5, 30, 28, 170));
+        theme.setDropShadowOffsetX(2);
+        theme.setDropShadowOffsetY(3);
+        theme.setDropShadowBlur(6);
+        m_builtInThemes.append(theme);
+    }
+
+    // Theme 12: Plain Black — simple, for use with background images
+    {
+        Theme theme("Plain Black", "Solid black background for use with background images");
+        theme.setBuiltIn(true);
+        theme.setBackgroundType(Slide::SolidColor);
+        theme.setBackgroundColor(QColor("#000000"));
+        theme.setTextColor(QColor("#ffffff"));
+        theme.setAccentColor(QColor("#a0a0a0"));
+        theme.setFontFamily("Arial");
+        theme.setTitleFontSize(72);
+        theme.setBodyFontSize(48);
+        theme.setDropShadowEnabled(false);
         m_builtInThemes.append(theme);
     }
 
@@ -145,51 +321,83 @@ void ThemeManager::initBuiltInThemes()
     // Scripture-Specific Themes
     // =========================================================================
 
-    // Theme 9: Scripture Parchment
+    // Theme 13: Scripture Parchment — classic Bible study look
     {
-        Theme theme("Scripture Parchment", "Classic parchment look with serif font - ideal for Bible verses");
+        Theme theme("Scripture Parchment", "Warm parchment gradient with serif font for Bible verses");
         theme.setBuiltIn(true);
         theme.setBackgroundType(Slide::Gradient);
-        theme.setGradientStartColor(QColor("#f5e6d3"));  // Warm parchment
-        theme.setGradientEndColor(QColor("#e8d4b8"));    // Slightly darker edge
-        theme.setGradientAngle(180);
-        theme.setTextColor(QColor("#3d2914"));           // Dark brown ink
-        theme.setAccentColor(QColor("#8b4513"));         // Saddle brown
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#f5e6d3")),
+            GradientStop(0.5, QColor("#eedcc5")),
+            GradientStop(1.0, QColor("#e0ccae"))
+        });
+        theme.setGradientType(RadialGradient);
+        theme.setRadialCenterX(0.5);
+        theme.setRadialCenterY(0.4);
+        theme.setRadialRadius(0.75);
+        theme.setTextColor(QColor("#3d2914"));
+        theme.setAccentColor(QColor("#8b4513"));
         theme.setFontFamily("Georgia");
         theme.setTitleFontSize(64);
         theme.setBodyFontSize(44);
-        theme.setDropShadowColor(QColor(255, 245, 230, 100));  // Warm parchment glow
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(245, 230, 200, 120));
+        theme.setDropShadowOffsetX(1);
+        theme.setDropShadowOffsetY(2);
+        theme.setDropShadowBlur(4);
         m_builtInThemes.append(theme);
     }
 
-    // Theme 10: Scripture Classic
+    // Theme 14: Scripture Classic — elegant printed page
     {
-        Theme theme("Scripture Classic", "Traditional cream page with elegant typography");
+        Theme theme("Scripture Classic", "Cream page with elegant serif typography");
         theme.setBuiltIn(true);
-        theme.setBackgroundType(Slide::SolidColor);
-        theme.setBackgroundColor(QColor("#fdf8f0"));     // Cream/off-white
-        theme.setTextColor(QColor("#1a1a1a"));           // Near-black
-        theme.setAccentColor(QColor("#8b0000"));         // Dark red for references
+        theme.setBackgroundType(Slide::Gradient);
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#fdf8f0")),
+            GradientStop(1.0, QColor("#f0e8d8"))
+        });
+        theme.setGradientType(RadialGradient);
+        theme.setRadialCenterX(0.5);
+        theme.setRadialCenterY(0.45);
+        theme.setRadialRadius(0.8);
+        theme.setTextColor(QColor("#1a1a1a"));
+        theme.setAccentColor(QColor("#8b0000"));
         theme.setFontFamily("Times New Roman");
         theme.setTitleFontSize(64);
         theme.setBodyFontSize(44);
-        theme.setDropShadowColor(QColor(255, 250, 240, 90));  // Soft cream glow
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(220, 210, 190, 90));
+        theme.setDropShadowOffsetX(1);
+        theme.setDropShadowOffsetY(2);
+        theme.setDropShadowBlur(3);
         m_builtInThemes.append(theme);
     }
 
-    // Theme 11: Scripture Night
+    // Theme 15: Scripture Night — evening devotional
     {
-        Theme theme("Scripture Night", "Dark theme for scripture - easy on the eyes in dim rooms");
+        Theme theme("Scripture Night", "Dark theme for scripture in dim rooms");
         theme.setBuiltIn(true);
         theme.setBackgroundType(Slide::Gradient);
-        theme.setGradientStartColor(QColor("#1a1a2e"));  // Deep navy
-        theme.setGradientEndColor(QColor("#16213e"));    // Slightly lighter
-        theme.setGradientAngle(180);
-        theme.setTextColor(QColor("#eae7dc"));           // Warm off-white
-        theme.setAccentColor(QColor("#d4a574"));         // Warm gold
+        theme.setGradientStops({
+            GradientStop(0.0, QColor("#1a1a2e")),
+            GradientStop(0.5, QColor("#16213e")),
+            GradientStop(1.0, QColor("#0f1729"))
+        });
+        theme.setGradientType(RadialGradient);
+        theme.setRadialCenterX(0.5);
+        theme.setRadialCenterY(0.4);
+        theme.setRadialRadius(0.7);
+        theme.setTextColor(QColor("#eae7dc"));
+        theme.setAccentColor(QColor("#d4a574"));
         theme.setFontFamily("Georgia");
         theme.setTitleFontSize(64);
         theme.setBodyFontSize(44);
+        theme.setDropShadowEnabled(true);
+        theme.setDropShadowColor(QColor(0, 0, 15, 180));
+        theme.setDropShadowOffsetX(2);
+        theme.setDropShadowOffsetY(3);
+        theme.setDropShadowBlur(7);
         m_builtInThemes.append(theme);
     }
 

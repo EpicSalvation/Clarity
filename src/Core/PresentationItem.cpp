@@ -136,9 +136,24 @@ QJsonObject PresentationItem::baseToJson() const
         styleJson["backgroundType"] = bgTypeStr;
 
         if (m_itemStyle.backgroundType == Slide::Gradient) {
-            styleJson["gradientStartColor"] = m_itemStyle.gradientStartColor.name();
-            styleJson["gradientEndColor"] = m_itemStyle.gradientEndColor.name();
+            QJsonArray stopsArray;
+            for (const auto& stop : m_itemStyle.gradientStops) {
+                QJsonObject stopObj;
+                stopObj["position"] = stop.position;
+                stopObj["color"] = stop.color.name(QColor::HexArgb);
+                stopsArray.append(stopObj);
+            }
+            styleJson["gradientStops"] = stopsArray;
+            styleJson["gradientType"] = (m_itemStyle.gradientType == RadialGradient) ? "radial" : "linear";
             styleJson["gradientAngle"] = m_itemStyle.gradientAngle;
+            styleJson["radialCenterX"] = m_itemStyle.radialCenterX;
+            styleJson["radialCenterY"] = m_itemStyle.radialCenterY;
+            styleJson["radialRadius"] = m_itemStyle.radialRadius;
+            // Legacy compat
+            if (!m_itemStyle.gradientStops.isEmpty()) {
+                styleJson["gradientStartColor"] = m_itemStyle.gradientStops.first().color.name();
+                styleJson["gradientEndColor"] = m_itemStyle.gradientStops.last().color.name();
+            }
         } else if (m_itemStyle.backgroundType == Slide::Image) {
             styleJson["backgroundImagePath"] = m_itemStyle.backgroundImagePath;
             if (!m_itemStyle.backgroundImageData.isEmpty()) {
@@ -170,9 +185,23 @@ QJsonObject PresentationItem::baseToJson() const
             QString bgTypeStr = "solidColor";
             if (it.value().backgroundType == Slide::Gradient) {
                 bgTypeStr = "gradient";
-                ssJson["gradientStartColor"] = it.value().gradientStartColor.name();
-                ssJson["gradientEndColor"] = it.value().gradientEndColor.name();
+                QJsonArray stopsArr;
+                for (const auto& stop : it.value().gradientStops) {
+                    QJsonObject so;
+                    so["position"] = stop.position;
+                    so["color"] = stop.color.name(QColor::HexArgb);
+                    stopsArr.append(so);
+                }
+                ssJson["gradientStops"] = stopsArr;
+                ssJson["gradientType"] = (it.value().gradientType == RadialGradient) ? "radial" : "linear";
                 ssJson["gradientAngle"] = it.value().gradientAngle;
+                ssJson["radialCenterX"] = it.value().radialCenterX;
+                ssJson["radialCenterY"] = it.value().radialCenterY;
+                ssJson["radialRadius"] = it.value().radialRadius;
+                if (!it.value().gradientStops.isEmpty()) {
+                    ssJson["gradientStartColor"] = it.value().gradientStops.first().color.name();
+                    ssJson["gradientEndColor"] = it.value().gradientStops.last().color.name();
+                }
             } else if (it.value().backgroundType == Slide::Image) {
                 bgTypeStr = "image";
                 ssJson["backgroundImagePath"] = it.value().backgroundImagePath;
@@ -209,9 +238,27 @@ void PresentationItem::applyBaseJson(const QJsonObject& json)
         QString bgTypeStr = styleJson["backgroundType"].toString("solidColor");
         if (bgTypeStr == "gradient") {
             m_itemStyle.backgroundType = Slide::Gradient;
-            m_itemStyle.gradientStartColor = QColor(styleJson["gradientStartColor"].toString("#1e3a8a"));
-            m_itemStyle.gradientEndColor = QColor(styleJson["gradientEndColor"].toString("#60a5fa"));
+            if (styleJson.contains("gradientStops")) {
+                m_itemStyle.gradientStops.clear();
+                QJsonArray sa = styleJson["gradientStops"].toArray();
+                for (const auto& v : sa) {
+                    QJsonObject so = v.toObject();
+                    m_itemStyle.gradientStops.append(GradientStop(so["position"].toDouble(), QColor(so["color"].toString())));
+                }
+                while (m_itemStyle.gradientStops.size() < 2)
+                    m_itemStyle.gradientStops.append(GradientStop(1.0, QColor("#60a5fa")));
+            } else {
+                m_itemStyle.gradientStops = {
+                    GradientStop(0.0, QColor(styleJson["gradientStartColor"].toString("#1e3a8a"))),
+                    GradientStop(1.0, QColor(styleJson["gradientEndColor"].toString("#60a5fa")))
+                };
+            }
+            QString gt = styleJson["gradientType"].toString("linear");
+            m_itemStyle.gradientType = (gt == "radial") ? RadialGradient : LinearGradient;
             m_itemStyle.gradientAngle = styleJson["gradientAngle"].toInt(135);
+            m_itemStyle.radialCenterX = styleJson["radialCenterX"].toDouble(0.5);
+            m_itemStyle.radialCenterY = styleJson["radialCenterY"].toDouble(0.5);
+            m_itemStyle.radialRadius = styleJson["radialRadius"].toDouble(0.5);
         } else if (bgTypeStr == "image") {
             m_itemStyle.backgroundType = Slide::Image;
             m_itemStyle.backgroundImagePath = styleJson["backgroundImagePath"].toString();
@@ -251,9 +298,27 @@ void PresentationItem::applyBaseJson(const QJsonObject& json)
             QString bgTypeStr = ssJson["backgroundType"].toString("solidColor");
             if (bgTypeStr == "gradient") {
                 style.backgroundType = Slide::Gradient;
-                style.gradientStartColor = QColor(ssJson["gradientStartColor"].toString("#1e3a8a"));
-                style.gradientEndColor = QColor(ssJson["gradientEndColor"].toString("#60a5fa"));
+                if (ssJson.contains("gradientStops")) {
+                    style.gradientStops.clear();
+                    QJsonArray sa = ssJson["gradientStops"].toArray();
+                    for (const auto& v : sa) {
+                        QJsonObject so = v.toObject();
+                        style.gradientStops.append(GradientStop(so["position"].toDouble(), QColor(so["color"].toString())));
+                    }
+                    while (style.gradientStops.size() < 2)
+                        style.gradientStops.append(GradientStop(1.0, QColor("#60a5fa")));
+                } else {
+                    style.gradientStops = {
+                        GradientStop(0.0, QColor(ssJson["gradientStartColor"].toString("#1e3a8a"))),
+                        GradientStop(1.0, QColor(ssJson["gradientEndColor"].toString("#60a5fa")))
+                    };
+                }
+                QString gt = ssJson["gradientType"].toString("linear");
+                style.gradientType = (gt == "radial") ? RadialGradient : LinearGradient;
                 style.gradientAngle = ssJson["gradientAngle"].toInt(135);
+                style.radialCenterX = ssJson["radialCenterX"].toDouble(0.5);
+                style.radialCenterY = ssJson["radialCenterY"].toDouble(0.5);
+                style.radialRadius = ssJson["radialRadius"].toDouble(0.5);
             } else if (bgTypeStr == "image") {
                 style.backgroundType = Slide::Image;
                 style.backgroundImagePath = ssJson["backgroundImagePath"].toString();

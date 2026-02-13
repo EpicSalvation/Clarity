@@ -419,7 +419,11 @@ void Presentation::removeSlide(int flatIndex)
             // Last slide in group - remove the whole item
             removeItem(pos.itemIndex);
         } else {
+            // Block signals to prevent itemChanged() from triggering a nested
+            // model reset while PresentationModel::removeSlide has beginRemoveRows active
+            groupItem->blockSignals(true);
             groupItem->removeSlide(pos.slideInItem);
+            groupItem->blockSignals(false);
             m_flatIndexValid = false;
             // Adjust current index if needed
             if (m_currentSlideIndex > flatIndex) {

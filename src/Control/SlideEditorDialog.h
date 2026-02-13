@@ -17,6 +17,7 @@ namespace Clarity {
 class SettingsManager;
 class MediaLibrary;
 class VideoThumbnailGenerator;
+class GradientEditorWidget;
 
 /**
  * @brief Dialog for editing slide properties
@@ -42,8 +43,6 @@ private slots:
     void onBackgroundTypeChanged(int index);
     void onChooseBackgroundColor();
     void onChooseTextColor();
-    void onChooseGradientStartColor();
-    void onChooseGradientEndColor();
     void onChooseBackgroundImage();
     void onBrowseImageLibrary();
     void onChooseBackgroundVideo();
@@ -79,9 +78,7 @@ private:
     QPushButton* m_backgroundColorButton;
 
     // Gradient controls
-    QPushButton* m_gradientStartColorButton;
-    QPushButton* m_gradientEndColorButton;
-    QSpinBox* m_gradientAngleSpinBox;
+    GradientEditorWidget* m_gradientEditor;
 
     // Image controls
     QLineEdit* m_imagePathEdit;

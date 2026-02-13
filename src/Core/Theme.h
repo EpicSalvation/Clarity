@@ -38,10 +38,17 @@ public:
 
     // Background
     Slide::BackgroundType backgroundType() const { return m_backgroundType; }
-    QColor gradientStartColor() const { return m_gradientStartColor; }
-    QColor gradientEndColor() const { return m_gradientEndColor; }
+    QList<GradientStop> gradientStops() const { return m_gradientStops; }
+    GradientType gradientType() const { return m_gradientType; }
     int gradientAngle() const { return m_gradientAngle; }
+    double radialCenterX() const { return m_radialCenterX; }
+    double radialCenterY() const { return m_radialCenterY; }
+    double radialRadius() const { return m_radialRadius; }
     QByteArray backgroundImageData() const { return m_backgroundImageData; }
+
+    // Backward-compat convenience getters
+    QColor gradientStartColor() const { return m_gradientStops.isEmpty() ? QColor("#1e3a8a") : m_gradientStops.first().color; }
+    QColor gradientEndColor() const { return m_gradientStops.isEmpty() ? QColor("#60a5fa") : m_gradientStops.last().color; }
 
     // Drop shadow
     bool dropShadowEnabled() const { return m_dropShadowEnabled; }
@@ -67,10 +74,23 @@ public:
 
     // Background
     void setBackgroundType(Slide::BackgroundType type) { m_backgroundType = type; }
-    void setGradientStartColor(const QColor& color) { m_gradientStartColor = color; }
-    void setGradientEndColor(const QColor& color) { m_gradientEndColor = color; }
+    void setGradientStops(const QList<GradientStop>& stops) { m_gradientStops = stops; }
+    void setGradientType(GradientType type) { m_gradientType = type; }
     void setGradientAngle(int angle) { m_gradientAngle = angle; }
+    void setRadialCenterX(double x) { m_radialCenterX = x; }
+    void setRadialCenterY(double y) { m_radialCenterY = y; }
+    void setRadialRadius(double r) { m_radialRadius = r; }
     void setBackgroundImageData(const QByteArray& data) { m_backgroundImageData = data; }
+
+    // Backward-compat convenience setters
+    void setGradientStartColor(const QColor& color) {
+        if (m_gradientStops.isEmpty()) m_gradientStops.append(GradientStop(0.0, color));
+        else m_gradientStops.first().color = color;
+    }
+    void setGradientEndColor(const QColor& color) {
+        if (m_gradientStops.size() < 2) m_gradientStops.append(GradientStop(1.0, color));
+        else m_gradientStops.last().color = color;
+    }
 
     // Drop shadow
     void setDropShadowEnabled(bool enabled) { m_dropShadowEnabled = enabled; }
@@ -113,9 +133,12 @@ private:
 
     // Background
     Slide::BackgroundType m_backgroundType;
-    QColor m_gradientStartColor;
-    QColor m_gradientEndColor;
+    QList<GradientStop> m_gradientStops;
+    GradientType m_gradientType;
     int m_gradientAngle;
+    double m_radialCenterX;
+    double m_radialCenterY;
+    double m_radialRadius;
     QByteArray m_backgroundImageData;
 
     // Drop shadow

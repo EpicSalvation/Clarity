@@ -219,6 +219,8 @@ bool PresentationModel::dropMimeData(const QMimeData* data, Qt::DropAction actio
     if (action == Qt::IgnoreAction) return true;
     if (!data->hasFormat("application/x-clarity-slide-index") || !m_presentation) return false;
 
+    emit aboutToMutate(tr("Reorder Slides"));
+
     // Decode source row
     QByteArray encodedData = data->data("application/x-clarity-slide-index");
     QDataStream stream(&encodedData, QIODevice::ReadOnly);
@@ -429,9 +431,14 @@ void PresentationModel::removeSlide(int index)
         return;
     }
 
-    beginRemoveRows(QModelIndex(), index, index);
+    // Use model reset instead of beginRemoveRows: removing a slide from a
+    // SlideGroupItem emits slidesChanged which would nest inside beginRemoveRows
+    beginResetModel();
+    m_presentation->blockSignals(true);
     m_presentation->removeSlide(index);
-    endRemoveRows();
+    m_presentation->blockSignals(false);
+    endResetModel();
+    emit presentationModified();
 }
 
 void PresentationModel::moveSlide(int fromIndex, int toIndex)
@@ -532,6 +539,15 @@ int PresentationModel::itemCount() const
 PresentationItem* PresentationModel::itemAt(int index) const
 {
     return m_presentation ? m_presentation->itemAt(index) : nullptr;
+}
+
+void PresentationModel::notifyGroupItemChanged()
+{
+    if (!m_presentation) return;
+
+    m_presentation->invalidateFlatIndex();
+    beginResetModel();
+    endResetModel();
 }
 
 // Private slots

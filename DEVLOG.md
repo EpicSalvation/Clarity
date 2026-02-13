@@ -4,6 +4,110 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-13 - Updated Built-in Themes with Gradients and Drop Shadows
+
+### Summary
+Overhauled all built-in themes to use multi-stop gradients, radial gradients, and properly tuned drop shadows. Added 4 new themes. All themes prioritize readability for church projection settings with upbeat, pleasant aesthetics.
+
+### Work Completed
+- **Replaced all solid-color themes** with multi-stop gradients (except Plain Black, which is intentionally solid for background image use)
+- **Added radial gradients** to several themes (Modern Dark, Clean White, Midnight Sky, Golden Hour, and all Scripture themes) for natural depth
+- **Tuned drop shadows** for every theme: dark shadows for light text on dark backgrounds, light glows for dark text on light backgrounds. No conflicting shadow/text color combinations.
+- **Added 4 new themes**: Midnight Sky (deep contemplative navy), Golden Hour (warm amber radial), Soft Teal (fresh welcoming), Plain Black (for background images, shadow disabled)
+- **Total built-in themes**: 15 (12 general-purpose + 3 scripture-specific), up from 11
+
+### Technical Decisions
+- **Multi-stop gradients** (3 stops) give richer depth than 2-stop, without being overly complex
+- **Plain Black** has drop shadow explicitly disabled since it's meant as a base for user-provided background images
+- **Shadow colors** use the background's color family at controlled opacity (e.g., dark navy shadow on blue backgrounds, dark brown on earth tones) rather than generic black
+
+---
+
+## 2026-02-13 - Global Undo/Redo System
+
+### Summary
+Implemented a snapshot-based global undo/redo system for all presentation edits. Uses full `Presentation::toJson()` snapshots before each mutation and restores via `Presentation::fromJson()` on undo. This approach avoids writing 20+ individual `QUndoCommand` subclasses while leveraging the existing well-tested JSON round-trip serialization.
+
+### Work Completed
+
+#### New Files
+- **`src/Core/UndoManager.h`** / **`src/Core/UndoManager.cpp`**: Stack-based undo/redo manager with `pushSnapshot()`, `undo()`, `redo()`, `clear()`, `canUndo()`/`canRedo()`, description accessors, and `undoRedoStateChanged` signal. Max 50 undo levels with oldest-first trimming.
+
+#### Model Changes
+- **`PresentationModel`**: Added `aboutToMutate(QString)` signal, emitted in `dropMimeData()` before slide reorder mutations
+- **`ItemListModel`**: Added `aboutToMutate(QString)` signal, emitted in `dropMimeData()` before item reorder mutations
+
+#### ControlWindow Integration
+- Added Edit menu between File and Slide menus with Undo (`Ctrl+Z`) / Redo (`Ctrl+Y`) actions
+- Dynamic menu text updates (e.g., "Undo Edit Slide", "Redo Delete Slide")
+- `saveUndoSnapshot()` helper captures `Presentation::toJson()` before mutations
+- `restoreFromSnapshot()` rebuilds presentation from JSON, resets filter proxy, invalidates caches, updates UI
+- Instrumented all ~20 mutation entry points: Add/Edit/Delete Slide, Move Up/Down, Insert Scripture/Song/Slide Group, Insert from Library, Add Slide to Group, Duplicate Slide, Duplicate/Delete Section, Apply Theme (all/slide/group), Clone Format, Media Drop, Set Auto-Advance
+- Drag-drop reorder in both slide grid and playlist connected via `aboutToMutate` signals
+- `m_undoManager->clear()` called in `newPresentation()` and `openPresentation()`
+
+#### Use-After-Free Bug Fix
+- **Root cause**: `PresentationModel::setPresentation()` deletes the old `Presentation` then emits `itemsChanged()`, whose handler calls `updateUI()` which accesses `m_itemListModel->presentation()` — a dangling pointer to the just-deleted object
+- **Fix**: All 4 call sites (`createDemoPresentation`, `newPresentation`, `openPresentation`, `restoreFromSnapshot`) now set `m_itemListModel` first (it doesn't own/delete), then `m_presentationModel` (which deletes the old one and emits signals)
+- This was a latent bug that existed before undo/redo but only manifested under rapid allocation/deallocation cycles
+
+### Technical Decisions
+- **Snapshot-based approach**: Dramatically simpler than command pattern for 20+ mutation types. Presentation data is small (KB to low MB), so 50 snapshots is well within memory budget.
+- **Snapshot placement**: For dialog-based mutations, snapshot is taken after dialog acceptance but before the actual mutation. For non-dialog mutations, snapshot is at the start of the mutation path (after early-return guards).
+- **Dirty flag**: After undo/redo, window title still shows `*` (dirty) since the presentation state has changed from what's on disk.
+- **setPresentation ordering**: ItemListModel must always be set before PresentationModel to prevent use-after-free from the `itemsChanged` signal handler
+
+---
+
+## 2026-02-10 - Decouple Background Blur from Overlay
+
+### Summary
+Made background blur work independently of the overlay color tint. Previously, blur required enabling the overlay (which always showed a colored tint). Now users can use plain blur without any color, color overlay without blur, or both together.
+
+### Work Completed
+- **SlideEditorDialog**: Split "Background Overlay" group into two: "Background Blur" (blur spinner) and "Background Overlay" (enable checkbox + color button). Blur is now its own top-level control.
+- **OutputDisplay.qml**: Blur MultiEffect visibility changed from `overlayEnabled && overlayBlur > 0` to just `overlayBlur > 0`. Overlay Rectangle still gated by `overlayEnabled`.
+- **Slide.cpp**: `overlayBlur` now always serialized to JSON (not conditional on `overlayEnabled`).
+- **OutputDisplay.cpp**: Blur logging no longer requires `overlayEnabled`.
+
+---
+
+## 2026-02-10 - Smooth Frosted Glass Blur via Qt MultiEffect
+
+### Summary
+Replaced the chunky single-step texture downsampling blur with Qt 6's built-in `MultiEffect` from `QtQuick.Effects`. This provides proper multi-pass Gaussian blur without custom shaders, producing smooth frosted glass quality. Two prior attempts (Kawase multi-pass chain, custom Gaussian GLSL shader) both failed due to Qt Quick scene graph limitations and shader loading issues. MultiEffect is Qt's recommended approach and handles all the internal complexity.
+
+### Work Completed
+
+#### MultiEffect Blur in OutputDisplay.qml
+- Replaced all 6 `ShaderEffectSource` blur items (3 per container A/B) with `MultiEffect` items
+- `blur` property maps user's 0-50 range to MultiEffect's 0.0-1.0 range: `Math.min(1.0, radius / 50.0)`
+- `blurMax: 64` for generous kernel radius, `autoPaddingEnabled: false` to prevent edge artifacts
+- Overlay blur: full-screen MultiEffect covers bgContent, no `hideSource` needed (MultiEffect fills the area)
+- Band/container blur: MultiEffect inside clipped Item, offset to align with background (same pattern as original SES)
+- Drop shadow blur unchanged (layer-based downsampling, adequate quality for text shadows)
+
+#### Cleanup
+- Removed `KawaseBlur.qml` component and all custom GLSL shaders (`gaussian_blur.frag`)
+- Removed `ShaderTools` from CMakeLists.txt `find_package` and `qt_add_shaders()` call
+- Removed `shaders/` directory from `src/Output/`
+- Removed `blurDivisor()` function (inlined formula for drop shadow only)
+- Added `import QtQuick.Effects` to OutputDisplay.qml
+
+#### Failed Approaches (Documented for Reference)
+1. **Kawase dual-filter blur (8-pass chain)**: 17 internal items with invisible intermediate ShaderEffects. Failed because Qt Quick skips `updatePaintNode()` for `visible: false` items, producing empty textures.
+2. **SES + custom Gaussian shader**: Custom `.frag` compiled via `qt_add_shaders()`. Shader didn't load/render at runtime — likely QSB resource path or uniform mapping issue. Also caused transition delays due to `live` property gating.
+
+### Technical Decisions
+- **MultiEffect over custom shaders**: Qt's built-in MultiEffect handles multi-pass blur internally with optimized shaders. Eliminates custom shader compilation, loading, and uniform mapping as failure points.
+- **No hideSource needed**: MultiEffect renders on top of bgContent, fully covering it. Band/container blur shows only the clipped region, with the original background visible outside (correct behavior).
+
+### Next Steps
+- Visual testing to confirm smooth frosted glass quality at various blur levels
+- Tune `blurMax` if blur strength is insufficient at high radius values
+
+---
+
 ## 2026-02-10 - Background Blur Effects Implementation
 
 ### Summary

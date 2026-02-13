@@ -3,9 +3,29 @@
 #include <QString>
 #include <QColor>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QByteArray>
+#include <QList>
 
 namespace Clarity {
+
+/**
+ * @brief A single color stop in a gradient (position + color)
+ */
+struct GradientStop {
+    double position;  // 0.0 to 1.0
+    QColor color;
+    GradientStop() : position(0.0) {}
+    GradientStop(double pos, const QColor& col) : position(pos), color(col) {}
+    bool operator==(const GradientStop& other) const {
+        return qFuzzyCompare(position, other.position) && color == other.color;
+    }
+};
+
+/**
+ * @brief Gradient sub-type: linear or radial
+ */
+enum GradientType { LinearGradient, RadialGradient };
 
 /**
  * @brief Represents a single slide in a presentation
@@ -39,9 +59,20 @@ public:
     BackgroundType backgroundType() const { return m_backgroundType; }
     QString backgroundImagePath() const { return m_backgroundImagePath; }
     QByteArray backgroundImageData() const { return m_backgroundImageData; }
-    QColor gradientStartColor() const { return m_gradientStartColor; }
-    QColor gradientEndColor() const { return m_gradientEndColor; }
+    // Gradient: multi-stop support
+    QList<GradientStop> gradientStops() const { return m_gradientStops; }
+    GradientType gradientType() const { return m_gradientType; }
     int gradientAngle() const { return m_gradientAngle; }
+    double radialCenterX() const { return m_radialCenterX; }
+    double radialCenterY() const { return m_radialCenterY; }
+    double radialRadius() const { return m_radialRadius; }
+
+    // Backward-compat convenience: first/last stop colors
+    QColor gradientStartColor() const { return m_gradientStops.isEmpty() ? QColor("#1e3a8a") : m_gradientStops.first().color; }
+    QColor gradientEndColor() const { return m_gradientStops.isEmpty() ? QColor("#60a5fa") : m_gradientStops.last().color; }
+
+    // Serialize stops to compact JSON for QML bridge
+    QString gradientStopsJson() const;
     QString backgroundVideoPath() const { return m_backgroundVideoPath; }
     bool videoLoop() const { return m_videoLoop; }
 
@@ -98,9 +129,23 @@ public:
     void setBackgroundType(BackgroundType type) { m_backgroundType = type; }
     void setBackgroundImagePath(const QString& path) { m_backgroundImagePath = path; }
     void setBackgroundImageData(const QByteArray& data) { m_backgroundImageData = data; }
-    void setGradientStartColor(const QColor& color) { m_gradientStartColor = color; }
-    void setGradientEndColor(const QColor& color) { m_gradientEndColor = color; }
+    // Gradient: multi-stop setters
+    void setGradientStops(const QList<GradientStop>& stops) { m_gradientStops = stops; }
+    void setGradientType(GradientType type) { m_gradientType = type; }
     void setGradientAngle(int angle) { m_gradientAngle = angle; }
+    void setRadialCenterX(double x) { m_radialCenterX = x; }
+    void setRadialCenterY(double y) { m_radialCenterY = y; }
+    void setRadialRadius(double r) { m_radialRadius = r; }
+
+    // Backward-compat convenience setters: update first/last stop
+    void setGradientStartColor(const QColor& color) {
+        if (m_gradientStops.isEmpty()) m_gradientStops.append(GradientStop(0.0, color));
+        else m_gradientStops.first().color = color;
+    }
+    void setGradientEndColor(const QColor& color) {
+        if (m_gradientStops.size() < 2) m_gradientStops.append(GradientStop(1.0, color));
+        else m_gradientStops.last().color = color;
+    }
     void setBackgroundVideoPath(const QString& path) { m_backgroundVideoPath = path; }
     void setVideoLoop(bool loop) { m_videoLoop = loop; }
 
@@ -153,10 +198,13 @@ private:
     QString m_backgroundImagePath;      ///< Original image file path (for reference)
     QByteArray m_backgroundImageData;   ///< Base64-encoded image data for IPC/storage
 
-    // Phase 2: Gradient support
-    QColor m_gradientStartColor;        ///< Gradient start color
-    QColor m_gradientEndColor;          ///< Gradient end color
-    int m_gradientAngle;                ///< Gradient angle in degrees (0=top-to-bottom, 90=left-to-right)
+    // Phase 2: Gradient support (multi-stop + radial)
+    QList<GradientStop> m_gradientStops; ///< 2-8 color stops at arbitrary positions
+    GradientType m_gradientType;         ///< Linear or radial gradient
+    int m_gradientAngle;                 ///< Gradient angle in degrees (linear only)
+    double m_radialCenterX;              ///< Radial gradient center X (0.0-1.0)
+    double m_radialCenterY;              ///< Radial gradient center Y (0.0-1.0)
+    double m_radialRadius;               ///< Radial gradient radius (0.0-1.0)
 
     // Phase 3: Video background support
     QString m_backgroundVideoPath;      ///< Path to video file (not embedded due to file size)

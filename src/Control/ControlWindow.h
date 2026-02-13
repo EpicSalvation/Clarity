@@ -12,8 +12,10 @@
 #include "Core/ThemeManager.h"
 #include "Core/MediaLibrary.h"
 #include "Core/VideoThumbnailGenerator.h"
+#include "Core/SlideGroupLibrary.h"
 #include "Core/RemoteServer.h"
 #include "Core/AutoAdvanceTimer.h"
+#include "Core/UndoManager.h"
 #include "ProcessManager.h"
 #include "SlideGridDelegate.h"
 #include "SlideGridView.h"
@@ -80,6 +82,12 @@ private slots:
     // Content insertion
     void onInsertScripture();
     void onInsertSong();
+    void onInsertSlideGroup();
+    void onInsertSlideGroupFromLibrary(int groupId);
+    void onSaveCurrentGroupToLibrary();
+    void onAddSlideToGroup();
+    void onDuplicateSlideInGroup();
+    void onUpdateLibraryGroup();
 
     // Navigation shortcuts
     void gotoFirstSlide();
@@ -127,6 +135,11 @@ private slots:
     void updateRemoteServer();
     void showQrCode();
 
+    // Undo/redo
+    void onUndo();
+    void onRedo();
+    void saveUndoSnapshot(const QString& description);
+
     // IPC handlers
     void onClientConnected(QLocalSocket* client);
     void onClientDisconnected(QLocalSocket* client);
@@ -147,6 +160,8 @@ private:
     void applySlidePreviewSize(const QString& size);
     void startAutoAdvanceForCurrentSlide();
     void broadcastAutoAdvanceState();
+    void autoSyncCurrentGroupToLibrary();
+    void restoreFromSnapshot(const QJsonObject& snapshot);
 
     // UI components
     QListView* m_slideListView;              ///< Left panel list view (playlist)
@@ -154,6 +169,7 @@ private:
     SlideGridDelegate* m_slideDelegate;      ///< Custom delegate for grid rendering
     LivePreviewPanel* m_livePreviewPanel;    ///< Right panel live preview
     MediaDrawer* m_mediaDrawer;              ///< Bottom media library drawer
+    QPushButton* m_addSlideToGroupBtn;       ///< '+' button for adding slides to a group
     QSplitter* m_mainSplitter;               ///< Vertical splitter for content + drawer
     QAction* m_toggleMediaDrawerAction;      ///< View menu toggle action
     QPushButton* m_addSlideButton;
@@ -171,11 +187,15 @@ private:
     SettingsManager* m_settingsManager;
     BibleDatabase* m_bibleDatabase;
     SongLibrary* m_songLibrary;
+    SlideGroupLibrary* m_slideGroupLibrary;
     ThemeManager* m_themeManager;
     MediaLibrary* m_mediaLibrary;
     VideoThumbnailGenerator* m_thumbnailGenerator;
     RemoteServer* m_remoteServer;
     AutoAdvanceTimer* m_autoAdvanceTimer;
+    UndoManager* m_undoManager;
+    QAction* m_undoAction;
+    QAction* m_redoAction;
     QLabel* m_remoteStatusLabel;
 
     // File management

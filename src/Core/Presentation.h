@@ -263,6 +263,13 @@ public:
                                    SettingsManager* settingsManager = nullptr,
                                    QObject* parent = nullptr);
 
+    /**
+     * @brief Invalidate the flat index cache
+     *
+     * Call after directly modifying a group item's slides with signals blocked.
+     */
+    void invalidateFlatIndex() { m_flatIndexValid = false; }
+
 signals:
     /**
      * @brief Emitted when an item is added

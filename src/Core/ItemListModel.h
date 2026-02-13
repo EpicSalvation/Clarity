@@ -63,6 +63,7 @@ public:
 
 signals:
     void itemSelected(int itemIndex);
+    void aboutToMutate(const QString& description);
 
 private slots:
     void onItemsChanged();

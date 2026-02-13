@@ -1,4 +1,5 @@
 #include "ThemeEditorDialog.h"
+#include "GradientEditorWidget.h"
 #include "Core/SettingsManager.h"
 #include "Core/WheelEventFilter.h"
 #include <QVBoxLayout>
@@ -10,6 +11,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QLinearGradient>
+#include <QRadialGradient>
 #include <QScrollArea>
 
 namespace Clarity {
@@ -27,9 +29,7 @@ ThemeEditorDialog::ThemeEditorDialog(SettingsManager* settings, QWidget* parent)
     , m_bodyFontSizeSpinBox(nullptr)
     , m_backgroundTypeCombo(nullptr)
     , m_backgroundStack(nullptr)
-    , m_gradientStartColorButton(nullptr)
-    , m_gradientEndColorButton(nullptr)
-    , m_gradientAngleSpinBox(nullptr)
+    , m_gradientEditor(nullptr)
     , m_previewLabel(nullptr)
     , m_okButton(nullptr)
     , m_cancelButton(nullptr)
@@ -37,8 +37,6 @@ ThemeEditorDialog::ThemeEditorDialog(SettingsManager* settings, QWidget* parent)
     , m_backgroundColor(QColor("#1e3a8a"))
     , m_textColor(QColor("#ffffff"))
     , m_accentColor(QColor("#fbbf24"))
-    , m_gradientStartColor(QColor("#1e3a8a"))
-    , m_gradientEndColor(QColor("#60a5fa"))
 {
     setupUI();
     updatePreview();
@@ -57,9 +55,7 @@ ThemeEditorDialog::ThemeEditorDialog(SettingsManager* settings, const Theme& the
     , m_bodyFontSizeSpinBox(nullptr)
     , m_backgroundTypeCombo(nullptr)
     , m_backgroundStack(nullptr)
-    , m_gradientStartColorButton(nullptr)
-    , m_gradientEndColorButton(nullptr)
-    , m_gradientAngleSpinBox(nullptr)
+    , m_gradientEditor(nullptr)
     , m_previewLabel(nullptr)
     , m_okButton(nullptr)
     , m_cancelButton(nullptr)
@@ -68,8 +64,6 @@ ThemeEditorDialog::ThemeEditorDialog(SettingsManager* settings, const Theme& the
     , m_backgroundColor(theme.backgroundColor())
     , m_textColor(theme.textColor())
     , m_accentColor(theme.accentColor())
-    , m_gradientStartColor(theme.gradientStartColor())
-    , m_gradientEndColor(theme.gradientEndColor())
 {
     setupUI();
     loadTheme(theme);
@@ -196,31 +190,10 @@ void ThemeEditorDialog::setupUI()
     solidLayout->addRow("Background:", m_backgroundColorButton);
     m_backgroundStack->addWidget(solidPage);
 
-    // Gradient page
-    QWidget* gradientPage = new QWidget(scrollContent);
-    QFormLayout* gradientLayout = new QFormLayout(gradientPage);
-
-    m_gradientStartColorButton = new QPushButton(scrollContent);
-    m_gradientStartColorButton->setMinimumWidth(120);
-    connect(m_gradientStartColorButton, &QPushButton::clicked, this, &ThemeEditorDialog::onChooseGradientStartColor);
-    updateColorButton(m_gradientStartColorButton, m_gradientStartColor);
-    gradientLayout->addRow("Start Color:", m_gradientStartColorButton);
-
-    m_gradientEndColorButton = new QPushButton(scrollContent);
-    m_gradientEndColorButton->setMinimumWidth(120);
-    connect(m_gradientEndColorButton, &QPushButton::clicked, this, &ThemeEditorDialog::onChooseGradientEndColor);
-    updateColorButton(m_gradientEndColorButton, m_gradientEndColor);
-    gradientLayout->addRow("End Color:", m_gradientEndColorButton);
-
-    m_gradientAngleSpinBox = new QSpinBox(scrollContent);
-    m_gradientAngleSpinBox->setRange(0, 359);
-    m_gradientAngleSpinBox->setValue(135);
-    m_gradientAngleSpinBox->setSuffix(QString::fromUtf8("\u00B0"));  // degree symbol
-    connect(m_gradientAngleSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &ThemeEditorDialog::updatePreview);
-    installWheelFilter(m_gradientAngleSpinBox);
-    gradientLayout->addRow("Angle:", m_gradientAngleSpinBox);
-
-    m_backgroundStack->addWidget(gradientPage);
+    // Gradient page (multi-stop editor)
+    m_gradientEditor = new GradientEditorWidget(m_settings, scrollContent);
+    connect(m_gradientEditor, &GradientEditorWidget::gradientChanged, this, &ThemeEditorDialog::updatePreview);
+    m_backgroundStack->addWidget(m_gradientEditor);
 
     backgroundLayout->addWidget(m_backgroundStack);
     contentLayout->addWidget(backgroundGroup);
@@ -266,14 +239,18 @@ void ThemeEditorDialog::loadTheme(const Theme& theme)
     m_backgroundColor = theme.backgroundColor();
     m_textColor = theme.textColor();
     m_accentColor = theme.accentColor();
-    m_gradientStartColor = theme.gradientStartColor();
-    m_gradientEndColor = theme.gradientEndColor();
 
     updateColorButton(m_backgroundColorButton, m_backgroundColor);
     updateColorButton(m_textColorButton, m_textColor);
     updateColorButton(m_accentColorButton, m_accentColor);
-    updateColorButton(m_gradientStartColorButton, m_gradientStartColor);
-    updateColorButton(m_gradientEndColorButton, m_gradientEndColor);
+
+    // Gradient editor
+    m_gradientEditor->setGradientStops(theme.gradientStops());
+    m_gradientEditor->setGradientType(theme.gradientType());
+    m_gradientEditor->setGradientAngle(theme.gradientAngle());
+    m_gradientEditor->setRadialCenterX(theme.radialCenterX());
+    m_gradientEditor->setRadialCenterY(theme.radialCenterY());
+    m_gradientEditor->setRadialRadius(theme.radialRadius());
 
     // Typography
     m_fontFamilyCombo->setCurrentText(theme.fontFamily());
@@ -284,8 +261,6 @@ void ThemeEditorDialog::loadTheme(const Theme& theme)
     int typeIndex = (theme.backgroundType() == Slide::Gradient) ? 1 : 0;
     m_backgroundTypeCombo->setCurrentIndex(typeIndex);
     m_backgroundStack->setCurrentIndex(typeIndex);
-
-    m_gradientAngleSpinBox->setValue(theme.gradientAngle());
 
     // Disable name editing for built-in themes
     if (theme.isBuiltIn()) {
@@ -315,9 +290,12 @@ Theme ThemeEditorDialog::theme() const
     int typeIndex = m_backgroundTypeCombo->currentIndex();
     if (typeIndex == 1) {
         theme.setBackgroundType(Slide::Gradient);
-        theme.setGradientStartColor(m_gradientStartColor);
-        theme.setGradientEndColor(m_gradientEndColor);
-        theme.setGradientAngle(m_gradientAngleSpinBox->value());
+        theme.setGradientStops(m_gradientEditor->gradientStops());
+        theme.setGradientType(m_gradientEditor->gradientType());
+        theme.setGradientAngle(m_gradientEditor->gradientAngle());
+        theme.setRadialCenterX(m_gradientEditor->radialCenterX());
+        theme.setRadialCenterY(m_gradientEditor->radialCenterY());
+        theme.setRadialRadius(m_gradientEditor->radialRadius());
     } else {
         theme.setBackgroundType(Slide::SolidColor);
     }
@@ -361,26 +339,6 @@ void ThemeEditorDialog::onChooseAccentColor()
     }
 }
 
-void ThemeEditorDialog::onChooseGradientStartColor()
-{
-    QColor color = QColorDialog::getColor(m_gradientStartColor, this, "Choose Gradient Start Color");
-    if (color.isValid()) {
-        m_gradientStartColor = color;
-        updateColorButton(m_gradientStartColorButton, color);
-        updatePreview();
-    }
-}
-
-void ThemeEditorDialog::onChooseGradientEndColor()
-{
-    QColor color = QColorDialog::getColor(m_gradientEndColor, this, "Choose Gradient End Color");
-    if (color.isValid()) {
-        m_gradientEndColor = color;
-        updateColorButton(m_gradientEndColorButton, color);
-        updatePreview();
-    }
-}
-
 void ThemeEditorDialog::updateColorButton(QPushButton* button, const QColor& color)
 {
     // Set button background to the color
@@ -406,31 +364,30 @@ void ThemeEditorDialog::updatePreview()
 
     // Draw background
     int typeIndex = m_backgroundTypeCombo->currentIndex();
-    if (typeIndex == 1) {  // Gradient
-        // Convert angle to QLinearGradient coordinates
-        int angle = m_gradientAngleSpinBox->value();
-        double radians = angle * M_PI / 180.0;
+    if (typeIndex == 1 && m_gradientEditor) {  // Gradient
+        QList<GradientStop> stops = m_gradientEditor->gradientStops();
 
-        // Calculate gradient start and end points
-        double centerX = width / 2.0;
-        double centerY = height / 2.0;
-        double diagonal = qSqrt(width * width + height * height) / 2.0;
-
-        // Start and end points calculated to match QML's clockwise rotation behavior
-        QPointF start(
-            centerX + diagonal * qSin(radians),
-            centerY - diagonal * qCos(radians)
-        );
-        QPointF end(
-            centerX - diagonal * qSin(radians),
-            centerY + diagonal * qCos(radians)
-        );
-
-        QLinearGradient gradient(start, end);
-        gradient.setColorAt(0, m_gradientStartColor);
-        gradient.setColorAt(1, m_gradientEndColor);
-
-        painter.fillRect(pixmap.rect(), gradient);
+        if (m_gradientEditor->gradientType() == RadialGradient) {
+            double cx = m_gradientEditor->radialCenterX() * width;
+            double cy = m_gradientEditor->radialCenterY() * height;
+            double r = m_gradientEditor->radialRadius() * qMax(width, height);
+            QRadialGradient gradient(QPointF(cx, cy), r);
+            for (const auto& stop : stops)
+                gradient.setColorAt(stop.position, stop.color);
+            painter.fillRect(pixmap.rect(), gradient);
+        } else {
+            int angle = m_gradientEditor->gradientAngle();
+            double radians = angle * M_PI / 180.0;
+            double centerX = width / 2.0;
+            double centerY = height / 2.0;
+            double diagonal = qSqrt(width * width + height * height) / 2.0;
+            QPointF start(centerX + diagonal * qSin(radians), centerY - diagonal * qCos(radians));
+            QPointF end(centerX - diagonal * qSin(radians), centerY + diagonal * qCos(radians));
+            QLinearGradient gradient(start, end);
+            for (const auto& stop : stops)
+                gradient.setColorAt(stop.position, stop.color);
+            painter.fillRect(pixmap.rect(), gradient);
+        }
     } else {  // Solid color
         painter.fillRect(pixmap.rect(), m_backgroundColor);
     }

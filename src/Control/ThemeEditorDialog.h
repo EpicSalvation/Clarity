@@ -13,6 +13,7 @@
 namespace Clarity {
 
 class SettingsManager;
+class GradientEditorWidget;
 
 /**
  * @brief Dialog for creating and editing themes
@@ -41,8 +42,6 @@ private slots:
     void onChooseBackgroundColor();
     void onChooseTextColor();
     void onChooseAccentColor();
-    void onChooseGradientStartColor();
-    void onChooseGradientEndColor();
     void updatePreview();
     void validateAndAccept();
 
@@ -73,9 +72,7 @@ private:
     QStackedWidget* m_backgroundStack;
 
     // Gradient controls (in stack page)
-    QPushButton* m_gradientStartColorButton;
-    QPushButton* m_gradientEndColorButton;
-    QSpinBox* m_gradientAngleSpinBox;
+    GradientEditorWidget* m_gradientEditor;
 
     // Preview
     QLabel* m_previewLabel;
@@ -92,8 +89,6 @@ private:
     QColor m_backgroundColor;
     QColor m_textColor;
     QColor m_accentColor;
-    QColor m_gradientStartColor;
-    QColor m_gradientEndColor;
 };
 
 } // namespace Clarity

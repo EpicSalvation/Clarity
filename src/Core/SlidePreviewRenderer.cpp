@@ -2,6 +2,7 @@
 #include "VideoThumbnailGenerator.h"
 #include <QPainter>
 #include <QLinearGradient>
+#include <QRadialGradient>
 #include <QTextDocument>
 #include <QAbstractTextDocumentLayout>
 #include <QtMath>
@@ -77,33 +78,45 @@ void SlidePreviewRenderer::drawGradient(QPainter& painter, const Slide& slide, c
 {
     int width = rect.width();
     int height = rect.height();
-    int angle = slide.gradientAngle();
+    QList<GradientStop> stops = slide.gradientStops();
 
-    // Convert angle to radians
-    double radians = angle * M_PI / 180.0;
+    if (slide.gradientType() == RadialGradient) {
+        // Radial gradient
+        double cx = rect.x() + slide.radialCenterX() * width;
+        double cy = rect.y() + slide.radialCenterY() * height;
+        double r = slide.radialRadius() * qMax(width, height);
 
-    // Calculate gradient start and end points
-    // Note: QML rotates clockwise, so we use +sin for x to match
-    double centerX = width / 2.0;
-    double centerY = height / 2.0;
-    double diagonal = qSqrt(width * width + height * height) / 2.0;
+        QRadialGradient gradient(QPointF(cx, cy), r);
+        for (const auto& stop : stops) {
+            gradient.setColorAt(stop.position, stop.color);
+        }
 
-    // Start and end points calculated to match QML's clockwise rotation behavior
-    // At angle 0: top to bottom, at angle 90: right to left (matching QML Gradient + rotation)
-    QPointF start(
-        centerX + diagonal * qSin(radians),
-        centerY - diagonal * qCos(radians)
-    );
-    QPointF end(
-        centerX - diagonal * qSin(radians),
-        centerY + diagonal * qCos(radians)
-    );
+        painter.fillRect(rect, gradient);
+    } else {
+        // Linear gradient with angle
+        int angle = slide.gradientAngle();
+        double radians = angle * M_PI / 180.0;
 
-    QLinearGradient gradient(start, end);
-    gradient.setColorAt(0, slide.gradientStartColor());
-    gradient.setColorAt(1, slide.gradientEndColor());
+        double centerX = width / 2.0;
+        double centerY = height / 2.0;
+        double diagonal = qSqrt(width * width + height * height) / 2.0;
 
-    painter.fillRect(rect, gradient);
+        QPointF start(
+            centerX + diagonal * qSin(radians),
+            centerY - diagonal * qCos(radians)
+        );
+        QPointF end(
+            centerX - diagonal * qSin(radians),
+            centerY + diagonal * qCos(radians)
+        );
+
+        QLinearGradient gradient(start, end);
+        for (const auto& stop : stops) {
+            gradient.setColorAt(stop.position, stop.color);
+        }
+
+        painter.fillRect(rect, gradient);
+    }
 }
 
 void SlidePreviewRenderer::drawImage(QPainter& painter, const Slide& slide, const QRect& rect)

@@ -30,6 +30,17 @@ public:
     QString displayName() const override;
     QList<Slide> generateSlides() const override;
 
+    // Library tracking
+    /**
+     * @brief Get the library group ID this item was inserted from (-1 if not from library)
+     */
+    int libraryGroupId() const { return m_libraryGroupId; }
+
+    /**
+     * @brief Set the library group ID (for tracking back to SlideGroupLibrary)
+     */
+    void setLibraryGroupId(int id) { m_libraryGroupId = id; }
+
     // Group name
     /**
      * @brief Get the group name
@@ -103,6 +114,7 @@ public:
 private:
     QString m_name;
     QList<Slide> m_slides;
+    int m_libraryGroupId = -1;
 };
 
 } // namespace Clarity

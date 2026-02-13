@@ -98,6 +98,9 @@ private:
     QCheckBox* m_rememberLastTranslationCheckBox;
     BibleDatabase* m_bibleDatabase;
 
+    // Library settings
+    QCheckBox* m_autoSyncLibraryGroupsCheckBox;
+
     // Red Letter Edition settings
     QCheckBox* m_redLettersEnabledCheckBox;
     QPushButton* m_redLetterColorButton;

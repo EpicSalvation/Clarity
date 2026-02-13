@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Window
+import QtQuick.Effects
 import QtMultimedia
 
 /**
@@ -12,8 +13,7 @@ import QtMultimedia
  * - Supports: cut, fade, slideLeft, slideRight, slideUp, slideDown
  *
  * Blur Implementation:
- * - Uses ShaderEffectSource with reduced textureSize for background blur
- * - Bilinear filtering when displaying at full size creates the blur appearance
+ * - Uses Qt's MultiEffect for smooth multi-pass Gaussian blur
  * - Overlay blur: full-screen frosted background behind the overlay tint
  * - Text container blur: frosted glass behind the text container box
  * - Text band blur: frosted glass behind the text band strip
@@ -43,9 +43,13 @@ Window {
     property int fontSizeA: 48
     property string backgroundTypeA: "solidColor"
     property string backgroundImageDataBase64A: ""
-    property color gradientStartColorA: "#1e3a8a"
-    property color gradientEndColorA: "#60a5fa"
+    property string gradientStopsJsonA: "[]"
+    property string gradientTypeA: "linear"
     property int gradientAngleA: 135
+    property double radialCenterXA: 0.5
+    property double radialCenterYA: 0.5
+    property double radialRadiusA: 0.5
+    property int gradientRevisionA: 0
     property string backgroundVideoSourceA: ""
     property bool videoLoopA: true
     // Text legibility properties for container A
@@ -77,9 +81,13 @@ Window {
     property int fontSizeB: 48
     property string backgroundTypeB: "solidColor"
     property string backgroundImageDataBase64B: ""
-    property color gradientStartColorB: "#1e3a8a"
-    property color gradientEndColorB: "#60a5fa"
+    property string gradientStopsJsonB: "[]"
+    property string gradientTypeB: "linear"
     property int gradientAngleB: 135
+    property double radialCenterXB: 0.5
+    property double radialCenterYB: 0.5
+    property double radialRadiusB: 0.5
+    property int gradientRevisionB: 0
     property string backgroundVideoSourceB: ""
     property bool videoLoopB: true
     // Text legibility properties for container B
@@ -112,9 +120,13 @@ Window {
         fontSizeA = displayController.fontSize
         backgroundTypeA = displayController.backgroundType
         backgroundImageDataBase64A = displayController.backgroundImageDataBase64
-        gradientStartColorA = displayController.gradientStartColor
-        gradientEndColorA = displayController.gradientEndColor
+        gradientStopsJsonA = displayController.gradientStopsJson
+        gradientTypeA = displayController.gradientType
         gradientAngleA = displayController.gradientAngle
+        radialCenterXA = displayController.radialCenterX
+        radialCenterYA = displayController.radialCenterY
+        radialRadiusA = displayController.radialRadius
+        gradientRevisionA++
         backgroundVideoSourceA = displayController.backgroundVideoSource
         videoLoopA = displayController.videoLoop
         // Text legibility
@@ -147,9 +159,13 @@ Window {
         fontSizeB = displayController.fontSize
         backgroundTypeB = displayController.backgroundType
         backgroundImageDataBase64B = displayController.backgroundImageDataBase64
-        gradientStartColorB = displayController.gradientStartColor
-        gradientEndColorB = displayController.gradientEndColor
+        gradientStopsJsonB = displayController.gradientStopsJson
+        gradientTypeB = displayController.gradientType
         gradientAngleB = displayController.gradientAngle
+        radialCenterXB = displayController.radialCenterX
+        radialCenterYB = displayController.radialCenterY
+        radialRadiusB = displayController.radialRadius
+        gradientRevisionB++
         backgroundVideoSourceB = displayController.backgroundVideoSource
         videoLoopB = displayController.videoLoop
         // Text legibility
@@ -171,24 +187,15 @@ Window {
         textBandBlurB = displayController.textBandBlur
     }
 
-    // Calculate downsample divisor from blur radius (0-50).
-    // Higher radius = larger divisor = smaller texture = more blur.
-    // Returns a divisor applied to the texture dimensions.
-    function blurDivisor(radius) {
-        if (radius <= 0) return 1
-        // Linear mapping: blur 1 → divisor 1.3, blur 50 → divisor 16
-        return 1 + radius * 0.3
-    }
-
     // Check if any blur effect is active on the currently-showing container
     function isBlurActive() {
         if (root.showingA) {
-            return (root.overlayEnabledA && root.overlayBlurA > 0) ||
+            return (root.overlayBlurA > 0) ||
                    (root.textContainerEnabledA && root.textContainerBlurA > 0) ||
                    (root.textBandEnabledA && root.textBandBlurA > 0) ||
                    (root.dropShadowEnabledA && root.dropShadowBlurA > 0)
         } else {
-            return (root.overlayEnabledB && root.overlayBlurB > 0) ||
+            return (root.overlayBlurB > 0) ||
                    (root.textContainerEnabledB && root.textContainerBlurB > 0) ||
                    (root.textBandEnabledB && root.textBandBlurB > 0) ||
                    (root.dropShadowEnabledB && root.dropShadowBlurB > 0)
@@ -199,25 +206,21 @@ Window {
     function getBlurDetails() {
         var parts = []
         if (root.showingA) {
-            if (root.overlayEnabledA && root.overlayBlurA > 0)
-                parts.push("overlay=" + root.overlayBlurA + " tex=" +
-                    Math.max(4, Math.round(root.width / root.blurDivisor(root.overlayBlurA))) + "x" +
-                    Math.max(4, Math.round(root.height / root.blurDivisor(root.overlayBlurA))))
+            if (root.overlayBlurA > 0)
+                parts.push("bgblur=" + root.overlayBlurA + " multieffect")
             if (root.textContainerEnabledA && root.textContainerBlurA > 0)
-                parts.push("container=" + root.textContainerBlurA)
+                parts.push("container=" + root.textContainerBlurA + " multieffect")
             if (root.textBandEnabledA && root.textBandBlurA > 0)
-                parts.push("band=" + root.textBandBlurA)
+                parts.push("band=" + root.textBandBlurA + " multieffect")
             if (root.dropShadowEnabledA && root.dropShadowBlurA > 0)
                 parts.push("shadow=" + root.dropShadowBlurA)
         } else {
-            if (root.overlayEnabledB && root.overlayBlurB > 0)
-                parts.push("overlay=" + root.overlayBlurB + " tex=" +
-                    Math.max(4, Math.round(root.width / root.blurDivisor(root.overlayBlurB))) + "x" +
-                    Math.max(4, Math.round(root.height / root.blurDivisor(root.overlayBlurB))))
+            if (root.overlayBlurB > 0)
+                parts.push("bgblur=" + root.overlayBlurB + " multieffect")
             if (root.textContainerEnabledB && root.textContainerBlurB > 0)
-                parts.push("container=" + root.textContainerBlurB)
+                parts.push("container=" + root.textContainerBlurB + " multieffect")
             if (root.textBandEnabledB && root.textBandBlurB > 0)
-                parts.push("band=" + root.textBandBlurB)
+                parts.push("band=" + root.textBandBlurB + " multieffect")
             if (root.dropShadowEnabledB && root.dropShadowBlurB > 0)
                 parts.push("shadow=" + root.dropShadowBlurB)
         }
@@ -240,7 +243,7 @@ Window {
     // Initialize container A with first slide
     Component.onCompleted: {
         copyToContainerA()
-        console.log("OutputDisplay QML loaded with transition and blur support")
+        console.log("OutputDisplay QML loaded with transition and MultiEffect blur support")
     }
 
     // Listen for signals from C++
@@ -467,19 +470,50 @@ Window {
                 visible: root.backgroundTypeA === "solidColor"
             }
 
-            // Gradient background
-            Rectangle {
-                anchors.centerIn: parent
-                property real angleRad: root.gradientAngleA * Math.PI / 180.0
-                property real absSin: Math.abs(Math.sin(angleRad))
-                property real absCos: Math.abs(Math.cos(angleRad))
-                width: parent.width * absCos + parent.height * absSin
-                height: parent.width * absSin + parent.height * absCos
+            // Gradient background (multi-stop via Canvas)
+            Canvas {
+                id: gradientCanvasA
+                anchors.fill: parent
                 visible: root.backgroundTypeA === "gradient"
-                rotation: root.gradientAngleA
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: root.gradientStartColorA }
-                    GradientStop { position: 1.0; color: root.gradientEndColorA }
+
+                // Repaint when gradient data changes
+                property int rev: root.gradientRevisionA
+                onRevChanged: requestPaint()
+                onWidthChanged: requestPaint()
+                onHeightChanged: requestPaint()
+
+                onPaint: {
+                    var ctx = getContext("2d")
+                    var w = width, h = height
+                    if (w <= 0 || h <= 0) return
+
+                    var stops = []
+                    try { stops = JSON.parse(root.gradientStopsJsonA) } catch(e) {}
+
+                    var grad
+                    if (root.gradientTypeA === "radial") {
+                        var cx = root.radialCenterXA * w
+                        var cy = root.radialCenterYA * h
+                        var r = root.radialRadiusA * Math.max(w, h)
+                        grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
+                    } else {
+                        var angle = root.gradientAngleA * Math.PI / 180.0
+                        var centerX = w / 2.0
+                        var centerY = h / 2.0
+                        var diag = Math.sqrt(w * w + h * h) / 2.0
+                        var sx = centerX + diag * Math.sin(angle)
+                        var sy = centerY - diag * Math.cos(angle)
+                        var ex = centerX - diag * Math.sin(angle)
+                        var ey = centerY + diag * Math.cos(angle)
+                        grad = ctx.createLinearGradient(sx, sy, ex, ey)
+                    }
+
+                    for (var i = 0; i < stops.length; i++) {
+                        grad.addColorStop(stops[i].p, stops[i].c)
+                    }
+
+                    ctx.fillStyle = grad
+                    ctx.fillRect(0, 0, w, h)
                 }
             }
 
@@ -519,23 +553,17 @@ Window {
             }
         }
 
-        // Overlay blur - captures background at reduced resolution for frosted glass effect.
-        // ShaderEffectSource renders sourceItem into a texture at textureSize resolution,
-        // then displays it at its own size. The upscaling with bilinear filtering creates
-        // the blur appearance. hideSource hides the original background when blur is active
-        // so only the blurred version is visible.
-        ShaderEffectSource {
+        // Background blur - multi-pass Gaussian blur via Qt's MultiEffect.
+        // Independent of overlay enable — works as plain blur or under a colored overlay.
+        MultiEffect {
             id: overlayBlurSourceA
             anchors.fill: parent
-            sourceItem: bgContentA
-            hideSource: root.overlayEnabledA && root.overlayBlurA > 0
-            textureSize: Qt.size(
-                Math.max(4, Math.round(parent.width / root.blurDivisor(root.overlayBlurA))),
-                Math.max(4, Math.round(parent.height / root.blurDivisor(root.overlayBlurA)))
-            )
-            visible: root.overlayEnabledA && root.overlayBlurA > 0
-            smooth: true
-            live: true
+            source: bgContentA
+            visible: root.overlayBlurA > 0
+            blurEnabled: visible
+            blur: Math.min(1.0, root.overlayBlurA / 50.0)
+            blurMax: 64
+            autoPaddingEnabled: false
         }
 
         // Background overlay - semi-transparent tint on top of (optionally blurred) background
@@ -548,7 +576,7 @@ Window {
 
         // Text band blur - frosted glass effect behind the text band strip.
         // Uses a clipped Item to show only the band-shaped region of the blurred background.
-        // The ShaderEffectSource inside is positioned to align with the actual background.
+        // The MultiEffect inside is positioned to align with the actual background.
         Item {
             id: textBandBlurClipA
             anchors.left: parent.left
@@ -558,19 +586,16 @@ Window {
             clip: true
             visible: root.textBandEnabledA && root.textBandBlurA > 0
 
-            ShaderEffectSource {
-                sourceItem: bgContentA
-                // Offset to align the captured texture with the actual background position
+            MultiEffect {
+                source: bgContentA
                 x: 0
                 y: -textBandBlurClipA.y
                 width: bgContentA.width
                 height: bgContentA.height
-                textureSize: Qt.size(
-                    Math.max(4, Math.round(bgContentA.width / root.blurDivisor(root.textBandBlurA))),
-                    Math.max(4, Math.round(bgContentA.height / root.blurDivisor(root.textBandBlurA)))
-                )
-                smooth: true
-                live: true
+                blurEnabled: true
+                blur: Math.min(1.0, root.textBandBlurA / 50.0)
+                blurMax: 64
+                autoPaddingEnabled: false
             }
         }
 
@@ -595,19 +620,16 @@ Window {
             clip: true
             visible: root.textContainerEnabledA && root.textContainerBlurA > 0
 
-            ShaderEffectSource {
-                sourceItem: bgContentA
-                // Offset to align the captured texture with the actual background position
+            MultiEffect {
+                source: bgContentA
                 x: -textContainerBlurClipA.x
                 y: -textContainerBlurClipA.y
                 width: bgContentA.width
                 height: bgContentA.height
-                textureSize: Qt.size(
-                    Math.max(4, Math.round(bgContentA.width / root.blurDivisor(root.textContainerBlurA))),
-                    Math.max(4, Math.round(bgContentA.height / root.blurDivisor(root.textContainerBlurA)))
-                )
-                smooth: true
-                live: true
+                blurEnabled: true
+                blur: Math.min(1.0, root.textContainerBlurA / 50.0)
+                blurMax: 64
+                autoPaddingEnabled: false
             }
         }
 
@@ -639,8 +661,8 @@ Window {
             layer.enabled: root.dropShadowBlurA > 0
             layer.smooth: true
             layer.textureSize: root.dropShadowBlurA > 0 ? Qt.size(
-                Math.max(4, Math.round(width / root.blurDivisor(root.dropShadowBlurA))),
-                Math.max(4, Math.round(height / root.blurDivisor(root.dropShadowBlurA)))
+                Math.max(4, Math.round(width / (1 + root.dropShadowBlurA * 0.3))),
+                Math.max(4, Math.round(height / (1 + root.dropShadowBlurA * 0.3)))
             ) : Qt.size(0, 0)
 
             Text {
@@ -710,19 +732,49 @@ Window {
                 visible: root.backgroundTypeB === "solidColor"
             }
 
-            // Gradient background
-            Rectangle {
-                anchors.centerIn: parent
-                property real angleRad: root.gradientAngleB * Math.PI / 180.0
-                property real absSin: Math.abs(Math.sin(angleRad))
-                property real absCos: Math.abs(Math.cos(angleRad))
-                width: parent.width * absCos + parent.height * absSin
-                height: parent.width * absSin + parent.height * absCos
+            // Gradient background (multi-stop via Canvas)
+            Canvas {
+                id: gradientCanvasB
+                anchors.fill: parent
                 visible: root.backgroundTypeB === "gradient"
-                rotation: root.gradientAngleB
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: root.gradientStartColorB }
-                    GradientStop { position: 1.0; color: root.gradientEndColorB }
+
+                property int rev: root.gradientRevisionB
+                onRevChanged: requestPaint()
+                onWidthChanged: requestPaint()
+                onHeightChanged: requestPaint()
+
+                onPaint: {
+                    var ctx = getContext("2d")
+                    var w = width, h = height
+                    if (w <= 0 || h <= 0) return
+
+                    var stops = []
+                    try { stops = JSON.parse(root.gradientStopsJsonB) } catch(e) {}
+
+                    var grad
+                    if (root.gradientTypeB === "radial") {
+                        var cx = root.radialCenterXB * w
+                        var cy = root.radialCenterYB * h
+                        var r = root.radialRadiusB * Math.max(w, h)
+                        grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r)
+                    } else {
+                        var angle = root.gradientAngleB * Math.PI / 180.0
+                        var centerX = w / 2.0
+                        var centerY = h / 2.0
+                        var diag = Math.sqrt(w * w + h * h) / 2.0
+                        var sx = centerX + diag * Math.sin(angle)
+                        var sy = centerY - diag * Math.cos(angle)
+                        var ex = centerX - diag * Math.sin(angle)
+                        var ey = centerY + diag * Math.cos(angle)
+                        grad = ctx.createLinearGradient(sx, sy, ex, ey)
+                    }
+
+                    for (var i = 0; i < stops.length; i++) {
+                        grad.addColorStop(stops[i].p, stops[i].c)
+                    }
+
+                    ctx.fillStyle = grad
+                    ctx.fillRect(0, 0, w, h)
                 }
             }
 
@@ -762,19 +814,16 @@ Window {
             }
         }
 
-        // Overlay blur - frosted glass effect on the full background
-        ShaderEffectSource {
+        // Background blur - multi-pass Gaussian blur via Qt's MultiEffect
+        MultiEffect {
             id: overlayBlurSourceB
             anchors.fill: parent
-            sourceItem: bgContentB
-            hideSource: root.overlayEnabledB && root.overlayBlurB > 0
-            textureSize: Qt.size(
-                Math.max(4, Math.round(parent.width / root.blurDivisor(root.overlayBlurB))),
-                Math.max(4, Math.round(parent.height / root.blurDivisor(root.overlayBlurB)))
-            )
-            visible: root.overlayEnabledB && root.overlayBlurB > 0
-            smooth: true
-            live: true
+            source: bgContentB
+            visible: root.overlayBlurB > 0
+            blurEnabled: visible
+            blur: Math.min(1.0, root.overlayBlurB / 50.0)
+            blurMax: 64
+            autoPaddingEnabled: false
         }
 
         // Background overlay - semi-transparent tint on top of (optionally blurred) background
@@ -795,18 +844,16 @@ Window {
             clip: true
             visible: root.textBandEnabledB && root.textBandBlurB > 0
 
-            ShaderEffectSource {
-                sourceItem: bgContentB
+            MultiEffect {
+                source: bgContentB
                 x: 0
                 y: -textBandBlurClipB.y
                 width: bgContentB.width
                 height: bgContentB.height
-                textureSize: Qt.size(
-                    Math.max(4, Math.round(bgContentB.width / root.blurDivisor(root.textBandBlurB))),
-                    Math.max(4, Math.round(bgContentB.height / root.blurDivisor(root.textBandBlurB)))
-                )
-                smooth: true
-                live: true
+                blurEnabled: true
+                blur: Math.min(1.0, root.textBandBlurB / 50.0)
+                blurMax: 64
+                autoPaddingEnabled: false
             }
         }
 
@@ -830,18 +877,16 @@ Window {
             clip: true
             visible: root.textContainerEnabledB && root.textContainerBlurB > 0
 
-            ShaderEffectSource {
-                sourceItem: bgContentB
+            MultiEffect {
+                source: bgContentB
                 x: -textContainerBlurClipB.x
                 y: -textContainerBlurClipB.y
                 width: bgContentB.width
                 height: bgContentB.height
-                textureSize: Qt.size(
-                    Math.max(4, Math.round(bgContentB.width / root.blurDivisor(root.textContainerBlurB))),
-                    Math.max(4, Math.round(bgContentB.height / root.blurDivisor(root.textContainerBlurB)))
-                )
-                smooth: true
-                live: true
+                blurEnabled: true
+                blur: Math.min(1.0, root.textContainerBlurB / 50.0)
+                blurMax: 64
+                autoPaddingEnabled: false
             }
         }
 
@@ -869,8 +914,8 @@ Window {
             layer.enabled: root.dropShadowBlurB > 0
             layer.smooth: true
             layer.textureSize: root.dropShadowBlurB > 0 ? Qt.size(
-                Math.max(4, Math.round(width / root.blurDivisor(root.dropShadowBlurB))),
-                Math.max(4, Math.round(height / root.blurDivisor(root.dropShadowBlurB)))
+                Math.max(4, Math.round(width / (1 + root.dropShadowBlurB * 0.3))),
+                Math.max(4, Math.round(height / (1 + root.dropShadowBlurB * 0.3)))
             ) : Qt.size(0, 0)
 
             Text {

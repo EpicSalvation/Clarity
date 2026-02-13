@@ -7,6 +7,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QLinearGradient>
+#include <QRadialGradient>
 #include <QScrollArea>
 #include <QtMath>
 
@@ -228,28 +229,29 @@ void ThemeSelectorDialog::updatePreview(const Theme& theme)
 
     // Draw background
     if (theme.backgroundType() == Slide::Gradient) {
-        int angle = theme.gradientAngle();
-        double radians = angle * M_PI / 180.0;
+        QList<GradientStop> stops = theme.gradientStops();
 
-        double centerX = width / 2.0;
-        double centerY = height / 2.0;
-        double diagonal = qSqrt(width * width + height * height) / 2.0;
-
-        // Start and end points calculated to match QML's clockwise rotation behavior
-        QPointF start(
-            centerX + diagonal * qSin(radians),
-            centerY - diagonal * qCos(radians)
-        );
-        QPointF end(
-            centerX - diagonal * qSin(radians),
-            centerY + diagonal * qCos(radians)
-        );
-
-        QLinearGradient gradient(start, end);
-        gradient.setColorAt(0, theme.gradientStartColor());
-        gradient.setColorAt(1, theme.gradientEndColor());
-
-        painter.fillRect(pixmap.rect(), gradient);
+        if (theme.gradientType() == RadialGradient) {
+            double cx = theme.radialCenterX() * width;
+            double cy = theme.radialCenterY() * height;
+            double r = theme.radialRadius() * qMax(width, height);
+            QRadialGradient gradient(QPointF(cx, cy), r);
+            for (const auto& stop : stops)
+                gradient.setColorAt(stop.position, stop.color);
+            painter.fillRect(pixmap.rect(), gradient);
+        } else {
+            int angle = theme.gradientAngle();
+            double radians = angle * M_PI / 180.0;
+            double centerX = width / 2.0;
+            double centerY = height / 2.0;
+            double diagonal = qSqrt(width * width + height * height) / 2.0;
+            QPointF start(centerX + diagonal * qSin(radians), centerY - diagonal * qCos(radians));
+            QPointF end(centerX - diagonal * qSin(radians), centerY + diagonal * qCos(radians));
+            QLinearGradient gradient(start, end);
+            for (const auto& stop : stops)
+                gradient.setColorAt(stop.position, stop.color);
+            painter.fillRect(pixmap.rect(), gradient);
+        }
     } else {
         painter.fillRect(pixmap.rect(), theme.backgroundColor());
     }

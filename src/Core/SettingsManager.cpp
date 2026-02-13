@@ -452,6 +452,19 @@ void SettingsManager::setDefaultEventName(const QString& name)
     }
 }
 
+bool SettingsManager::autoSyncLibraryGroups() const
+{
+    return m_settings->value("Library/AutoSyncGroups", false).toBool();
+}
+
+void SettingsManager::setAutoSyncLibraryGroups(bool enabled)
+{
+    if (autoSyncLibraryGroups() != enabled) {
+        m_settings->setValue("Library/AutoSyncGroups", enabled);
+        m_settings->sync();
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";
