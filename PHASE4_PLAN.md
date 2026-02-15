@@ -87,11 +87,20 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [x] Variable blur radius (0-50 range, maps to texture downsample divisor 1-16x)
   - [x] Performance logging to file (clarity_blur_perf.log in app data directory)
 
+- [x] **NDI Streaming Output**
+  - [x] Offscreen QML rendering via QQuickRenderControl + OpenGL FBO
+  - [x] Dynamic NDI DLL loading (no SDK dependency at build time)
+  - [x] Configurable resolution, frame rate, and NDI source name
+  - [x] Double-buffered frame readback with vertical flip
+  - [x] IPC integration — receives slideData, clearOutput, whiteout messages
+  - [x] Toggle from control window (N shortcut) or LivePreviewPanel button
+  - [x] Shared OutputDisplayContent.qml between output window and NDI
+
 - [ ] **Other Potential Features**
-  - [ ] Radial gradients
-  - [ ] Multi-stop gradients
+  - [x] Radial gradients
+  - [x] Multi-stop gradients
   - [x] Drag-and-drop slide reordering (item-level and slide-level)
-  - [ ] Undo/redo for edits
+  - [x] Undo/redo for edits
   - [ ] Cloud sync for presentations
   - [ ] Presentation templates marketplace
 

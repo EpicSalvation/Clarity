@@ -4,6 +4,62 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-14 - NDI Streaming Output Mode
+
+### Summary
+Added a new `--ndi` CLI mode that renders the presentation output offscreen via `QQuickRenderControl` and sends frames over NDI (Network Device Interface). This enables routing Clarity's output to hardware video switchers, NDI monitors, recording software, and other NDI-compatible devices without needing a physical display output.
+
+### Work Completed
+
+#### QML Refactoring
+- **Extracted `OutputDisplayContent.qml`**: Moved all visual rendering (1000+ lines) from `OutputDisplay.qml` into a new `Item`-rooted `OutputDisplayContent.qml`. This is the prerequisite for `QQuickRenderControl`, which requires an `Item` root rather than a `Window` root.
+- **Simplified `OutputDisplay.qml`**: Reduced to a ~55-line thin `Window` wrapper that instantiates `OutputDisplayContent` and handles window-specific signals (`onToggleFullscreen`, `onToggleVisibility`).
+- Both `--output` and `--ndi` modes now share identical rendering through `OutputDisplayContent.qml`.
+
+#### New Files
+- **`src/Ndi/NdiTypes.h`**: Minimal NDI struct/enum/function-pointer type definitions (~80 lines). Allows building without the NDI SDK installed — only the runtime DLL is needed at execution time.
+- **`src/Ndi/NdiSender.h`** / **`NdiSender.cpp`**: NDI sender wrapper with dynamic DLL loading. Locates `Processing.NDI.Lib.x64.dll` via `NDILIB_REDIST_FOLDER` env var (set by NDI Tools installer). Creates an NDI sender with `clock_video=true` for rate-limited frame sending. Cross-platform support (Windows `LoadLibrary` / Linux+macOS `dlopen`).
+- **`src/Ndi/NdiMain.h`** / **`NdiMain.cpp`**: Entry point for NDI mode. Sets up the complete offscreen rendering pipeline: `QOpenGLContext` + `QOffscreenSurface` + `QQuickRenderControl` + `QOpenGLFramebufferObject`. Timer-based render loop captures frames via `glReadPixels` and sends them through `NdiSender`.
+
+#### Modified Files
+- **`src/Main.cpp`**: Added `--ndi` mode routing (guarded by `#ifdef CLARITY_NDI_ENABLED`)
+- **`CMakeLists.txt`**: Added Ndi source files, `Qt6::OpenGL` dependency, `CLARITY_NDI_ENABLED` compile definition (on by default)
+- **`resources/Resources.qrc`**: Added `OutputDisplayContent.qml`
+
+### Technical Decisions
+- **Dynamic DLL loading** rather than link-time dependency: Clarity builds without the NDI SDK. The NDI runtime DLL is loaded at startup via `LoadLibrary`/`GetProcAddress`. Clear error message if not installed.
+- **`clock_video=true`**: NDI's built-in clock handles frame rate limiting, so the render timer just needs to poll at approximately the target FPS — NDI's `send_video` call blocks to maintain the correct rate.
+- **OpenGL FBO readback**: Uses `QOpenGLFramebufferObject` as the render target with `glReadPixels` for frame capture. Includes vertical flip since OpenGL renders bottom-up but NDI expects top-down.
+- **Double-buffered frame data**: Two `QByteArray` buffers alternate to avoid readback/send overlap.
+- **Compile-time guard**: `CLARITY_NDI_ENABLED` CMake option (default ON) wraps NDI code, allowing it to be disabled if needed.
+
+### CLI Interface
+```
+clarity --ndi [--width 1920] [--height 1080] [--fps 30] [--ndi-name "Clarity Output"]
+```
+
+#### Control Window Integration
+- **NDI toggle**: `toggleNdiOutput()` launches/terminates NDI process via `ProcessManager::launchNdi()`
+- **LivePreviewPanel**: NDI button with active/inactive state indicator
+- **Keyboard shortcut**: `N` key toggles NDI on/off
+- **Keyboard shortcuts dialog**: Updated to include NDI shortcut
+
+#### Bug Fix: NDI Black Screen
+- **Problem**: NDI output showed up in NDI Studio Monitor but displayed only a black screen, even though the Output window had content.
+- **Root cause**: `broadcastCurrentSlide()` sent `slideData` messages only to `"output"` client type. The NDI process registers as `"ndi"`, so it never received slide content.
+- **Fix**: Added `sendToClientType("ndi", ...)` calls alongside the existing `"output"` sends in `broadcastCurrentSlide()` and `whiteScreen()`. Blackout already worked because it uses `sendToAll()`.
+
+### Testing
+- Build succeeds with all new files
+- NDI output verified visible in NDI Studio Monitor with slide content
+- Existing `--output` mode works identically after QML refactoring
+
+### Known Limitations
+- Video backgrounds may not work in offscreen mode (needs testing)
+- Performance depends on GPU readback speed; configurable via `--width`/`--height`/`--fps`
+
+---
+
 ## 2026-02-13 - Updated Built-in Themes with Gradients and Drop Shadows
 
 ### Summary

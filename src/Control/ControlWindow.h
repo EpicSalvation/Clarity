@@ -101,6 +101,7 @@ private slots:
     void toggleOutputDisplay();
     void toggleOutputFullscreen();
     void toggleConfidenceMonitor();
+    void toggleNdiOutput();
 
     // View
     void toggleMediaDrawer();
@@ -208,6 +209,7 @@ private:
     // Display visibility tracking for preview borders
     bool m_outputVisible = false;       ///< Whether output display is visible (not just connected)
     bool m_confidenceVisible = false;   ///< Whether confidence monitor is visible (not just connected)
+    bool m_ndiVisible = false;          ///< Whether NDI output is running
 
     // Media drawer state
     int m_drawerExpandedHeight = 200;  ///< Remembered drawer height when expanded

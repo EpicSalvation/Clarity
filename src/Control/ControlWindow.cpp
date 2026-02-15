@@ -527,6 +527,9 @@ void ControlWindow::setupUI()
     connect(m_livePreviewPanel, &LivePreviewPanel::outputDoubleClicked, this, &ControlWindow::toggleOutputDisplay);
     connect(m_livePreviewPanel, &LivePreviewPanel::confidenceDoubleClicked, this, &ControlWindow::toggleConfidenceMonitor);
 
+    // Connect NDI button
+    connect(m_livePreviewPanel, &LivePreviewPanel::ndiClicked, this, &ControlWindow::toggleNdiOutput);
+
     // Connect blackout/whiteout buttons
     connect(m_livePreviewPanel, &LivePreviewPanel::blackoutClicked, this, &ControlWindow::blackScreen);
     connect(m_livePreviewPanel, &LivePreviewPanel::whiteoutClicked, this, &ControlWindow::whiteScreen);
@@ -662,6 +665,7 @@ void ControlWindow::broadcastCurrentSlide()
     outputMessage["redLetterColor"] = m_settingsManager->redLetterColor();
 
     m_ipcServer->sendToClientType("output", outputMessage);
+    m_ipcServer->sendToClientType("ndi", outputMessage);
 
     // Send enhanced confidenceData message to confidence monitors
     QJsonObject confidenceMessage;
@@ -798,6 +802,9 @@ void ControlWindow::onMessageReceived(QLocalSocket* client, const QJsonObject& m
         } else if (clientType == "confidence") {
             m_confidenceVisible = true;
             QTimer::singleShot(100, this, &ControlWindow::broadcastCurrentSlide);
+        } else if (clientType == "ndi") {
+            m_ndiVisible = true;
+            QTimer::singleShot(100, this, &ControlWindow::broadcastCurrentSlide);
         }
 
         // Update preview borders to reflect new connection state
@@ -855,9 +862,12 @@ void ControlWindow::updatePreviewStates()
         m_outputVisible = false;
     if (!m_ipcServer->hasClientType("confidence"))
         m_confidenceVisible = false;
+    if (!m_ipcServer->hasClientType("ndi"))
+        m_ndiVisible = false;
 
     m_livePreviewPanel->setOutputActive(m_outputVisible);
     m_livePreviewPanel->setConfidenceActive(m_confidenceVisible);
+    m_livePreviewPanel->setNdiActive(m_ndiVisible);
 
     // Stop auto-advance if output just went away
     if (wasOutputVisible && !m_outputVisible) {
@@ -2466,6 +2476,9 @@ void ControlWindow::setupShortcuts()
     // C = Toggle confidence monitor
     new QShortcut(QKeySequence(Qt::Key_C), this, SLOT(toggleConfidenceMonitor()));
 
+    // N = Toggle NDI output
+    new QShortcut(QKeySequence(Qt::Key_N), this, SLOT(toggleNdiOutput()));
+
     // P = Pause/Resume auto-advance timer
     new QShortcut(QKeySequence(Qt::Key_P), this, SLOT(toggleAutoAdvancePause()));
 
@@ -2610,6 +2623,7 @@ void ControlWindow::whiteScreen()
     message["transitionDuration"] = 0;
 
     m_ipcServer->sendToClientType("output", message);
+    m_ipcServer->sendToClientType("ndi", message);
 
     // Update live preview to show white screen
     Slide whiteSlide;
@@ -2642,6 +2656,21 @@ void ControlWindow::toggleOutputDisplay()
         } else {
             m_autoAdvanceTimer->stop();
         }
+    }
+}
+
+void ControlWindow::toggleNdiOutput()
+{
+    // NDI has no window to toggle — if running, terminate it; if not, launch it
+    if (m_ipcServer->hasClientType("ndi")) {
+        // NDI client is connected — ask it to quit gracefully
+        QJsonObject message;
+        message["type"] = "quit";
+        m_ipcServer->sendToClientType("ndi", message);
+        // State will update when client disconnects via updatePreviewStates()
+    } else {
+        // No NDI client connected — launch one
+        m_processManager->launchNdi();
     }
 }
 
@@ -2700,6 +2729,7 @@ void ControlWindow::showKeyboardShortcuts()
 <tr><td><b>O</b></td><td>Toggle output display</td></tr>
 <tr><td><b>F</b></td><td>Toggle output fullscreen</td></tr>
 <tr><td><b>C</b></td><td>Toggle confidence monitor</td></tr>
+<tr><td><b>N</b></td><td>Toggle NDI output</td></tr>
 </table>
 
 <h3>Slide Management</h3>

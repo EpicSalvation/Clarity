@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find Qt6 packages
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql Multimedia WebSockets LinguistTools)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql Multimedia WebSockets LinguistTools OpenGL)
 
 # Core library (shared between all modes)
 add_library(ClarityCore STATIC
@@ -148,6 +148,13 @@ add_executable(Clarity
     src/Confidence/ConfidenceDisplay.h
     src/Confidence/ConfidenceDisplay.cpp
 
+    # NDI streaming output files
+    src/Ndi/NdiTypes.h
+    src/Ndi/NdiSender.h
+    src/Ndi/NdiSender.cpp
+    src/Ndi/NdiMain.h
+    src/Ndi/NdiMain.cpp
+
     # Resources
     resources/Resources.qrc
 )
@@ -160,7 +167,14 @@ target_link_libraries(Clarity
         Qt6::Quick
         Qt6::Network
         Qt6::Multimedia
+        Qt6::OpenGL
 )
+
+# NDI streaming support (enabled by default, no SDK install required to build)
+option(CLARITY_NDI_ENABLED "Enable NDI streaming output mode" ON)
+if(CLARITY_NDI_ENABLED)
+    target_compile_definitions(Clarity PRIVATE CLARITY_NDI_ENABLED)
+endif()
 
 # Platform-specific settings
 if(WIN32)

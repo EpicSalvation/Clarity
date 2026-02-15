@@ -103,6 +103,40 @@ bool ProcessManager::launchConfidence()
     return true;
 }
 
+bool ProcessManager::launchNdi()
+{
+    QString execPath = getExecutablePath();
+    if (execPath.isEmpty()) {
+        qWarning() << "ProcessManager: Cannot determine executable path";
+        return false;
+    }
+
+    QProcess* process = new QProcess(this);
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &ProcessManager::onProcessFinished);
+    connect(process, &QProcess::errorOccurred, this, &ProcessManager::onProcessError);
+
+    QStringList args;
+    args << "--ndi";
+    qDebug() << "ProcessManager: Launching NDI output";
+
+    process->setProgram(execPath);
+    process->setArguments(args);
+    process->start();
+
+    if (!process->waitForStarted(3000)) {
+        qWarning() << "ProcessManager: Failed to start NDI process:" << process->errorString();
+        process->deleteLater();
+        return false;
+    }
+
+    m_processes.append(process);
+    emit ndiStarted();
+
+    qDebug() << "ProcessManager: NDI output launched";
+    return true;
+}
+
 void ProcessManager::terminateAll()
 {
     for (QProcess* process : m_processes) {

@@ -70,6 +70,7 @@ class OutputDisplay : public QObject {
 
 public:
     explicit OutputDisplay(QObject* parent = nullptr);
+    explicit OutputDisplay(const QString& clientType, QObject* parent = nullptr);
 
     // Property getters
     QString slideText() const { return m_slideText; }

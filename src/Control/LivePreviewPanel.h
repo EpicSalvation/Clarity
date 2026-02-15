@@ -84,6 +84,11 @@ public:
     QSize minimumSizeHint() const override;
 
     /**
+     * @brief Set the NDI output active state (green/red border)
+     */
+    void setNdiActive(bool active);
+
+    /**
      * @brief Set the blackout button active state
      */
     void setBlackoutActive(bool active);
@@ -132,6 +137,11 @@ signals:
     void whiteoutClicked();
 
     /**
+     * @brief Emitted when user clicks the NDI indicator to toggle NDI output
+     */
+    void ndiClicked();
+
+    /**
      * @brief Emitted when user clicks the timer Play button
      */
     void timerStartClicked();
@@ -154,6 +164,9 @@ private:
     QPushButton* m_timerPlayButton;                ///< Timer play button
     QPushButton* m_timerPauseButton;               ///< Timer pause button
     QPushButton* m_timerResetButton;               ///< Timer reset button
+
+    // NDI status indicator
+    QPushButton* m_ndiButton;                      ///< Clickable NDI status button
 
     // Auto-advance countdown indicator
     QWidget* m_autoAdvanceWidget;                  ///< Container for auto-advance UI

@@ -2,7 +2,7 @@
 
 A "ProPresenter lite" presentation application for small churches, focusing on reliability, performance, and simplicity.
 
-## Current Status: Phase 3 - Feature Complete
+## Current Status: Phase 4 - Advanced Features
 
 Clarity now includes comprehensive presentation features suitable for worship services, with a focus on ease of use and reliability.
 
@@ -71,10 +71,19 @@ Clarity now includes comprehensive presentation features suitable for worship se
 - **Red Letter Edition** - words of Jesus in red (configurable)
 - **One verse per slide** option
 
+#### NDI Output
+- **NDI streaming** for routing output to video switchers, capture software, and NDI monitors
+- Offscreen rendering via `QQuickRenderControl` — no extra display needed
+- Configurable resolution (`--width`, `--height`), frame rate (`--fps`), and source name (`--ndi-name`)
+- Dynamic DLL loading — builds without the NDI SDK; only the runtime is needed
+- Toggle on/off from control window or with **N** keyboard shortcut
+
 #### Additional Features
-- **Themes** for consistent slide styling
+- **Themes** for consistent slide styling (15 built-in themes with gradients)
+- **Global undo/redo** for all presentation edits
 - **Presenter notes** for each slide
 - **Confidence monitor** support
+- **Slide auto-advance** with per-slide and group-level timers
 - Save/load presentations (.cly format)
 
 ## Architecture
@@ -87,12 +96,17 @@ Clarity now includes comprehensive presentation features suitable for worship se
 └─────────────────┘                      └──────────────────┘
         │
         │ Launches
-        ▼
-┌──────────────────┐
-│ Confidence Mon.  │
-│  (Qt Quick/QML)  │
-│  IPC Client      │
-└──────────────────┘
+        ├──────────────────────►┌──────────────────┐
+        │                      │ Confidence Mon.  │
+        │                      │  (Qt Quick/QML)  │
+        │                      │  IPC Client      │
+        │                      └──────────────────┘
+        │
+        └──────────────────────►┌──────────────────┐
+                               │ NDI Output       │
+                               │  (Offscreen QML) │
+                               │  IPC Client      │
+                               └──────────────────┘
 ```
 
 ## Building
@@ -110,7 +124,11 @@ Clarity now includes comprehensive presentation features suitable for worship se
 - Qt6::Quick
 - Qt6::Network
 - Qt6::Multimedia
+- Qt6::OpenGL
 - Qt5Compat::GraphicalEffects
+
+**Optional runtime dependencies:**
+- **NDI Tools** (for NDI output) — install from https://ndi.video/tools/
 
 ### Build Instructions
 
@@ -129,6 +147,7 @@ cmake --build .
 ./Clarity              # Control mode (default)
 ./Clarity --output     # Output display mode
 ./Clarity --confidence # Confidence monitor mode
+./Clarity --ndi        # NDI streaming mode (requires NDI runtime)
 ```
 
 ### Windows
@@ -197,7 +216,13 @@ clarity/
 │   │   └── ProcessManager.*
 │   ├── Output/            # Output display (Qt Quick)
 │   │   ├── OutputDisplay.*
-│   │   └── qml/OutputDisplay.qml
+│   │   └── qml/
+│   │       ├── OutputDisplay.qml
+│   │       └── OutputDisplayContent.qml
+│   ├── Ndi/               # NDI streaming output
+│   │   ├── NdiMain.*
+│   │   ├── NdiSender.*
+│   │   └── NdiTypes.h
 │   └── Confidence/        # Confidence monitor
 │       ├── ConfidenceMain.*
 │       └── qml/ConfidenceMonitor.qml
@@ -213,14 +238,19 @@ See [DEVLOG.md](DEVLOG.md) for development history and technical decisions.
 
 ## Roadmap
 
-### Phase 4 (Planned)
-- **Transition refinements** - respect slide changes during transitions
-- Audio playback support
-- Background blur effects
-- Ken Burns effect for images
-- Video playback controls (start/end times)
-- Lower-third animations
-- Scripture lookup integration
+### Phase 4 (In Progress)
+- [x] Presentation structure refactor (playlist model)
+- [x] Transition refinements
+- [x] Slide auto-advance timer
+- [x] Scripture lookup & Bible translation importer
+- [x] Red Letter Edition
+- [x] SongSelect integration & CCLI reporting
+- [x] Background blur effects
+- [x] Global undo/redo
+- [x] Multi-stop & radial gradients, updated themes
+- [x] NDI streaming output
+- [ ] Audio playback support
+- [ ] Video playback controls (start/end times)
 
 See [PHASE4_PLAN.md](PHASE4_PLAN.md) for detailed planning.
 

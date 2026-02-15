@@ -1,4 +1,5 @@
 #include "OutputDisplay.h"
+#include <QCoreApplication>
 #include <QDebug>
 #include <QFileInfo>
 #include <QUrl>
@@ -10,8 +11,13 @@
 namespace Clarity {
 
 OutputDisplay::OutputDisplay(QObject* parent)
+    : OutputDisplay("output", parent)
+{
+}
+
+OutputDisplay::OutputDisplay(const QString& clientType, QObject* parent)
     : QObject(parent)
-    , m_ipcClient(new IpcClient("output", this))
+    , m_ipcClient(new IpcClient(clientType, this))
     , m_useRichText(false)
     , m_redLetterColor("#cc0000")
     , m_backgroundColor("#000000")
@@ -118,6 +124,9 @@ void OutputDisplay::onMessageReceived(const QJsonObject& message)
         emit toggleFullscreen();
     } else if (type == "toggleVisibility") {
         emit toggleVisibility();
+    } else if (type == "quit") {
+        qDebug() << "OutputDisplay: Received quit command, shutting down";
+        QCoreApplication::quit();
     } else {
         qDebug() << "OutputDisplay: Unknown message type:" << type;
     }

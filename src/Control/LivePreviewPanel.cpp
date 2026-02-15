@@ -122,6 +122,26 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     confidenceGroupLayout->addLayout(timerButtonLayout);
     layout->addWidget(confidenceGroup);
 
+    // --- NDI output indicator ---
+    m_ndiButton = new QPushButton(tr("NDI"), this);
+    m_ndiButton->setCheckable(false);
+    m_ndiButton->setToolTip(tr("Toggle NDI streaming output (N)"));
+    m_ndiButton->setFixedHeight(32);
+    m_ndiButton->setStyleSheet(
+        "QPushButton {"
+        "  padding: 4px 8px;"
+        "  font-weight: bold;"
+        "  border: 2px solid #dc2626;"
+        "  border-radius: 4px;"
+        "  background-color: transparent;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: rgba(128, 128, 128, 40);"
+        "}"
+    );
+    connect(m_ndiButton, &QPushButton::clicked, this, &LivePreviewPanel::ndiClicked);
+    layout->addWidget(m_ndiButton);
+
     // --- Auto-advance countdown indicator ---
     m_autoAdvanceWidget = new QWidget(this);
     QVBoxLayout* autoAdvanceLayout = new QVBoxLayout(m_autoAdvanceWidget);
@@ -217,6 +237,25 @@ QSize LivePreviewPanel::sizeHint() const
 QSize LivePreviewPanel::minimumSizeHint() const
 {
     return QSize(180, 380);
+}
+
+void LivePreviewPanel::setNdiActive(bool active)
+{
+    QString borderColor = active ? "#16a34a" : "#dc2626";  // green-600 / red-600
+    m_ndiButton->setStyleSheet(
+        QString(
+            "QPushButton {"
+            "  padding: 4px 8px;"
+            "  font-weight: bold;"
+            "  border: 2px solid %1;"
+            "  border-radius: 4px;"
+            "  background-color: transparent;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: rgba(128, 128, 128, 40);"
+            "}"
+        ).arg(borderColor)
+    );
 }
 
 void LivePreviewPanel::setBlackoutActive(bool active)

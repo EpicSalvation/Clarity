@@ -2,6 +2,7 @@
 <RCC version="1.0">
     <qresource prefix="/">
         <file alias="qml/OutputDisplay.qml">../src/Output/qml/OutputDisplay.qml</file>
+        <file alias="qml/OutputDisplayContent.qml">../src/Output/qml/OutputDisplayContent.qml</file>
         <file alias="qml/ConfidenceMonitor.qml">../src/Confidence/qml/ConfidenceMonitor.qml</file>
         <file alias="icons/clarity.ico">clarity.ico</file>
     </qresource>

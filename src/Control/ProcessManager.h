@@ -23,6 +23,7 @@ public:
 
     bool launchOutput();
     bool launchConfidence();
+    bool launchNdi();
 
     void terminateAll();
 
@@ -31,6 +32,8 @@ signals:
     void outputFinished(int exitCode);
     void confidenceStarted();
     void confidenceFinished(int exitCode);
+    void ndiStarted();
+    void ndiFinished(int exitCode);
 
 private slots:
     void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);

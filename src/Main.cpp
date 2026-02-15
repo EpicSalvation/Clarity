@@ -10,6 +10,9 @@
 #include "Control/ControlMain.h"
 #include "Output/OutputMain.h"
 #include "Confidence/ConfidenceMain.h"
+#ifdef CLARITY_NDI_ENABLED
+#include "Ndi/NdiMain.h"
+#endif
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QDebug>
@@ -20,6 +23,7 @@ int main(int argc, char* argv[])
     // We need to determine which mode before initializing QApplication
     bool isOutput = false;
     bool isConfidence = false;
+    bool isNdi = false;
 
     for (int i = 1; i < argc; ++i) {
         QString arg = QString::fromUtf8(argv[i]);
@@ -27,6 +31,8 @@ int main(int argc, char* argv[])
             isOutput = true;
         } else if (arg == "--confidence") {
             isConfidence = true;
+        } else if (arg == "--ndi") {
+            isNdi = true;
         }
     }
 
@@ -37,6 +43,11 @@ int main(int argc, char* argv[])
     } else if (isConfidence) {
         qDebug() << "Starting Clarity in CONFIDENCE mode";
         return Clarity::ConfidenceMain::run(argc, argv);
+#ifdef CLARITY_NDI_ENABLED
+    } else if (isNdi) {
+        qDebug() << "Starting Clarity in NDI mode";
+        return Clarity::NdiMain::run(argc, argv);
+#endif
     } else {
         qDebug() << "Starting Clarity in CONTROL mode";
         return Clarity::ControlMain::run(argc, argv);
