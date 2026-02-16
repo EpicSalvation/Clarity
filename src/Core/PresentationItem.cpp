@@ -32,6 +32,8 @@ QList<Slide> PresentationItem::cachedSlides() const
         for (auto it = m_perSlideStyles.constBegin(); it != m_perSlideStyles.constEnd(); ++it) {
             if (it.key() >= 0 && it.key() < m_cachedSlides.count()) {
                 it.value().applyTo(m_cachedSlides[it.key()]);
+                // Per-slide overrides represent explicit user choices
+                m_cachedSlides[it.key()].setHasExplicitBackground(true);
             }
         }
 

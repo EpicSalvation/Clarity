@@ -78,6 +78,12 @@ Clarity now includes comprehensive presentation features suitable for worship se
 - Dynamic DLL loading — builds without the NDI SDK; only the runtime is needed
 - Toggle on/off from control window or with **N** keyboard shortcut
 
+#### Cascading Backgrounds
+- **Cascading backgrounds** — set a background on one slide and it persists for all subsequent slides until another explicit background is encountered
+- **Scripture theme override** — optionally apply a chosen theme's background to all scripture slides
+- **"Use own background" toggle** in the slide editor to control whether a slide inherits or defines its own background
+- Enabled by default; can be toggled in Settings > General > Backgrounds
+
 #### Additional Features
 - **Themes** for consistent slide styling (15 built-in themes with gradients)
 - **Global undo/redo** for all presentation edits
@@ -249,6 +255,7 @@ See [DEVLOG.md](DEVLOG.md) for development history and technical decisions.
 - [x] Global undo/redo
 - [x] Multi-stop & radial gradients, updated themes
 - [x] NDI streaming output
+- [x] Cascading backgrounds & scripture theme override
 - [ ] Audio playback support
 - [ ] Video playback controls (start/end times)
 

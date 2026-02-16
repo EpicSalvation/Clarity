@@ -4,6 +4,8 @@
 #include "SongItem.h"
 #include "ScriptureItem.h"
 #include "SettingsManager.h"
+#include "ThemeManager.h"
+#include "Theme.h"
 #include <QJsonArray>
 #include <QDateTime>
 #include <algorithm>
@@ -227,6 +229,72 @@ Slide Presentation::slideAt(int flatIndex) const
         return slides.at(pos.slideInItem);
     }
     return Slide();
+}
+
+// Copy all background properties from source to target
+static void copyBackgroundTo(const Slide& source, Slide& target)
+{
+    target.setBackgroundType(source.backgroundType());
+    target.setBackgroundColor(source.backgroundColor());
+    target.setBackgroundImagePath(source.backgroundImagePath());
+    target.setBackgroundImageData(source.backgroundImageData());
+    target.setGradientStops(source.gradientStops());
+    target.setGradientType(source.gradientType());
+    target.setGradientAngle(source.gradientAngle());
+    target.setRadialCenterX(source.radialCenterX());
+    target.setRadialCenterY(source.radialCenterY());
+    target.setRadialRadius(source.radialRadius());
+    target.setBackgroundVideoPath(source.backgroundVideoPath());
+    target.setVideoLoop(source.videoLoop());
+}
+
+Slide Presentation::resolvedSlideAt(int flatIndex) const
+{
+    Slide slide = slideAt(flatIndex);
+    if (!m_settingsManager) {
+        return slide;
+    }
+
+    // Scripture theme override: if enabled, apply chosen theme to all scripture slides
+    if (m_settingsManager->scriptureThemeOverride() && m_themeManager) {
+        SlidePosition pos = positionForFlatIndex(flatIndex);
+        if (pos.isValid()) {
+            PresentationItem* item = m_items.at(pos.itemIndex);
+            if (qobject_cast<ScriptureItem*>(item)) {
+                QString themeName = m_settingsManager->scriptureThemeOverrideName();
+                Theme theme;
+                if (!themeName.isEmpty() && m_themeManager->hasTheme(themeName)) {
+                    theme = m_themeManager->getTheme(themeName);
+                } else {
+                    // Fall back to first available theme
+                    QList<Theme> all = m_themeManager->allThemes();
+                    if (!all.isEmpty()) {
+                        theme = all.first();
+                    }
+                }
+                if (!theme.name().isEmpty()) {
+                    theme.applyToSlide(slide);
+                    // Scripture-overridden slides do NOT feed the cascade
+                    slide.setHasExplicitBackground(false);
+                }
+                return slide;
+            }
+        }
+    }
+
+    // Cascading backgrounds: if enabled and slide has no explicit background,
+    // walk backward to find the nearest slide with an explicit background
+    if (m_settingsManager->cascadingBackgrounds() && !slide.hasExplicitBackground()) {
+        for (int i = flatIndex - 1; i >= 0; --i) {
+            Slide prev = slideAt(i);
+            if (prev.hasExplicitBackground()) {
+                copyBackgroundTo(prev, slide);
+                return slide;
+            }
+        }
+    }
+
+    return slide;
 }
 
 SlidePosition Presentation::positionForFlatIndex(int flatIndex) const

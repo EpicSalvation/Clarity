@@ -100,6 +100,12 @@ QList<Slide> SongItem::generateSlides() const
         slides.append(sectionSlides);
     }
 
+    // Cascading backgrounds: song slides don't have explicit backgrounds by default.
+    // If the item has a custom style, the first slide is explicit (it's the user's choice).
+    for (int i = 0; i < slides.count(); ++i) {
+        slides[i].setHasExplicitBackground(m_hasCustomStyle && i == 0);
+    }
+
     return slides;
 }
 

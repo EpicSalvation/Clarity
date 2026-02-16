@@ -4,6 +4,74 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-16 - Cascading Backgrounds
+
+### Summary
+Implemented cascading backgrounds so that setting a background on one slide persists for all subsequent slides until another slide with an explicitly set background is encountered. Added settings to toggle this behavior and to optionally override all scripture slide backgrounds with a chosen theme. Also added a "Use own background" toggle to the slide editor dialog.
+
+### Work Completed
+
+#### Core: hasExplicitBackground flag on Slide
+- Added `m_hasExplicitBackground` bool to `Slide` with getter, setter, JSON serialization/deserialization
+- Default is `true` (backward compatible — all existing slides are explicit)
+- Only serializes `false` to JSON to minimize file size impact
+
+#### Item slide generation awareness
+- **SongItem/ScriptureItem**: All generated slides default to `hasExplicitBackground = false`. If the item has a custom style, the first slide is set to `true` (it represents an explicit user choice).
+- **CustomSlideItem/SlideGroupItem**: Keep default `true` — user-created slides are always explicit.
+- **PresentationItem::cachedSlides()**: Per-slide style overrides also set `hasExplicitBackground = true`.
+
+#### Presentation::resolvedSlideAt()
+- New method that applies cascading logic: if a slide has `hasExplicitBackground == false` and cascading is enabled, walks backward through flat indices to find the nearest explicit background and copies all background properties.
+- Scripture theme override: if enabled, all ScriptureItem slides get the chosen theme's background applied (these overridden slides do NOT feed the cascade).
+- File-local `copyBackgroundTo()` helper copies all background properties (type, color, image path/data, gradient stops/type/angle, radial params, video path/loop).
+
+#### Settings
+- **SettingsManager**: Added `cascadingBackgrounds` (default: `true`), `scriptureThemeOverride` (default: `false`), `scriptureThemeOverrideName` (default: empty string).
+- **SettingsDialog**: Added "Backgrounds" group on the General page with cascading checkbox, scripture theme override checkbox, and theme selector combo box (populated from ThemeManager).
+
+#### Display path integration
+- **PresentationModel::data()**: Uses `resolvedSlideAt()` instead of `slideAt()` so the slide grid and all delegates show resolved backgrounds.
+- **ControlWindow::broadcastCurrentSlide()**: Uses `resolvedSlideAt()` for output display, confidence monitor, and live preview.
+- All presentation creation/load/undo-restore paths now call `setSettingsManager()` and `setThemeManager()` on the Presentation.
+- SettingsDialog receives ThemeManager pointer from ControlWindow.
+
+#### Slide editor dialog
+- Added "Use own background" checkbox at the top of the Background group box.
+- When unchecked, the background type combo and background stack are disabled.
+- The flag is saved back to the Slide on dialog accept.
+
+### Technical Decisions
+- **Backward walk for cascade**: Simple O(n) backward walk from the current slide. Presentation sizes are small (typically <200 slides), so this is fast enough. A cached approach was considered but rejected for simplicity.
+- **Scripture theme override slides don't feed the cascade**: This prevents the scripture theme from "leaking" to subsequent items. Only slides that are explicitly set by the user feed forward.
+- **Default cascading ON**: For small churches (the target audience), a consistent background across the service is the expected behavior. Users who want independent backgrounds per item can disable it in Settings.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/Core/Slide.h` | Added `m_hasExplicitBackground` field, getter, setter |
+| `src/Core/Slide.cpp` | Init, serialize, deserialize the flag |
+| `src/Core/Presentation.h` | Added `resolvedSlideAt()`, `setSettingsManager()`, `setThemeManager()` |
+| `src/Core/Presentation.cpp` | Implemented `resolvedSlideAt()` with backward walk + scripture override |
+| `src/Core/PresentationModel.cpp` | Used `resolvedSlideAt()` in `data()` |
+| `src/Core/PresentationItem.cpp` | Set explicit=true on per-slide style overrides |
+| `src/Core/SongItem.cpp` | Set explicit=false on generated slides (true on first if custom style) |
+| `src/Core/ScriptureItem.cpp` | Same pattern as SongItem |
+| `src/Core/SettingsManager.h/.cpp` | Added cascading + scripture override settings |
+| `src/Control/SettingsDialog.h/.cpp` | Added background settings UI with theme selector |
+| `src/Control/ControlWindow.cpp` | Used resolved slides for broadcast; pass managers to Presentation |
+| `src/Control/SlideEditorDialog.h/.cpp` | Added "Use own background" toggle |
+
+### Issues/Blockers
+None.
+
+### Next Steps
+- Test with actual presentations to verify cascade behavior
+- Consider adding visual indicator in slide grid for inherited vs explicit backgrounds
+- Consider invalidating PresentationModel when cascading settings change
+
+---
+
 ## 2026-02-14 - NDI Streaming Output Mode
 
 ### Summary

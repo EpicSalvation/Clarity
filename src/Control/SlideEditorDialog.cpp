@@ -103,8 +103,16 @@ void SlideEditorDialog::setupUI()
     leftLayout->addWidget(textStyleGroup);
 
     // Background section
-    QGroupBox* backgroundGroup = new QGroupBox(tr("Background"), leftColumn);
-    QVBoxLayout* backgroundLayout = new QVBoxLayout(backgroundGroup);
+    m_backgroundGroup = new QGroupBox(tr("Background"), leftColumn);
+    QVBoxLayout* backgroundLayout = new QVBoxLayout(m_backgroundGroup);
+
+    // "Use own background" checkbox for cascading background control
+    m_useOwnBackgroundCheck = new QCheckBox(tr("Use own background"), m_backgroundGroup);
+    m_useOwnBackgroundCheck->setChecked(true);
+    m_useOwnBackgroundCheck->setToolTip(
+        tr("When unchecked, this slide inherits the background from the previous slide "
+           "that has its own background (cascading backgrounds)."));
+    backgroundLayout->addWidget(m_useOwnBackgroundCheck);
 
     m_backgroundTypeCombo = new QComboBox(this);
     m_backgroundTypeCombo->addItem(tr("Solid Color"), "solidColor");
@@ -210,7 +218,17 @@ void SlideEditorDialog::setupUI()
     blurLayout->addRow("Background Blur:", m_overlayBlurSpinBox);
 
     backgroundLayout->addLayout(blurLayout);
-    leftLayout->addWidget(backgroundGroup);
+
+    // Wire "Use own background" checkbox to enable/disable all background controls
+    connect(m_useOwnBackgroundCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_backgroundTypeCombo->setEnabled(checked);
+        m_backgroundStack->setEnabled(checked);
+        m_overlayEnabledCheck->setEnabled(checked);
+        m_overlayColorButton->setEnabled(checked && m_overlayEnabledCheck->isChecked());
+        m_overlayBlurSpinBox->setEnabled(checked);
+    });
+
+    leftLayout->addWidget(m_backgroundGroup);
 
     // === RIGHT COLUMN ===
 
@@ -459,6 +477,12 @@ void SlideEditorDialog::setSlide(const Slide& slide)
 
     updateBackgroundControls();
 
+    // Set "Use own background" checkbox based on hasExplicitBackground flag
+    m_useOwnBackgroundCheck->setChecked(slide.hasExplicitBackground());
+    // Manually trigger the toggled logic for initial state
+    m_backgroundTypeCombo->setEnabled(slide.hasExplicitBackground());
+    m_backgroundStack->setEnabled(slide.hasExplicitBackground());
+
     // Set transition override settings
     // Find matching transition type in combo box
     QString transitionType = slide.transitionType();
@@ -517,6 +541,9 @@ Slide SlideEditorDialog::slide() const
     slide.setText(m_textEdit->toPlainText());
     slide.setFontFamily(m_fontFamilyCombo->currentText());
     slide.setFontSize(m_fontSizeSpinBox->value());
+
+    // Cascading background flag
+    slide.setHasExplicitBackground(m_useOwnBackgroundCheck->isChecked());
 
     // Background type
     int bgTypeIndex = m_backgroundTypeCombo->currentIndex();

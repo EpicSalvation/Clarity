@@ -110,6 +110,16 @@ public:
     QString defaultEventName() const;        // Default event name (e.g., "Sunday Service")
     void setDefaultEventName(const QString& name);
 
+    // Cascading background settings
+    bool cascadingBackgrounds() const;
+    void setCascadingBackgrounds(bool enabled);
+
+    bool scriptureThemeOverride() const;
+    void setScriptureThemeOverride(bool enabled);
+
+    QString scriptureThemeOverrideName() const;
+    void setScriptureThemeOverrideName(const QString& name);
+
     // Library settings
     bool autoSyncLibraryGroups() const;
     void setAutoSyncLibraryGroups(bool enabled);

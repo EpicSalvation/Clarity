@@ -46,7 +46,7 @@ QVariant PresentationModel::data(const QModelIndex& index, int role) const
     }
 
     int flatIndex = index.row();
-    Slide slide = m_presentation->slideAt(flatIndex);
+    Slide slide = m_presentation->resolvedSlideAt(flatIndex);
     SlidePosition pos = m_presentation->positionForFlatIndex(flatIndex);
 
     switch (role) {

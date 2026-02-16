@@ -452,6 +452,45 @@ void SettingsManager::setDefaultEventName(const QString& name)
     }
 }
 
+bool SettingsManager::cascadingBackgrounds() const
+{
+    return m_settings->value("Presentation/CascadingBackgrounds", true).toBool();
+}
+
+void SettingsManager::setCascadingBackgrounds(bool enabled)
+{
+    if (cascadingBackgrounds() != enabled) {
+        m_settings->setValue("Presentation/CascadingBackgrounds", enabled);
+        m_settings->sync();
+    }
+}
+
+bool SettingsManager::scriptureThemeOverride() const
+{
+    return m_settings->value("Presentation/ScriptureThemeOverride", false).toBool();
+}
+
+void SettingsManager::setScriptureThemeOverride(bool enabled)
+{
+    if (scriptureThemeOverride() != enabled) {
+        m_settings->setValue("Presentation/ScriptureThemeOverride", enabled);
+        m_settings->sync();
+    }
+}
+
+QString SettingsManager::scriptureThemeOverrideName() const
+{
+    return m_settings->value("Presentation/ScriptureThemeOverrideName", "").toString();
+}
+
+void SettingsManager::setScriptureThemeOverrideName(const QString& name)
+{
+    if (scriptureThemeOverrideName() != name) {
+        m_settings->setValue("Presentation/ScriptureThemeOverrideName", name);
+        m_settings->sync();
+    }
+}
+
 bool SettingsManager::autoSyncLibraryGroups() const
 {
     return m_settings->value("Library/AutoSyncGroups", false).toBool();

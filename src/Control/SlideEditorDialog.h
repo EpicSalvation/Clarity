@@ -11,6 +11,7 @@
 #include <QStackedWidget>
 #include <QLineEdit>
 #include <QCheckBox>
+#include <QGroupBox>
 
 namespace Clarity {
 
@@ -129,6 +130,10 @@ private:
     QCheckBox* m_textBandEnabledCheck;
     QPushButton* m_textBandColorButton;
     QSpinBox* m_textBandBlurSpinBox;
+
+    // Cascading background: "Use own background" toggle
+    QCheckBox* m_useOwnBackgroundCheck;
+    QGroupBox* m_backgroundGroup;
 
     // Current slide data
     Slide m_slide;

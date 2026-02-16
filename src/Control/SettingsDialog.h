@@ -14,6 +14,7 @@
 namespace Clarity {
 
 class BibleDatabase;
+class ThemeManager;
 
 /**
  * @brief Settings dialog with category sidebar
@@ -34,6 +35,11 @@ public:
      * @brief Set the Bible database for translation management
      */
     void setBibleDatabase(BibleDatabase* database);
+
+    /**
+     * @brief Set the theme manager for scripture theme override combo
+     */
+    void setThemeManager(ThemeManager* themeManager);
 
 private slots:
     void onCategoryChanged(int row);
@@ -97,6 +103,12 @@ private:
     QComboBox* m_preferredTranslationComboBox;
     QCheckBox* m_rememberLastTranslationCheckBox;
     BibleDatabase* m_bibleDatabase;
+
+    // Cascading background settings
+    QCheckBox* m_cascadingBackgroundsCheckBox;
+    QCheckBox* m_scriptureThemeOverrideCheckBox;
+    QComboBox* m_scriptureThemeOverrideCombo;
+    ThemeManager* m_themeManager;
 
     // Library settings
     QCheckBox* m_autoSyncLibraryGroupsCheckBox;

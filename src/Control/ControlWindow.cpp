@@ -565,6 +565,8 @@ void ControlWindow::createDemoPresentation()
     demo->addSlide(Slide("Was blind but now I see", QColor("#064e3b"), QColor("#ffffff")));
     demo->addSlide(Slide("John 3:16\n\nFor God so loved the world...", QColor("#7c2d12"), QColor("#ffffff")));
 
+    demo->setSettingsManager(m_settingsManager);
+    demo->setThemeManager(m_themeManager);
     m_itemListModel->setPresentation(demo);
     m_presentationModel->setPresentation(demo);
 
@@ -629,14 +631,14 @@ void ControlWindow::broadcastCurrentSlide()
         return;
     }
 
-    Slide currentSlide = presentation->currentSlide();
     int currentIndex = presentation->currentSlideIndex();
     int totalSlides = presentation->slideCount();
+    Slide currentSlide = presentation->resolvedSlideAt(currentIndex);
 
     // Get next slide if available
     Slide nextSlide;
     if (currentIndex < totalSlides - 1) {
-        nextSlide = presentation->getSlide(currentIndex + 1);
+        nextSlide = presentation->resolvedSlideAt(currentIndex + 1);
     }
 
     // Update live preview panel with current and next slides
@@ -676,7 +678,7 @@ void ControlWindow::broadcastCurrentSlide()
 
     // Add next slide if available
     if (currentIndex < presentation->slideCount() - 1) {
-        confidenceMessage["nextSlide"] = presentation->getSlide(currentIndex + 1).toJson();
+        confidenceMessage["nextSlide"] = presentation->resolvedSlideAt(currentIndex + 1).toJson();
     }
 
     // Add item info for confidence monitor
@@ -816,6 +818,7 @@ void ControlWindow::onSettings()
 {
     SettingsDialog dialog(m_settingsManager, this);
     dialog.setBibleDatabase(m_bibleDatabase);
+    dialog.setThemeManager(m_themeManager);
     dialog.exec();
 }
 
@@ -958,6 +961,8 @@ void ControlWindow::restoreFromSnapshot(const QJsonObject& snapshot)
 {
     Presentation* restored = Presentation::fromJson(
         snapshot, m_songLibrary, m_bibleDatabase, m_settingsManager);
+    restored->setSettingsManager(m_settingsManager);
+    restored->setThemeManager(m_themeManager);
     // ItemListModel must be set first: PresentationModel::setPresentation deletes
     // the old Presentation and emits itemsChanged, whose handler calls updateUI()
     // which accesses m_itemListModel->presentation(). If ItemListModel still holds
@@ -1467,6 +1472,8 @@ void ControlWindow::newPresentation()
     Presentation* newPres = new Presentation("Untitled");
     newPres->addSlide(Slide("New Slide", QColor("#1e3a8a"), QColor("#ffffff")));
 
+    newPres->setSettingsManager(m_settingsManager);
+    newPres->setThemeManager(m_themeManager);
     m_itemListModel->setPresentation(newPres);
     m_presentationModel->setPresentation(newPres);
 
@@ -1517,6 +1524,8 @@ void ControlWindow::openPresentation()
 
     // Load presentation with song library, bible database, and settings for item resolution
     Presentation* loaded = Presentation::fromJson(doc.object(), m_songLibrary, m_bibleDatabase, m_settingsManager);
+    loaded->setSettingsManager(m_settingsManager);
+    loaded->setThemeManager(m_themeManager);
     m_itemListModel->setPresentation(loaded);
     m_presentationModel->setPresentation(loaded);
 

@@ -119,6 +119,10 @@ public:
     int groupIndex() const { return m_groupIndex; }
     void setGroupIndex(int index) { m_groupIndex = index; }
 
+    // Cascading background support
+    bool hasExplicitBackground() const { return m_hasExplicitBackground; }
+    void setHasExplicitBackground(bool v) { m_hasExplicitBackground = v; }
+
     // Setters
     void setText(const QString& text) { m_text = text; }
     void setRichText(const QString& richText) { m_richText = richText; }
@@ -247,6 +251,9 @@ private:
     // Section grouping metadata
     QString m_groupLabel;               ///< Section label (e.g., "Verse 1", "Chorus")
     int m_groupIndex;                   ///< Section order position (-1 = title slide/no group)
+
+    // Cascading background: if false, background is inherited from previous explicit slide
+    bool m_hasExplicitBackground;
 };
 
 } // namespace Clarity

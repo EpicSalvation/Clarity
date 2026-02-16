@@ -252,12 +252,14 @@ Complete JSON representation of a single slide.
 - `textColor` (string, required): Text color in hex format (e.g., `#ffffff`)
 - `fontFamily` (string, required): Font family name (e.g., `"Arial"`, `"Helvetica"`)
 - `fontSize` (integer, required): Font size in points (typically 24-72)
+- `hasExplicitBackground` (boolean, optional): Whether this slide defines its own background (`true`) or inherits via cascade (`false`). Default `true`. Only serialized when `false`.
 
 **Default Values** (when deserializing with missing fields):
 - `backgroundColor`: `"#1e3a8a"` (dark blue)
 - `textColor`: `"#ffffff"` (white)
 - `fontFamily`: `"Arial"`
 - `fontSize`: `48`
+- `hasExplicitBackground`: `true`
 
 **Implementation**: Slide.cpp:22-42
 - Serialization: `Slide::toJson()`

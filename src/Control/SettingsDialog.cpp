@@ -1,6 +1,7 @@
 #include "SettingsDialog.h"
 #include "BibleImportDialog.h"
 #include "Core/BibleDatabase.h"
+#include "Core/ThemeManager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -41,6 +42,10 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_importTranslationButton(nullptr)
     , m_deleteTranslationButton(nullptr)
     , m_bibleDatabase(nullptr)
+    , m_cascadingBackgroundsCheckBox(nullptr)
+    , m_scriptureThemeOverrideCheckBox(nullptr)
+    , m_scriptureThemeOverrideCombo(nullptr)
+    , m_themeManager(nullptr)
     , m_autoSyncLibraryGroupsCheckBox(nullptr)
     , m_redLettersEnabledCheckBox(nullptr)
     , m_redLetterColorButton(nullptr)
@@ -55,6 +60,29 @@ void SettingsDialog::setBibleDatabase(BibleDatabase* database)
 {
     m_bibleDatabase = database;
     refreshTranslationsList();
+}
+
+void SettingsDialog::setThemeManager(ThemeManager* themeManager)
+{
+    m_themeManager = themeManager;
+
+    // Populate scripture theme override combo
+    if (m_scriptureThemeOverrideCombo && m_themeManager) {
+        m_scriptureThemeOverrideCombo->clear();
+        QStringList names = m_themeManager->themeNames();
+        for (const QString& name : names) {
+            m_scriptureThemeOverrideCombo->addItem(name, name);
+        }
+
+        // Select the saved theme
+        if (m_settingsManager) {
+            QString saved = m_settingsManager->scriptureThemeOverrideName();
+            int idx = m_scriptureThemeOverrideCombo->findData(saved);
+            if (idx >= 0) {
+                m_scriptureThemeOverrideCombo->setCurrentIndex(idx);
+            }
+        }
+    }
 }
 
 SettingsDialog::~SettingsDialog()
@@ -175,6 +203,37 @@ void SettingsDialog::createGeneralPage()
     uiBehaviorLayout->addWidget(uiBehaviorHelpLabel);
 
     pageLayout->addWidget(uiBehaviorGroup);
+
+    // Background Settings group
+    QGroupBox* backgroundGroup = new QGroupBox(tr("Backgrounds"), generalPage);
+    QVBoxLayout* backgroundLayout = new QVBoxLayout(backgroundGroup);
+
+    m_cascadingBackgroundsCheckBox = new QCheckBox(
+        tr("Cascade backgrounds (backgrounds persist until another is explicitly set)"), backgroundGroup);
+    backgroundLayout->addWidget(m_cascadingBackgroundsCheckBox);
+
+    m_scriptureThemeOverrideCheckBox = new QCheckBox(
+        tr("Override scripture backgrounds with theme:"), backgroundGroup);
+    backgroundLayout->addWidget(m_scriptureThemeOverrideCheckBox);
+
+    m_scriptureThemeOverrideCombo = new QComboBox(backgroundGroup);
+    m_scriptureThemeOverrideCombo->setEnabled(false);
+    backgroundLayout->addWidget(m_scriptureThemeOverrideCombo);
+
+    // Enable/disable combo based on checkbox
+    connect(m_scriptureThemeOverrideCheckBox, &QCheckBox::toggled,
+            m_scriptureThemeOverrideCombo, &QComboBox::setEnabled);
+
+    QLabel* backgroundHelpLabel = new QLabel(
+        tr("When cascading is enabled, a slide without its own background inherits "
+           "the background of the previous slide that has one. This is useful for "
+           "having a consistent background across songs and scripture."),
+        backgroundGroup);
+    backgroundHelpLabel->setWordWrap(true);
+    backgroundHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    backgroundLayout->addWidget(backgroundHelpLabel);
+
+    pageLayout->addWidget(backgroundGroup);
 
     // Library Settings group
     QGroupBox* libraryGroup = new QGroupBox(tr("Library"), generalPage);
@@ -724,6 +783,11 @@ void SettingsDialog::loadSettings()
     m_showAllSlidesInGridCheckBox->setChecked(m_settingsManager->showAllSlidesInGrid());
     m_autoSyncLibraryGroupsCheckBox->setChecked(m_settingsManager->autoSyncLibraryGroups());
 
+    // Load cascading background settings
+    m_cascadingBackgroundsCheckBox->setChecked(m_settingsManager->cascadingBackgrounds());
+    m_scriptureThemeOverrideCheckBox->setChecked(m_settingsManager->scriptureThemeOverride());
+    m_scriptureThemeOverrideCombo->setEnabled(m_settingsManager->scriptureThemeOverride());
+
     // Load slide preview size
     QString previewSize = m_settingsManager->slidePreviewSize();
     for (int i = 0; i < m_slidePreviewSizeComboBox->count(); ++i) {
@@ -791,6 +855,14 @@ void SettingsDialog::saveSettings()
     m_settingsManager->setShowAllSlidesInGrid(m_showAllSlidesInGridCheckBox->isChecked());
     m_settingsManager->setAutoSyncLibraryGroups(m_autoSyncLibraryGroupsCheckBox->isChecked());
     m_settingsManager->setSlidePreviewSize(m_slidePreviewSizeComboBox->currentData().toString());
+
+    // Save cascading background settings
+    m_settingsManager->setCascadingBackgrounds(m_cascadingBackgroundsCheckBox->isChecked());
+    m_settingsManager->setScriptureThemeOverride(m_scriptureThemeOverrideCheckBox->isChecked());
+    if (m_scriptureThemeOverrideCombo->currentIndex() >= 0) {
+        m_settingsManager->setScriptureThemeOverrideName(
+            m_scriptureThemeOverrideCombo->currentData().toString());
+    }
 
     // Save language setting
     QString languageCode = m_languageComboBox->currentData().toString();

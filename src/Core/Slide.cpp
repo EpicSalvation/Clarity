@@ -36,6 +36,7 @@ Slide::Slide()
     , m_transitionDuration(-1)
     , m_autoAdvanceDuration(0)
     , m_groupIndex(-1)
+    , m_hasExplicitBackground(true)
 {
 }
 
@@ -72,6 +73,7 @@ Slide::Slide(const QString& text, const QColor& backgroundColor, const QColor& t
     , m_transitionDuration(-1)
     , m_autoAdvanceDuration(0)
     , m_groupIndex(-1)
+    , m_hasExplicitBackground(true)
 {
 }
 
@@ -169,6 +171,11 @@ QJsonObject Slide::toJson() const
     }
     if (m_groupIndex >= 0) {
         json["groupIndex"] = m_groupIndex;
+    }
+
+    // Cascading background: only serialize when false (true is default)
+    if (!m_hasExplicitBackground) {
+        json["hasExplicitBackground"] = false;
     }
 
     // Phase 3: Text legibility - Drop shadow
@@ -289,6 +296,9 @@ Slide Slide::fromJson(const QJsonObject& json)
     // Section grouping metadata
     slide.m_groupLabel = json["groupLabel"].toString();
     slide.m_groupIndex = json["groupIndex"].toInt(-1);
+
+    // Cascading background flag
+    slide.m_hasExplicitBackground = json["hasExplicitBackground"].toBool(true);
 
     // Phase 3: Text legibility - Drop shadow
     slide.m_dropShadowEnabled = json["dropShadowEnabled"].toBool(true);

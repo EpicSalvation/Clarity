@@ -13,6 +13,7 @@ namespace Clarity {
 class SongLibrary;
 class BibleDatabase;
 class SettingsManager;
+class ThemeManager;
 
 /**
  * @brief Position information for a slide within the presentation
@@ -116,6 +117,25 @@ public:
      * @brief Get a slide by its flat index
      */
     Slide slideAt(int flatIndex) const;
+
+    /**
+     * @brief Get a slide with cascading background resolution applied
+     *
+     * If cascading backgrounds is enabled and the slide does not have an
+     * explicit background, walks backward to find the nearest explicit
+     * background and copies it. Also applies scripture theme overrides.
+     */
+    Slide resolvedSlideAt(int flatIndex) const;
+
+    /**
+     * @brief Set the settings manager for cascading background settings
+     */
+    void setSettingsManager(SettingsManager* mgr) { m_settingsManager = mgr; }
+
+    /**
+     * @brief Set the theme manager for scripture theme overrides
+     */
+    void setThemeManager(ThemeManager* mgr) { m_themeManager = mgr; }
 
     /**
      * @brief Get position information for a flat index
@@ -329,6 +349,10 @@ private:
     QString m_title;
     QList<PresentationItem*> m_items;
     int m_currentSlideIndex;
+
+    // Cascading backgrounds support
+    SettingsManager* m_settingsManager = nullptr;
+    ThemeManager* m_themeManager = nullptr;
 
     // Cached flat index: m_itemStartIndices[i] is the flat index of item i's first slide
     // This enables O(log n) lookup via binary search
