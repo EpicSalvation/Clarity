@@ -8,12 +8,14 @@ namespace Clarity {
 ProcessManager::ProcessManager(QObject* parent)
     : QObject(parent)
     , m_settingsManager(nullptr)
+    , m_ipcServer(nullptr)
 {
 }
 
 ProcessManager::~ProcessManager()
 {
-    terminateAll();
+    // Intentionally empty — detached processes survive controller shutdown.
+    // Use quitAll() for intentional shutdown before destruction if desired.
 }
 
 void ProcessManager::setSettingsManager(SettingsManager* settingsManager)
@@ -21,18 +23,24 @@ void ProcessManager::setSettingsManager(SettingsManager* settingsManager)
     m_settingsManager = settingsManager;
 }
 
+void ProcessManager::setIpcServer(IpcServer* ipcServer)
+{
+    m_ipcServer = ipcServer;
+}
+
 bool ProcessManager::launchOutput()
 {
+    // Don't launch a duplicate if one is already connected via IPC
+    if (m_ipcServer && m_ipcServer->hasClientType("output")) {
+        qDebug() << "ProcessManager: Output client already connected, skipping launch";
+        return true;
+    }
+
     QString execPath = getExecutablePath();
     if (execPath.isEmpty()) {
         qWarning() << "ProcessManager: Cannot determine executable path";
         return false;
     }
-
-    QProcess* process = new QProcess(this);
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &ProcessManager::onProcessFinished);
-    connect(process, &QProcess::errorOccurred, this, &ProcessManager::onProcessError);
 
     QStringList args;
     args << "--output";
@@ -45,35 +53,34 @@ bool ProcessManager::launchOutput()
     args << "--screen" << QString::number(screenIndex);
     qDebug() << "ProcessManager: Launching output on screen" << screenIndex;
 
-    process->setProgram(execPath);
-    process->setArguments(args);
-    process->start();
+    qint64 pid = 0;
+    bool started = QProcess::startDetached(execPath, args, QString(), &pid);
 
-    if (!process->waitForStarted(3000)) {
-        qWarning() << "ProcessManager: Failed to start output process:" << process->errorString();
-        process->deleteLater();
+    if (!started) {
+        qWarning() << "ProcessManager: Failed to start detached output process";
         return false;
     }
 
-    m_processes.append(process);
+    m_pids["output"] = pid;
     emit outputStarted();
 
-    qDebug() << "ProcessManager: Output display launched";
+    qDebug() << "ProcessManager: Output display launched (detached, PID:" << pid << ")";
     return true;
 }
 
 bool ProcessManager::launchConfidence()
 {
+    // Don't launch a duplicate if one is already connected via IPC
+    if (m_ipcServer && m_ipcServer->hasClientType("confidence")) {
+        qDebug() << "ProcessManager: Confidence client already connected, skipping launch";
+        return true;
+    }
+
     QString execPath = getExecutablePath();
     if (execPath.isEmpty()) {
         qWarning() << "ProcessManager: Cannot determine executable path";
         return false;
     }
-
-    QProcess* process = new QProcess(this);
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &ProcessManager::onProcessFinished);
-    connect(process, &QProcess::errorOccurred, this, &ProcessManager::onProcessError);
 
     QStringList args;
     args << "--confidence";
@@ -86,93 +93,92 @@ bool ProcessManager::launchConfidence()
     args << "--screen" << QString::number(screenIndex);
     qDebug() << "ProcessManager: Launching confidence on screen" << screenIndex;
 
-    process->setProgram(execPath);
-    process->setArguments(args);
-    process->start();
+    qint64 pid = 0;
+    bool started = QProcess::startDetached(execPath, args, QString(), &pid);
 
-    if (!process->waitForStarted(3000)) {
-        qWarning() << "ProcessManager: Failed to start confidence process:" << process->errorString();
-        process->deleteLater();
+    if (!started) {
+        qWarning() << "ProcessManager: Failed to start detached confidence process";
         return false;
     }
 
-    m_processes.append(process);
+    m_pids["confidence"] = pid;
     emit confidenceStarted();
 
-    qDebug() << "ProcessManager: Confidence monitor launched";
+    qDebug() << "ProcessManager: Confidence monitor launched (detached, PID:" << pid << ")";
     return true;
 }
 
 bool ProcessManager::launchNdi()
 {
+    // Don't launch a duplicate if one is already connected via IPC
+    if (m_ipcServer && m_ipcServer->hasClientType("ndi")) {
+        qDebug() << "ProcessManager: NDI client already connected, skipping launch";
+        return true;
+    }
+
     QString execPath = getExecutablePath();
     if (execPath.isEmpty()) {
         qWarning() << "ProcessManager: Cannot determine executable path";
         return false;
     }
 
-    QProcess* process = new QProcess(this);
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &ProcessManager::onProcessFinished);
-    connect(process, &QProcess::errorOccurred, this, &ProcessManager::onProcessError);
-
     QStringList args;
     args << "--ndi";
     qDebug() << "ProcessManager: Launching NDI output";
 
-    process->setProgram(execPath);
-    process->setArguments(args);
-    process->start();
+    qint64 pid = 0;
+    bool started = QProcess::startDetached(execPath, args, QString(), &pid);
 
-    if (!process->waitForStarted(3000)) {
-        qWarning() << "ProcessManager: Failed to start NDI process:" << process->errorString();
-        process->deleteLater();
+    if (!started) {
+        qWarning() << "ProcessManager: Failed to start detached NDI process";
         return false;
     }
 
-    m_processes.append(process);
+    m_pids["ndi"] = pid;
     emit ndiStarted();
 
-    qDebug() << "ProcessManager: NDI output launched";
+    qDebug() << "ProcessManager: NDI output launched (detached, PID:" << pid << ")";
     return true;
 }
 
-void ProcessManager::terminateAll()
+void ProcessManager::quitAll()
 {
-    for (QProcess* process : m_processes) {
-        if (process->state() == QProcess::Running) {
-            process->terminate();
-            if (!process->waitForFinished(3000)) {
-                process->kill();
-            }
+    if (!m_ipcServer) {
+        qWarning() << "ProcessManager: No IPC server, cannot send quit messages";
+        return;
+    }
+
+    QJsonObject message;
+    message["type"] = "quit";
+
+    QStringList types = {"output", "confidence", "ndi"};
+    for (const QString& type : types) {
+        if (m_ipcServer->hasClientType(type)) {
+            m_ipcServer->sendToClientType(type, message);
+            qDebug() << "ProcessManager: Sent quit to" << type;
         }
-        process->deleteLater();
     }
-    m_processes.clear();
+
+    m_pids.clear();
 }
 
-void ProcessManager::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
+void ProcessManager::quitByType(const QString& clientType)
 {
-    QProcess* process = qobject_cast<QProcess*>(sender());
-    if (!process) {
+    if (!m_ipcServer) {
+        qWarning() << "ProcessManager: No IPC server, cannot send quit message";
         return;
     }
 
-    QString status = (exitStatus == QProcess::NormalExit) ? "normally" : "crashed";
-    qDebug() << "ProcessManager: Process finished" << status << "with exit code" << exitCode;
+    QJsonObject message;
+    message["type"] = "quit";
 
-    m_processes.removeOne(process);
-    process->deleteLater();
-}
-
-void ProcessManager::onProcessError(QProcess::ProcessError error)
-{
-    QProcess* process = qobject_cast<QProcess*>(sender());
-    if (!process) {
-        return;
+    if (m_ipcServer->sendToClientType(clientType, message)) {
+        qDebug() << "ProcessManager: Sent quit to" << clientType;
+    } else {
+        qDebug() << "ProcessManager: No" << clientType << "client connected to quit";
     }
 
-    qWarning() << "ProcessManager: Process error:" << error << process->errorString();
+    m_pids.remove(clientType);
 }
 
 QString ProcessManager::getExecutablePath() const

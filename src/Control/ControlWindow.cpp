@@ -31,6 +31,7 @@
 #include <QPixmap>
 #include <QBuffer>
 #include <QDebug>
+#include <cstdlib>
 
 namespace Clarity {
 
@@ -96,8 +97,9 @@ ControlWindow::ControlWindow(QWidget* parent)
     // Load slide group library
     m_slideGroupLibrary->loadLibrary();
 
-    // Pass settings manager to process manager
+    // Pass settings manager and IPC server to process manager
     m_processManager->setSettingsManager(m_settingsManager);
+    m_processManager->setIpcServer(m_ipcServer);
 
     // Start IPC server
     if (m_ipcServer->start()) {
@@ -341,6 +343,15 @@ void ControlWindow::setupUI()
     // Help menu
     QMenu* helpMenu = menuBar->addMenu(tr("&Help"));
     helpMenu->addAction(tr("&Keyboard Shortcuts..."), QKeySequence("F1"), this, &ControlWindow::showKeyboardShortcuts);
+
+    // Debug menu — testing tools for development
+    QMenu* debugMenu = menuBar->addMenu(tr("&Debug"));
+    debugMenu->addAction(tr("Simulate &Crash"), this, []() {
+        // Immediate unclean termination — bypasses all destructors and cleanup.
+        // Used to verify that output screens survive a controller crash.
+        qWarning() << "ControlWindow: Simulating crash via abort()";
+        std::abort();
+    });
 
     setMenuBar(menuBar);
 
@@ -2672,10 +2683,8 @@ void ControlWindow::toggleNdiOutput()
 {
     // NDI has no window to toggle — if running, terminate it; if not, launch it
     if (m_ipcServer->hasClientType("ndi")) {
-        // NDI client is connected — ask it to quit gracefully
-        QJsonObject message;
-        message["type"] = "quit";
-        m_ipcServer->sendToClientType("ndi", message);
+        // NDI client is connected — ask it to quit gracefully via ProcessManager
+        m_processManager->quitByType("ndi");
         // State will update when client disconnects via updatePreviewStates()
     } else {
         // No NDI client connected — launch one
