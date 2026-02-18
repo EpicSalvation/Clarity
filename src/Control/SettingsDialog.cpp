@@ -52,6 +52,7 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_redLetterColor("#cc0000")
     , m_esvApiKeyEdit(nullptr)
     , m_esvCacheStatusLabel(nullptr)
+    , m_apiBibleApiKeyEdit(nullptr)
     , m_settingsManager(settingsManager)
 {
     setupUI();
@@ -617,6 +618,25 @@ void SettingsDialog::createBiblePage()
 
     pageLayout->addWidget(esvGroup);
 
+    // API.bible group
+    QGroupBox* apiBibleGroup = new QGroupBox(tr("API.bible"), biblePage);
+    QFormLayout* apiBibleLayout = new QFormLayout(apiBibleGroup);
+
+    m_apiBibleApiKeyEdit = new QLineEdit(apiBibleGroup);
+    m_apiBibleApiKeyEdit->setPlaceholderText(tr("Enter your API.bible key..."));
+    m_apiBibleApiKeyEdit->setEchoMode(QLineEdit::Password);
+    apiBibleLayout->addRow(tr("API Key:"), m_apiBibleApiKeyEdit);
+
+    QLabel* apiBibleHelpLabel = new QLabel(
+        tr("API.bible provides access to nearly 2500 Bible versions across 1600+ languages. "
+           "Create a free account at scripture.api.bible to obtain an API key."),
+        apiBibleGroup);
+    apiBibleHelpLabel->setWordWrap(true);
+    apiBibleHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    apiBibleLayout->addRow(apiBibleHelpLabel);
+
+    pageLayout->addWidget(apiBibleGroup);
+
     pageLayout->addStretch(); // Push content to top
 
     m_pageStack->addWidget(biblePage);
@@ -851,6 +871,9 @@ void SettingsDialog::loadSettings()
     m_esvApiKeyEdit->setText(m_settingsManager->esvApiKey());
     int cachedVerses = m_settingsManager->esvCachedVerseCount();
     m_esvCacheStatusLabel->setText(tr("%1 / %2 verses cached").arg(cachedVerses).arg(500));
+
+    // Load API.bible settings
+    m_apiBibleApiKeyEdit->setText(m_settingsManager->apiBibleApiKey());
 }
 
 void SettingsDialog::saveSettings()
@@ -920,6 +943,9 @@ void SettingsDialog::saveSettings()
 
     // Save ESV API settings
     m_settingsManager->setEsvApiKey(m_esvApiKeyEdit->text());
+
+    // Save API.bible settings
+    m_settingsManager->setApiBibleApiKey(m_apiBibleApiKeyEdit->text());
 }
 
 void SettingsDialog::onOkClicked()

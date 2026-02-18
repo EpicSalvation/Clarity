@@ -72,6 +72,10 @@ add_library(ClarityCore STATIC
     src/Core/EsvApiClient.cpp
     src/Core/EsvScriptureItem.h
     src/Core/EsvScriptureItem.cpp
+    src/Core/ApiBibleClient.h
+    src/Core/ApiBibleClient.cpp
+    src/Core/ApiBibleScriptureItem.h
+    src/Core/ApiBibleScriptureItem.cpp
 )
 
 target_link_libraries(ClarityCore
@@ -111,6 +115,8 @@ add_executable(Clarity
     src/Control/ScriptureDialog.cpp
     src/Control/EsvScriptureDialog.h
     src/Control/EsvScriptureDialog.cpp
+    src/Control/ApiBibleScriptureDialog.h
+    src/Control/ApiBibleScriptureDialog.cpp
     src/Control/SongLibraryDialog.h
     src/Control/SongLibraryDialog.cpp
     src/Control/SongEditorDialog.h

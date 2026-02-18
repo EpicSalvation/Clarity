@@ -535,6 +535,39 @@ void SettingsManager::setEsvCachedVerseCount(int count)
     m_settings->sync();
 }
 
+QString SettingsManager::apiBibleApiKey() const
+{
+    return m_settings->value("ApiBible/ApiKey", "").toString();
+}
+
+void SettingsManager::setApiBibleApiKey(const QString& key)
+{
+    if (apiBibleApiKey() != key) {
+        m_settings->setValue("ApiBible/ApiKey", key);
+        m_settings->sync();
+        emit apiBibleApiKeyChanged();
+        qDebug() << "SettingsManager: API.bible API key updated";
+    }
+}
+
+bool SettingsManager::hasApiBibleApiKey() const
+{
+    return !apiBibleApiKey().trimmed().isEmpty();
+}
+
+QString SettingsManager::apiBibleLastBibleId() const
+{
+    return m_settings->value("ApiBible/LastBibleId", "").toString();
+}
+
+void SettingsManager::setApiBibleLastBibleId(const QString& bibleId)
+{
+    if (apiBibleLastBibleId() != bibleId) {
+        m_settings->setValue("ApiBible/LastBibleId", bibleId);
+        m_settings->sync();
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";

@@ -152,6 +152,32 @@ public:
      */
     void setEsvCachedVerseCount(int count);
 
+    // API.bible settings
+    /**
+     * @brief Get the API.bible API key
+     */
+    QString apiBibleApiKey() const;
+
+    /**
+     * @brief Set the API.bible API key
+     */
+    void setApiBibleApiKey(const QString& key);
+
+    /**
+     * @brief Check if an API.bible API key is configured
+     */
+    bool hasApiBibleApiKey() const;
+
+    /**
+     * @brief Get the last selected API.bible Bible version ID
+     */
+    QString apiBibleLastBibleId() const;
+
+    /**
+     * @brief Set the last selected API.bible Bible version ID
+     */
+    void setApiBibleLastBibleId(const QString& bibleId);
+
     // Reset all settings to defaults
     void resetToDefaults();
 
@@ -165,6 +191,7 @@ signals:
     void slideGridModeChanged(bool showAll);
     void slidePreviewSizeChanged(const QString& size);
     void esvApiKeyChanged();
+    void apiBibleApiKeyChanged();
 
 private:
     QSettings* m_settings;

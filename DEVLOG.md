@@ -4,6 +4,91 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-18 - API.bible Integration for Scripture
+
+### Summary
+Added integration with API.bible as a second online scripture source alongside the existing ESV API integration. API.bible provides access to nearly 2500 Bible versions across 1600+ languages, giving users far broader translation selection. The implementation follows the same architectural pattern as the ESV integration (dedicated client, item type, dialog) but without the cache purging requirement since API.bible does not impose the same strict caching rules as ESV.
+
+### Work Completed
+
+#### Core: ApiBibleClient (new)
+- HTTP client for the API.bible REST API v1 (`api.scripture.api.bible/v1`)
+- Uses custom `api-key` header for authentication (differs from ESV's `Authorization: Token` approach)
+- Three async endpoints: `fetchBibles()` for Bible version listing, `fetchPassage()` for direct passage retrieval, and `searchPassage()` for reference-based search
+- Bibles list is cached in-memory after first fetch for fast subsequent access
+- Response parsing handles both passage and search result formats
+- HTML stripping for content returned with HTML tags
+- Verse parsing with `[N]` bracket markers and fallback numeric patterns
+- Error handling for auth failures (401/403), not found (404), rate limits (429), and network errors
+
+#### Core: ApiBibleScriptureItem (new)
+- `PresentationItem` subclass with dedicated `ApiBibleScriptureItemType` enum value
+- Stores pre-fetched verses, reference, copyright, and Bible version abbreviation
+- Slide generation supports header slide with version label, one-verse-per-slide or combined modes, optional verse numbers
+- Cascading background support (first slide gets explicit background when custom style is set)
+- Full JSON serialization/deserialization (type name: `"apiBibleScripture"`)
+- No purge mechanism needed (unlike ESV), so simpler design
+
+#### Control: ApiBibleScriptureDialog (new)
+- Bible version selector combo box populated from API.bible's catalog (filtered to English by default)
+- Search by human-readable reference (e.g., "John 3:16") using the search endpoint
+- Preview pane with theme-aware styling
+- Theme selector with scripture-specific themes listed first
+- Options: verse numbers toggle, one-verse-per-slide toggle, font size spinner
+- Copyright display for the selected Bible version
+- Remembers last-used Bible version ID via SettingsManager
+
+#### SettingsManager Additions
+- `apiBibleApiKey()` / `setApiBibleApiKey()` - persistent API key storage under `"ApiBible/ApiKey"`
+- `hasApiBibleApiKey()` - convenience check
+- `apiBibleLastBibleId()` / `setApiBibleLastBibleId()` - remembers last-selected Bible version
+- `apiBibleApiKeyChanged()` signal
+
+#### SettingsDialog UI
+- Added "API.bible" group box to the Bible settings page
+- Password-masked API key input field
+- Help text explaining how to obtain a key from scripture.api.bible
+
+#### ControlWindow Integration
+- New `ApiBibleClient` member initialized in constructor with saved API key
+- Menu item: "Insert API.bible Scripture..." (Ctrl+Alt+B) under Slide menu
+- `onInsertApiBibleScripture()` slot: opens dialog, creates item, inserts into presentation
+- Undo snapshot support for the insertion action
+
+#### CMakeLists.txt
+- Added `ApiBibleClient.h/.cpp` and `ApiBibleScriptureItem.h/.cpp` to ClarityCore library
+- Added `ApiBibleScriptureDialog.h/.cpp` to Clarity executable
+
+#### PresentationItem & Presentation
+- Added `ApiBibleScriptureItemType` to the `ItemType` enum
+- Added `"apiBibleScripture"` to `typeName()` switch
+- Added deserialization case in `Presentation::fromJson()` factory
+
+### Technical Decisions
+- **Search endpoint over passage endpoint**: API.bible's search endpoint handles human-readable references (like "John 3:16") naturally, while the passage endpoint requires dot-delimited IDs (like "JHN.3.16"). Using search makes the UX much simpler - users type references the same way they would for ESV.
+- **No cache purging**: Unlike ESV, API.bible doesn't impose a strict 500-verse cache limit requiring purge. The 30-day cache refresh recommendation is noted but not enforced in the initial implementation.
+- **Bible version selection**: API.bible hosts many versions, so a combo box with version selection is essential (unlike ESV which is a single translation). Versions are fetched once and cached in-memory.
+- **Parallel pattern to ESV**: Following the exact same architectural pattern (dedicated client + item type + dialog) keeps the codebase consistent and makes both integrations easy to understand.
+
+### Testing
+- Manual code review (Qt6 not available in build environment)
+- Verified all API signatures, constructor initializer lists, and include chains
+- Confirmed JSON type names are unique and don't conflict with existing types
+
+### Issues/Blockers
+- Cannot compile/test without Qt6 installed
+- API.bible's `content-type=text` parameter is marked as "beta" - may need to fall back to HTML stripping if text output changes
+
+### Next Steps
+- Test the integration with actual API.bible calls once a build environment is available
+- Consider adding language filter options beyond English in the Bible version selector
+- Consider FUMS (Fair Use Management System) tracking for web-deployed versions
+
+### Commit(s)
+- Branch: `claude/add-esv-api-integration-LRGR8`
+
+---
+
 ## 2026-02-18 - ESV API Integration for Scripture
 
 ### Summary

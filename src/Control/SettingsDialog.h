@@ -123,6 +123,9 @@ private:
     QLineEdit* m_esvApiKeyEdit;
     QLabel* m_esvCacheStatusLabel;
 
+    // API.bible settings
+    QLineEdit* m_apiBibleApiKeyEdit;
+
     // Settings manager
     SettingsManager* m_settingsManager;
 };

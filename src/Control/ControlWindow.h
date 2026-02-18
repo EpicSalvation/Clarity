@@ -17,6 +17,7 @@
 #include "Core/AutoAdvanceTimer.h"
 #include "Core/UndoManager.h"
 #include "Core/EsvApiClient.h"
+#include "Core/ApiBibleClient.h"
 #include "ProcessManager.h"
 #include "SlideGridDelegate.h"
 #include "SlideGridView.h"
@@ -84,6 +85,7 @@ private slots:
     void onInsertScripture();
     void onInsertEsvScripture();
     void onPurgeEsvCache();
+    void onInsertApiBibleScripture();
     void onInsertSong();
     void onInsertSlideGroup();
     void onInsertSlideGroupFromLibrary(int groupId);
@@ -199,6 +201,7 @@ private:
     AutoAdvanceTimer* m_autoAdvanceTimer;
     UndoManager* m_undoManager;
     EsvApiClient* m_esvApiClient;
+    ApiBibleClient* m_apiBibleClient;
     QAction* m_undoAction;
     QAction* m_redoAction;
     QLabel* m_remoteStatusLabel;
