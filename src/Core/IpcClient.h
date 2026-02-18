@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QLocalSocket>
 #include <QJsonObject>
+#include <QTimer>
 
 namespace Clarity {
 
@@ -11,6 +12,7 @@ namespace Clarity {
  *
  * Connects to the control application's IPC server.
  * Receives slide data and display commands.
+ * Automatically reconnects when the server disconnects or crashes.
  */
 class IpcClient : public QObject {
     Q_OBJECT
@@ -36,6 +38,7 @@ private slots:
     void onDisconnected();
     void onReadyRead();
     void onError(QLocalSocket::LocalSocketError error);
+    void attemptReconnect();
 
 private:
     void processMessage(const QByteArray& data);
@@ -43,8 +46,10 @@ private:
     QLocalSocket* m_socket;
     QString m_clientType;
     QByteArray m_receiveBuffer;
+    QTimer* m_reconnectTimer;
 
     static const QString SERVER_NAME;
+    static const int RECONNECT_INTERVAL_MS = 2000;
 };
 
 } // namespace Clarity

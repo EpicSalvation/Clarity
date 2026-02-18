@@ -11,15 +11,21 @@ IpcClient::IpcClient(const QString& clientType, QObject* parent)
     : QObject(parent)
     , m_socket(new QLocalSocket(this))
     , m_clientType(clientType)
+    , m_reconnectTimer(new QTimer(this))
 {
     connect(m_socket, &QLocalSocket::connected, this, &IpcClient::onConnected);
     connect(m_socket, &QLocalSocket::disconnected, this, &IpcClient::onDisconnected);
     connect(m_socket, &QLocalSocket::readyRead, this, &IpcClient::onReadyRead);
     connect(m_socket, &QLocalSocket::errorOccurred, this, &IpcClient::onError);
+
+    // Reconnect timer: fires periodically when disconnected to try reconnecting
+    m_reconnectTimer->setInterval(RECONNECT_INTERVAL_MS);
+    connect(m_reconnectTimer, &QTimer::timeout, this, &IpcClient::attemptReconnect);
 }
 
 IpcClient::~IpcClient()
 {
+    m_reconnectTimer->stop();
     disconnectFromServer();
 }
 
@@ -36,6 +42,9 @@ void IpcClient::connectToServer()
 
 void IpcClient::disconnectFromServer()
 {
+    // Stop reconnection attempts when intentionally disconnecting
+    m_reconnectTimer->stop();
+
     if (m_socket->state() == QLocalSocket::ConnectedState) {
         m_socket->disconnectFromServer();
     }
@@ -64,6 +73,9 @@ void IpcClient::onConnected()
 {
     qDebug() << "IpcClient: Connected to server";
 
+    // Stop reconnection attempts now that we're connected
+    m_reconnectTimer->stop();
+
     // Send identification message
     QJsonObject connectMsg;
     connectMsg["type"] = "connect";
@@ -75,9 +87,12 @@ void IpcClient::onConnected()
 
 void IpcClient::onDisconnected()
 {
-    qDebug() << "IpcClient: Disconnected from server";
+    qDebug() << "IpcClient: Disconnected from server — will attempt to reconnect";
     m_receiveBuffer.clear();
     emit disconnected();
+
+    // Start reconnection attempts
+    m_reconnectTimer->start();
 }
 
 void IpcClient::onReadyRead()
@@ -100,9 +115,30 @@ void IpcClient::onReadyRead()
 
 void IpcClient::onError(QLocalSocket::LocalSocketError error)
 {
+    // Connection-refused and server-not-found are expected when the controller
+    // isn't running yet — don't spam warnings for those during reconnection.
+    if (error == QLocalSocket::ServerNotFoundError ||
+        error == QLocalSocket::ConnectionRefusedError) {
+        // Silently continue reconnection attempts
+        return;
+    }
+
     QString errorString = m_socket->errorString();
     qWarning() << "IpcClient: Socket error:" << error << errorString;
     emit errorOccurred(errorString);
+}
+
+void IpcClient::attemptReconnect()
+{
+    if (m_socket->state() == QLocalSocket::ConnectedState) {
+        m_reconnectTimer->stop();
+        return;
+    }
+
+    // Only attempt if socket is fully disconnected (not mid-connection)
+    if (m_socket->state() == QLocalSocket::UnconnectedState) {
+        m_socket->connectToServer(SERVER_NAME);
+    }
 }
 
 void IpcClient::processMessage(const QByteArray& data)

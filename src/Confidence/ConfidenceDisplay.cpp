@@ -151,6 +151,9 @@ void ConfidenceDisplay::onMessageReceived(const QJsonObject& message)
         emit autoAdvanceChanged();
     } else if (type == "toggleVisibility") {
         emit toggleVisibility();
+    } else if (type == "quit") {
+        qDebug() << "ConfidenceDisplay: Received quit command, shutting down";
+        QCoreApplication::quit();
     } else {
         qDebug() << "ConfidenceDisplay: Unknown message type:" << type;
     }

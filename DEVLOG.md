@@ -4,6 +4,79 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-17 - Persist Output Screens Through Controller Crash/Close
+
+### Summary
+Fixed a critical architecture issue: output, confidence, and NDI display processes were being killed whenever the controller process closed or crashed. The architecture's stated goal is that "output keeps showing current slide if control crashes," but two mechanisms were terminating child processes on controller exit. Switched to detached process launching and IPC-based lifecycle management so display processes are fully independent OS processes that survive controller shutdown.
+
+### Work Completed
+
+#### Root Cause Analysis
+Identified two independent mechanisms that both killed display processes:
+1. **Explicit termination**: `ProcessManager::~ProcessManager()` called `terminateAll()`, which sent `terminate()` then `kill()` to every child process.
+2. **Qt parent-child cascade**: `QProcess` objects created with `new QProcess(this)` were destroyed when their parent (`ProcessManager`) was destroyed during `ControlWindow` teardown. `QProcess`'s destructor kills the underlying OS process.
+
+#### ProcessManager: Detached Process Launching
+- Replaced `QProcess::start()` with `QProcess::startDetached()` for all three process types (output, confidence, NDI). Processes are now fully independent OS processes.
+- Replaced `QList<QProcess*> m_processes` with `QMap<QString, qint64> m_pids` for PID-based tracking by client type.
+- Removed `terminateAll()` from destructor — it is now intentionally empty so processes survive controller shutdown.
+- Added `quitAll()` and `quitByType()` methods that send IPC `"quit"` messages for graceful intentional shutdown.
+- Added `setIpcServer()` so ProcessManager can send IPC messages directly.
+- Added duplicate-launch guard: each `launch*()` method checks `IpcServer::hasClientType()` before launching, preventing duplicate processes when one is already connected.
+
+#### IpcClient: Automatic Reconnection
+- Added a `QTimer`-based reconnection mechanism (2-second interval) to `IpcClient`.
+- When disconnected (e.g., controller crash), output processes automatically attempt to reconnect to the IPC server.
+- When the controller restarts, existing output processes reconnect and resume receiving slide data.
+- Suppressed noisy `ServerNotFoundError`/`ConnectionRefusedError` warnings during reconnection attempts — these are expected while the controller is down.
+- `disconnectFromServer()` stops the reconnect timer (intentional disconnect doesn't trigger reconnection).
+
+#### ControlWindow Integration
+- Passes `IpcServer` to `ProcessManager` via `setIpcServer()`.
+- Updated `toggleNdiOutput()` to use `ProcessManager::quitByType("ndi")` instead of directly sending IPC messages.
+- No process termination on close — `closeEvent()` unchanged, but now the ProcessManager destructor doesn't kill anything.
+
+#### ConfidenceDisplay: Quit Handler
+- Added handling for the `"quit"` IPC message type in `ConfidenceDisplay::onMessageReceived()`. Previously only `OutputDisplay` handled it, so the confidence monitor could not be gracefully stopped via IPC.
+
+#### Debug: Simulate Crash Action
+- Added a "Debug" menu to the menu bar with a "Simulate Crash" action.
+- Calls `std::abort()` to immediately terminate the controller without cleanup — bypasses destructors, `closeEvent`, and all shutdown logic.
+- Provides a reliable way to test crash-survival behavior: launch output, navigate to a slide, trigger crash, verify output keeps displaying.
+
+### Technical Decisions
+- **`startDetached()` over detach-on-exit**: `QProcess` has no "detach" method for already-started processes. Using `startDetached()` from the start is cleaner and more reliable than trying to work around `QProcess` destructor behavior.
+- **IPC for lifecycle management**: Using IPC "quit" messages rather than OS-level kill for intentional shutdown. This lets the display processes clean up gracefully (close OpenGL contexts, NDI senders, etc.).
+- **2-second reconnect interval**: Balanced between responsiveness (reconnect quickly when controller restarts) and CPU/resource usage (not too frequent when controller is down for extended periods).
+- **No force-kill fallback**: `quitAll()`/`quitByType()` only use IPC. If a display process is hung and not responding to IPC, the user can kill it via OS tools. This avoids accidental data loss from aggressive kill logic.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/Control/ProcessManager.h` | Replaced `QList<QProcess*>` with `QMap<QString, qint64>` PIDs; added `setIpcServer()`, `quitAll()`, `quitByType()`; removed old slots |
+| `src/Control/ProcessManager.cpp` | Rewrote to use `startDetached()`; empty destructor; IPC-based quit; duplicate-launch guard |
+| `src/Control/ControlWindow.cpp` | Pass IpcServer to ProcessManager; use `quitByType()` for NDI toggle; added Debug > Simulate Crash menu action |
+| `src/Core/IpcClient.h` | Added `QTimer* m_reconnectTimer`, `attemptReconnect()` slot, reconnect interval constant |
+| `src/Core/IpcClient.cpp` | Implemented automatic reconnection on disconnect; suppressed expected errors during reconnection |
+| `src/Confidence/ConfidenceDisplay.cpp` | Added "quit" message handler to shut down gracefully via IPC |
+
+### Testing
+- Cannot build in this environment (no Qt6). Manual testing plan:
+  1. Launch controller, launch output display via toggle
+  2. Navigate to a slide, verify output shows it
+  3. Close controller normally — output should keep showing the slide
+  4. Relaunch controller — output should automatically reconnect
+  5. Use Debug > Simulate Crash — output should keep showing the slide
+  6. Relaunch controller after crash — output should reconnect
+  7. Toggle NDI on/off — verify graceful start/stop via IPC
+
+### Next Steps
+- Test on Windows with a full Qt6 build
+- Consider adding a status indicator in the controller showing which display processes are connected (already partially exists via IPC client connect signals)
+- Consider adding a "Quit All Displays" menu option for intentional shutdown
+
+---
+
 ## 2026-02-16 - Cascading Backgrounds
 
 ### Summary
