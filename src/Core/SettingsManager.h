@@ -124,6 +124,34 @@ public:
     bool autoSyncLibraryGroups() const;
     void setAutoSyncLibraryGroups(bool enabled);
 
+    // ESV API settings
+    /**
+     * @brief Get the ESV API key (user must obtain from api.esv.org)
+     */
+    QString esvApiKey() const;
+
+    /**
+     * @brief Set the ESV API key
+     */
+    void setEsvApiKey(const QString& key);
+
+    /**
+     * @brief Check if an ESV API key is configured
+     */
+    bool hasEsvApiKey() const;
+
+    /**
+     * @brief Get the number of ESV verses currently cached across all presentations
+     *
+     * Per ESV API terms, applications may not cache more than 500 verses.
+     */
+    int esvCachedVerseCount() const;
+
+    /**
+     * @brief Set the ESV cached verse count
+     */
+    void setEsvCachedVerseCount(int count);
+
     // Reset all settings to defaults
     void resetToDefaults();
 
@@ -136,6 +164,7 @@ signals:
     void languageChanged(const QString& languageCode);
     void slideGridModeChanged(bool showAll);
     void slidePreviewSizeChanged(const QString& size);
+    void esvApiKeyChanged();
 
 private:
     QSettings* m_settings;

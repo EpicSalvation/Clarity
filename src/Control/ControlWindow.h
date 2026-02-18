@@ -16,6 +16,7 @@
 #include "Core/RemoteServer.h"
 #include "Core/AutoAdvanceTimer.h"
 #include "Core/UndoManager.h"
+#include "Core/EsvApiClient.h"
 #include "ProcessManager.h"
 #include "SlideGridDelegate.h"
 #include "SlideGridView.h"
@@ -81,6 +82,8 @@ private slots:
 
     // Content insertion
     void onInsertScripture();
+    void onInsertEsvScripture();
+    void onPurgeEsvCache();
     void onInsertSong();
     void onInsertSlideGroup();
     void onInsertSlideGroupFromLibrary(int groupId);
@@ -195,6 +198,7 @@ private:
     RemoteServer* m_remoteServer;
     AutoAdvanceTimer* m_autoAdvanceTimer;
     UndoManager* m_undoManager;
+    EsvApiClient* m_esvApiClient;
     QAction* m_undoAction;
     QAction* m_redoAction;
     QLabel* m_remoteStatusLabel;

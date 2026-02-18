@@ -19,6 +19,7 @@ QString PresentationItem::typeName() const
         case ScriptureItemType:   return QStringLiteral("scripture");
         case CustomSlideItemType: return QStringLiteral("customSlide");
         case SlideGroupItemType:  return QStringLiteral("slideGroup");
+        case EsvScriptureItemType: return QStringLiteral("esvScripture");
     }
     return QStringLiteral("unknown");
 }

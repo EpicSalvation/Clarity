@@ -50,6 +50,8 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_redLettersEnabledCheckBox(nullptr)
     , m_redLetterColorButton(nullptr)
     , m_redLetterColor("#cc0000")
+    , m_esvApiKeyEdit(nullptr)
+    , m_esvCacheStatusLabel(nullptr)
     , m_settingsManager(settingsManager)
 {
     setupUI();
@@ -591,6 +593,30 @@ void SettingsDialog::createBiblePage()
     helpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
     pageLayout->addWidget(helpLabel);
 
+    // ESV API group
+    QGroupBox* esvGroup = new QGroupBox(tr("ESV Bible API"), biblePage);
+    QFormLayout* esvLayout = new QFormLayout(esvGroup);
+
+    m_esvApiKeyEdit = new QLineEdit(esvGroup);
+    m_esvApiKeyEdit->setPlaceholderText(tr("Enter your ESV API key..."));
+    m_esvApiKeyEdit->setEchoMode(QLineEdit::Password);
+    esvLayout->addRow(tr("API Key:"), m_esvApiKeyEdit);
+
+    m_esvCacheStatusLabel = new QLabel(esvGroup);
+    m_esvCacheStatusLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    esvLayout->addRow(tr("Cache:"), m_esvCacheStatusLabel);
+
+    QLabel* esvHelpLabel = new QLabel(
+        tr("To use the ESV (English Standard Version) translation, you need an API key from "
+           "api.esv.org. Create a free account and request an API key.\n\n"
+           "ESV terms limit caching to 500 verses. Cached verses should be cleared periodically."),
+        esvGroup);
+    esvHelpLabel->setWordWrap(true);
+    esvHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    esvLayout->addRow(esvHelpLabel);
+
+    pageLayout->addWidget(esvGroup);
+
     pageLayout->addStretch(); // Push content to top
 
     m_pageStack->addWidget(biblePage);
@@ -820,6 +846,11 @@ void SettingsDialog::loadSettings()
     m_redLetterColor = QColor(m_settingsManager->redLetterColor());
     updateColorButtonStyle(m_redLetterColorButton, m_redLetterColor);
     m_redLetterColorButton->setEnabled(m_settingsManager->redLettersEnabled());
+
+    // Load ESV API settings
+    m_esvApiKeyEdit->setText(m_settingsManager->esvApiKey());
+    int cachedVerses = m_settingsManager->esvCachedVerseCount();
+    m_esvCacheStatusLabel->setText(tr("%1 / %2 verses cached").arg(cachedVerses).arg(500));
 }
 
 void SettingsDialog::saveSettings()
@@ -886,6 +917,9 @@ void SettingsDialog::saveSettings()
     // Save red letter settings
     m_settingsManager->setRedLettersEnabled(m_redLettersEnabledCheckBox->isChecked());
     m_settingsManager->setRedLetterColor(m_redLetterColor.name());
+
+    // Save ESV API settings
+    m_settingsManager->setEsvApiKey(m_esvApiKeyEdit->text());
 }
 
 void SettingsDialog::onOkClicked()

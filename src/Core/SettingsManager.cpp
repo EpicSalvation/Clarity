@@ -504,6 +504,37 @@ void SettingsManager::setAutoSyncLibraryGroups(bool enabled)
     }
 }
 
+QString SettingsManager::esvApiKey() const
+{
+    return m_settings->value("ESV/ApiKey", "").toString();
+}
+
+void SettingsManager::setEsvApiKey(const QString& key)
+{
+    if (esvApiKey() != key) {
+        m_settings->setValue("ESV/ApiKey", key);
+        m_settings->sync();
+        emit esvApiKeyChanged();
+        qDebug() << "SettingsManager: ESV API key updated";
+    }
+}
+
+bool SettingsManager::hasEsvApiKey() const
+{
+    return !esvApiKey().trimmed().isEmpty();
+}
+
+int SettingsManager::esvCachedVerseCount() const
+{
+    return m_settings->value("ESV/CachedVerseCount", 0).toInt();
+}
+
+void SettingsManager::setEsvCachedVerseCount(int count)
+{
+    m_settings->setValue("ESV/CachedVerseCount", qMax(0, count));
+    m_settings->sync();
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";
