@@ -39,7 +39,9 @@ public:
         SongItemType,           ///< Song from the library
         ScriptureItemType,      ///< Bible scripture passage
         CustomSlideItemType,    ///< Single custom slide
-        SlideGroupItemType      ///< Group of slides (for v1.0 migration)
+        SlideGroupItemType,     ///< Group of slides (for v1.0 migration)
+        EsvScriptureItemType,   ///< ESV API scripture passage (purgeable cache)
+        ApiBibleScriptureItemType ///< API.bible scripture passage
     };
     Q_ENUM(ItemType)
 

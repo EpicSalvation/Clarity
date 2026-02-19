@@ -10,6 +10,7 @@
 #include <QSpinBox>
 #include <QCheckBox>
 #include <QLineEdit>
+#include <QLabel>
 
 namespace Clarity {
 
@@ -117,6 +118,13 @@ private:
     QCheckBox* m_redLettersEnabledCheckBox;
     QPushButton* m_redLetterColorButton;
     QColor m_redLetterColor;
+
+    // ESV API settings
+    QLineEdit* m_esvApiKeyEdit;
+    QLabel* m_esvCacheStatusLabel;
+
+    // API.bible settings
+    QLineEdit* m_apiBibleApiKeyEdit;
 
     // Settings manager
     SettingsManager* m_settingsManager;

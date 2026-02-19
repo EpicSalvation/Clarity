@@ -4,6 +4,203 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-18 - API.bible Integration for Scripture
+
+### Summary
+Added integration with API.bible as a second online scripture source alongside the existing ESV API integration. API.bible provides access to nearly 2500 Bible versions across 1600+ languages, giving users far broader translation selection. The implementation follows the same architectural pattern as the ESV integration (dedicated client, item type, dialog) but without the cache purging requirement since API.bible does not impose the same strict caching rules as ESV.
+
+### Work Completed
+
+#### Core: ApiBibleClient (new)
+- HTTP client for the API.bible REST API v1 (`api.scripture.api.bible/v1`)
+- Uses custom `api-key` header for authentication (differs from ESV's `Authorization: Token` approach)
+- Three async endpoints: `fetchBibles()` for Bible version listing, `fetchPassage()` for direct passage retrieval, and `searchPassage()` for reference-based search
+- Bibles list is cached in-memory after first fetch for fast subsequent access
+- Response parsing handles both passage and search result formats
+- HTML stripping for content returned with HTML tags
+- Verse parsing with `[N]` bracket markers and fallback numeric patterns
+- Error handling for auth failures (401/403), not found (404), rate limits (429), and network errors
+
+#### Core: ApiBibleScriptureItem (new)
+- `PresentationItem` subclass with dedicated `ApiBibleScriptureItemType` enum value
+- Stores pre-fetched verses, reference, copyright, and Bible version abbreviation
+- Slide generation supports header slide with version label, one-verse-per-slide or combined modes, optional verse numbers
+- Cascading background support (first slide gets explicit background when custom style is set)
+- Full JSON serialization/deserialization (type name: `"apiBibleScripture"`)
+- No purge mechanism needed (unlike ESV), so simpler design
+
+#### Control: ApiBibleScriptureDialog (new)
+- Bible version selector combo box populated from API.bible's catalog (filtered to English by default)
+- Search by human-readable reference (e.g., "John 3:16") using the search endpoint
+- Preview pane with theme-aware styling
+- Theme selector with scripture-specific themes listed first
+- Options: verse numbers toggle, one-verse-per-slide toggle, font size spinner
+- Copyright display for the selected Bible version
+- Remembers last-used Bible version ID via SettingsManager
+
+#### SettingsManager Additions
+- `apiBibleApiKey()` / `setApiBibleApiKey()` - persistent API key storage under `"ApiBible/ApiKey"`
+- `hasApiBibleApiKey()` - convenience check
+- `apiBibleLastBibleId()` / `setApiBibleLastBibleId()` - remembers last-selected Bible version
+- `apiBibleApiKeyChanged()` signal
+
+#### SettingsDialog UI
+- Added "API.bible" group box to the Bible settings page
+- Password-masked API key input field
+- Help text explaining how to obtain a key from scripture.api.bible
+
+#### ControlWindow Integration
+- New `ApiBibleClient` member initialized in constructor with saved API key
+- Menu item: "Insert API.bible Scripture..." (Ctrl+Alt+B) under Slide menu
+- `onInsertApiBibleScripture()` slot: opens dialog, creates item, inserts into presentation
+- Undo snapshot support for the insertion action
+
+#### CMakeLists.txt
+- Added `ApiBibleClient.h/.cpp` and `ApiBibleScriptureItem.h/.cpp` to ClarityCore library
+- Added `ApiBibleScriptureDialog.h/.cpp` to Clarity executable
+
+#### PresentationItem & Presentation
+- Added `ApiBibleScriptureItemType` to the `ItemType` enum
+- Added `"apiBibleScripture"` to `typeName()` switch
+- Added deserialization case in `Presentation::fromJson()` factory
+
+### Technical Decisions
+- **Search endpoint over passage endpoint**: API.bible's search endpoint handles human-readable references (like "John 3:16") naturally, while the passage endpoint requires dot-delimited IDs (like "JHN.3.16"). Using search makes the UX much simpler - users type references the same way they would for ESV.
+- **No cache purging**: Unlike ESV, API.bible doesn't impose a strict 500-verse cache limit requiring purge. The 30-day cache refresh recommendation is noted but not enforced in the initial implementation.
+- **Bible version selection**: API.bible hosts many versions, so a combo box with version selection is essential (unlike ESV which is a single translation). Versions are fetched once and cached in-memory.
+- **Parallel pattern to ESV**: Following the exact same architectural pattern (dedicated client + item type + dialog) keeps the codebase consistent and makes both integrations easy to understand.
+
+### Testing
+- Manual code review (Qt6 not available in build environment)
+- Verified all API signatures, constructor initializer lists, and include chains
+- Confirmed JSON type names are unique and don't conflict with existing types
+
+### Issues/Blockers
+- Cannot compile/test without Qt6 installed
+- API.bible's `content-type=text` parameter is marked as "beta" - may need to fall back to HTML stripping if text output changes
+
+### Next Steps
+- Test the integration with actual API.bible calls once a build environment is available
+- Consider adding language filter options beyond English in the Bible version selector
+- Consider FUMS (Fair Use Management System) tracking for web-deployed versions
+
+### Commit(s)
+- Branch: `claude/add-esv-api-integration-LRGR8`
+
+---
+
+## 2026-02-18 - ESV API Integration for Scripture
+
+### Summary
+Added integration with the ESV (English Standard Version) Bible API as a scripture source. Users can now fetch scripture passages directly from the ESV API and insert them as slides. The implementation tracks cached verse counts (per ESV API terms limiting cached content to 500 verses) and makes ESV-sourced content easily identifiable and purgeable through a dedicated item type.
+
+### Work Completed
+
+#### Core: EsvApiClient (new)
+- HTTP client for the ESV API v3 passage text endpoint (`api.esv.org/v3/passage/text/`)
+- Asynchronous fetching via `QNetworkAccessManager` with authorization header
+- Request parameters optimized for slide display: no footnotes, no headings, verse numbers enabled for parsing
+- Response parsing extracts canonical reference, individual verses (split on `[N]` markers), and copyright
+- Cached verse count tracking with 500-verse limit enforcement per ESV API terms
+- User-friendly error messages for auth failures, rate limiting, and network errors
+
+#### Core: EsvScriptureItem (new)
+- New `PresentationItem` subclass with `EsvScriptureItemType` enum value
+- Stores pre-fetched verse text from the ESV API (the "cache" per ESV terms)
+- Slide generation with options: one verse per slide, verse numbers, header slide
+- `purgeCache()` method clears stored verse text and switches to placeholder display
+- `isPurged()` flag tracks purge state
+- Full JSON serialization/deserialization including cached verse data
+- Purgeability by design: all ESV items are trivially identifiable via `type() == EsvScriptureItemType`
+
+#### Core: PresentationItem enum extension
+- Added `EsvScriptureItemType` to the `ItemType` enum
+- Updated `typeName()` to return `"esvScripture"` for serialization
+
+#### Core: Presentation deserialization
+- Added `"esvScripture"` type handling in `Presentation::fromJson()` item factory
+
+#### Settings: ESV API key management
+- Added `esvApiKey()`, `setEsvApiKey()`, `hasEsvApiKey()` to SettingsManager
+- Added `esvCachedVerseCount()`, `setEsvCachedVerseCount()` for persistent cache tracking
+- API key stored via QSettings (platform-appropriate secure storage)
+
+#### Settings Dialog: ESV API key UI
+- Added "ESV Bible API" group to the Bible settings page
+- Password-masked API key input field
+- Cache status display showing current vs. maximum cached verses
+- Help text explaining how to obtain an API key from api.esv.org
+
+#### Control: EsvScriptureDialog (new)
+- Full dialog for searching, previewing, and inserting ESV scripture
+- Reference input with Enter-to-search and Fetch button
+- Live preview with theme-aware styling
+- Options: include verse numbers, one verse per slide, font size
+- Theme selector with scripture themes listed first
+- Cache limit awareness: warnings when approaching/exceeding 500-verse limit
+- Status feedback for API responses and errors
+
+#### Control: ControlWindow integration
+- "Insert ESV Scripture..." menu item (Ctrl+Shift+B) in Slide menu
+- "Purge ESV Cache..." menu item for removing cached ESV content
+- ESV API client initialization with saved API key on startup
+- Cached verse count restoration from settings
+- Purge action: iterates all presentation items, purges EsvScriptureItems, resets cache count
+
+### Technical Decisions
+- **Separate item type over marking existing slides**: Using a dedicated `EsvScriptureItem` rather than flags on `ScriptureItem` or `Slide`. This provides clean separation, makes purging trivial (iterate items by type), and avoids coupling ESV-specific concerns into the local Bible database code path.
+- **Pre-fetch model**: The dialog fetches verse text before creating the item (synchronous from user's perspective, async internally). This avoids storing API credentials in the item and ensures the user sees what they're inserting.
+- **Verse parsing via regex**: The ESV API returns verse numbers as `[N]` markers in text. Parsing these with regex provides reliable verse splitting for the one-verse-per-slide feature.
+- **Cache tracking at two levels**: `EsvApiClient` tracks the in-session count, `SettingsManager` persists it across sessions. This supports future cache eviction on app close.
+- **Purge vs. delete**: Purging clears verse text but keeps the item in the presentation (with placeholder). This preserves the presentation structure and lets users see where ESV content was.
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/Core/EsvApiClient.h/.cpp` | HTTP client for ESV API v3 |
+| `src/Core/EsvScriptureItem.h/.cpp` | Purgeable ESV scripture presentation item |
+| `src/Control/EsvScriptureDialog.h/.cpp` | Dialog for fetching/inserting ESV scripture |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/Core/PresentationItem.h` | Added `EsvScriptureItemType` to ItemType enum |
+| `src/Core/PresentationItem.cpp` | Added `"esvScripture"` to `typeName()` switch |
+| `src/Core/Presentation.cpp` | Added ESV item deserialization in `fromJson()` |
+| `src/Core/SettingsManager.h/.cpp` | Added ESV API key and cache count settings |
+| `src/Control/SettingsDialog.h/.cpp` | Added ESV API key UI to Bible settings page |
+| `src/Control/ControlWindow.h/.cpp` | Added ESV insert/purge actions, EsvApiClient member |
+| `CMakeLists.txt` | Added new source files to ClarityCore and Clarity targets |
+
+### ESV API Compliance Notes
+- Max 500 cached verses enforced via `EsvApiClient::wouldExceedCacheLimit()`
+- Cache count tracked in `SettingsManager` for persistence
+- Purge mechanism available via menu for manual cache clearing
+- Future work: automatic purge on app close (architecture supports it)
+- Copyright notice stored in `EsvPassage::copyright` for display requirements
+
+### Testing
+- Cannot build in this environment (no Qt6). Manual testing plan:
+  1. Set ESV API key in Settings > Bible
+  2. Use Slide > Insert ESV Scripture (Ctrl+Shift+B)
+  3. Enter reference (e.g., "John 3:16"), click Fetch
+  4. Verify preview shows verse text
+  5. Toggle options (verse numbers, one per slide)
+  6. Click Insert, verify slides appear in presentation
+  7. Verify ESV items show "ESV" subtitle in item list
+  8. Check cache count in Settings > Bible
+  9. Use Slide > Purge ESV Cache to clear content
+  10. Verify purged items show placeholder text
+  11. Save/load presentation with ESV items, verify serialization
+
+### Next Steps
+- Implement automatic ESV cache purge on application close
+- Add ESV verse count display in status bar
+- Consider adding ESV as an option in the existing scripture search flow
+- Test with real ESV API key on Windows with full Qt6 build
+
+---
+
 ## 2026-02-17 - Persist Output Screens Through Controller Crash/Close
 
 ### Summary

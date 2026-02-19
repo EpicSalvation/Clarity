@@ -3,6 +3,8 @@
 #include "SlideGroupItem.h"
 #include "SongItem.h"
 #include "ScriptureItem.h"
+#include "EsvScriptureItem.h"
+#include "ApiBibleScriptureItem.h"
 #include "SettingsManager.h"
 #include "ThemeManager.h"
 #include "Theme.h"
@@ -638,6 +640,10 @@ Presentation* Presentation::fromJson(const QJsonObject& json,
                 item = CustomSlideItem::fromJson(itemJson);
             } else if (typeName == "slideGroup") {
                 item = SlideGroupItem::fromJson(itemJson);
+            } else if (typeName == "esvScripture") {
+                item = EsvScriptureItem::fromJson(itemJson, settingsManager);
+            } else if (typeName == "apiBibleScripture") {
+                item = ApiBibleScriptureItem::fromJson(itemJson);
             } else {
                 qWarning("Unknown item type: %s", qPrintable(typeName));
                 continue;
