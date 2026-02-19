@@ -633,4 +633,18 @@ void SettingsManager::resetToDefaults()
     emit slidePreviewSizeChanged("small");
 }
 
+QString SettingsManager::themeMode() const
+{
+    return m_settings->value("UI/ThemeMode", "system").toString();
+}
+
+void SettingsManager::setThemeMode(const QString& mode)
+{
+    if (themeMode() != mode) {
+        m_settings->setValue("UI/ThemeMode", mode);
+        m_settings->sync();
+        emit themeModeChanged(mode);
+    }
+}
+
 } // namespace Clarity

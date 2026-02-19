@@ -1,8 +1,10 @@
 #include "ControlMain.h"
 #include "ControlWindow.h"
+#include "AppStyle.h"
 #include "Core/SettingsManager.h"
 #include <QApplication>
 #include <QIcon>
+#include <QStyleFactory>
 #include <QTranslator>
 #include <QLocale>
 #include <QLibraryInfo>
@@ -17,6 +19,10 @@ int ControlMain::run(int argc, char* argv[])
     app.setApplicationVersion("1.0.0");
     app.setOrganizationName("Clarity");
     app.setWindowIcon(QIcon(":/icons/clarity.ico"));
+
+    // Use Qt Fusion style as the base — it renders consistently across all
+    // platforms and is designed to work with custom QPalettes.
+    app.setStyle(QStyleFactory::create("Fusion"));
 
     // Load translations
     QTranslator qtTranslator;
@@ -78,6 +84,15 @@ int ControlMain::run(int argc, char* argv[])
     if (!loaded) {
         qDebug() << "No translations found for" << translationFile << ", using English";
         qDebug() << "Searched: :/i18n," << QApplication::applicationDirPath() + "/translations";
+    }
+
+    // Apply the saved visual theme (dark / light / system) before any windows open.
+    // We use a temporary SettingsManager here; the real one is created inside
+    // ControlWindow but shares the same QSettings storage.
+    {
+        SettingsManager themeSettings;
+        AppStyle::ThemeMode mode = AppStyle::fromString(themeSettings.themeMode());
+        AppStyle::apply(&app, mode);
     }
 
     ControlWindow window;

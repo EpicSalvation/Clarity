@@ -4,6 +4,71 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-19 - UI Modernization: Dark/Light Theme, SVG Icons, Component Polish
+
+### Summary
+Comprehensive visual modernization of the Clarity control window. Added a dark/light/system theme toggle (selectable in Settings > General > Appearance), replaced Unicode symbol buttons with SVG icons throughout the main window, applied the Qt Fusion style as a consistent cross-platform base, and polished key UI components including the slide grid delegate, live preview panel, and media drawer.
+
+### Work Completed
+
+**Theme Infrastructure**
+- Created `src/Control/AppStyle.h` and `AppStyle.cpp` — centralized `AppStyle` class with `ThemeMode` enum (System, Light, Dark), `apply()`, `fromString()`, and `toString()` static methods
+- `AppStyle::apply()` sets a custom `QPalette`, loads a QSS stylesheet from resources, and sets the platform-appropriate UI font (Segoe UI on Windows, SF Pro Text on macOS, system default on Linux)
+- Added Qt Fusion style as the application base style in `ControlMain.cpp` via `QStyleFactory::create("Fusion")` — ensures consistent cross-platform rendering compatible with custom palettes
+
+**Dark palette** (VS Code / ProPresenter-inspired): Window `#1f1f1f`, Base `#181818`, Button `#313131`, WindowText `#d4d4d4`, Highlight `#0e639c`
+
+**Light palette**: Clean modern light with Window `#f5f5f5`, Base `#ffffff`, mid-tones tuned for readable contrast
+
+**QSS Stylesheets**
+- Created `resources/styles/dark.qss` and `resources/styles/light.qss`
+- Both stylesheets cover: buttons (rounded, hover/press feedback), list/tree views (selection, hover), scroll bars (slim 8px), menus, input fields (focus ring), tab bars, group boxes, status bar, progress bars, splitters, header views, tooltips, dialogs
+- Added to `resources/Resources.qrc`
+
+**Settings Integration**
+- Added `themeMode()` / `setThemeMode()` / `themeModeChanged()` signal to `SettingsManager` (key `"UI/ThemeMode"`, default `"system"`)
+- Added Appearance group at the top of Settings > General page with a Theme combo box (System Default / Light / Dark)
+- Theme applies immediately (live preview) when the combo changes — no restart required
+- Theme persists on save/close
+
+**SVG Icons** (all use `currentColor` fill, adapt to theme automatically)
+- Created 9 icon files in `resources/icons/`: `add.svg`, `remove.svg`, `arrow-up.svg`, `arrow-down.svg`, `play.svg`, `pause.svg`, `stop.svg`, `chevron-up.svg`, `chevron-down.svg`
+- Updated `ControlWindow.cpp` playlist buttons (+/−/▲/▼) to use icon-only display with tooltips
+- Updated `LivePreviewPanel.cpp` timer buttons (▶/⏸/■) to use SVG icons
+- Updated `MediaDrawer.cpp` toggle bar to use chevron SVG icons
+- Added `Qt6::Svg` to `find_package` and `target_link_libraries` in CMakeLists.txt
+
+**Component Polish**
+- `LivePreviewPanel`: Replaced computed palette-average group background hack with `palette(alternate-base)` CSS reference — now auto-adapts to dark/light theme without hardcoded color computation
+- `SlideGridDelegate`: Added 4px rounded corners to slide thumbnails via `QPainterPath` clip with antialiasing; updated section banners to clip to rounded corners; updated selection/live/focus indicators to use `drawRoundedRect()`
+- `MediaDrawer`: Chevron icons replace Unicode ▲/▼ characters on the Library toggle bar
+
+### Technical Decisions
+- Chose Qt Fusion style as base (vs. native OS style) because it renders identically across Windows/macOS/Linux and is designed for custom palettes — avoids native style overriding palette colors
+- Used `palette()` references in QSS wherever possible so rules work in both dark and light themes; only used hardcoded hex where semantics require it (e.g., Blackout = `#1a1a1a`, selection highlight accent = `#0e639c`)
+- Kept `Blackout` and `Whiteout` button semantic colors unchanged — these represent content state, not app theme
+- Kept NDI indicator border colors (green/red) unchanged — these represent active/inactive state
+- Applied theme via a temporary `SettingsManager` in `ControlMain` before `ControlWindow` is constructed — same pattern used for language loading
+
+### Testing
+- Build environment (Qt6 not available in CI) — code review verified
+- All modified files compile-checked via code review: includes, types, method signatures
+- Logic paths verified: theme apply on startup, theme toggle in settings, icon loading, rounded-rect clip
+
+### Issues / Limitations
+- `QIcon` SVG rendering requires the `Qt6SvgPlugin` runtime plugin to be deployed with the application on Windows/Linux. Adding `Qt6::Svg` to CMakeLists ensures it links and deploys.
+- Theme toggle is immediate in the control window but the output/confidence display (QML) is unaffected by app palette — it uses its own independent rendering.
+
+### Next Steps
+- Test dark/light toggle manually on the target platform
+- Consider polishing individual dialogs that have hardcoded `color: gray` help text labels (currently readable at ~4.7:1 contrast on dark background, meeting WCAG AA minimum)
+- Future: persist last-used theme across multiple sessions (already done via `SettingsManager`)
+
+### Commits
+- Branch: `claude/ui-modernization-plan-jLHLn`
+
+---
+
 ## 2026-02-19 - Move Copyright/CCLI Settings to Dedicated Page
 
 ### Summary

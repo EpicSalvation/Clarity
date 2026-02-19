@@ -2,6 +2,7 @@
 #include "Core/PresentationModel.h"
 #include "Core/SlidePreviewRenderer.h"
 #include <QPainter>
+#include <QPainterPath>
 
 namespace Clarity {
 
@@ -78,8 +79,16 @@ void SlideGridDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
         m_thumbnailCache.insert(slideIndex, thumbnail);
     }
 
-    // Draw the thumbnail
-    painter->drawPixmap(thumbnailRect, thumbnail);
+    // Draw the thumbnail with rounded corners (4px radius)
+    {
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing, true);
+        QPainterPath clip;
+        clip.addRoundedRect(thumbnailRect, 4, 4);
+        painter->setClipPath(clip);
+        painter->drawPixmap(thumbnailRect, thumbnail);
+        painter->restore();
+    }
 
     // Draw section color-coded banner for song slides
     QString groupLabel = index.data(PresentationModel::GroupLabelRole).toString();
@@ -106,7 +115,13 @@ void SlideGridDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
             QRect bannerRect(thumbnailRect.left(), thumbnailRect.top(),
                              thumbnailRect.width(), bannerHeight);
 
-            // Semi-transparent colored background so slide content peeks through
+            // Clip banner to rounded thumbnail corners
+            painter->save();
+            painter->setRenderHint(QPainter::Antialiasing, true);
+            QPainterPath bannerClip;
+            bannerClip.addRoundedRect(thumbnailRect, 4, 4);
+            painter->setClipPath(bannerClip);
+
             QColor bannerColor = color;
             bannerColor.setAlpha(210);
             painter->fillRect(bannerRect, bannerColor);
@@ -118,6 +133,7 @@ void SlideGridDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
             painter->setFont(bannerFont);
             painter->setPen(Qt::white);
             painter->drawText(bannerRect, Qt::AlignCenter, groupLabel);
+            painter->restore();
         } else {
             // Continuation slides: thin color strip at top for visual continuity
             QRect stripRect(thumbnailRect.left(), thumbnailRect.top(),
@@ -126,33 +142,35 @@ void SlideGridDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
         }
     }
 
-    // Draw selection/current indicators on top
+    // Draw selection/current indicators on top (rounded to match thumbnail corners)
     bool isSelected = option.state & QStyle::State_Selected;
     bool isCurrentSlide = (slideIndex == m_currentSlideIndex);
 
+    painter->setRenderHint(QPainter::Antialiasing, true);
+
     if (isCurrentSlide) {
-        // Draw "live" indicator (green border)
+        // "Live" indicator: green rounded border
         QPen pen(QColor("#22c55e"));
         pen.setWidth(4);
         painter->setPen(pen);
         painter->setBrush(Qt::NoBrush);
-        painter->drawRect(thumbnailRect.adjusted(2, 2, -2, -2));
+        painter->drawRoundedRect(thumbnailRect.adjusted(2, 2, -2, -2), 3, 3);
     } else if (isSelected) {
-        // Draw selection highlight (blue border)
+        // Selection highlight: blue rounded border
         QPen pen(QColor("#3b82f6"));
         pen.setWidth(3);
         painter->setPen(pen);
         painter->setBrush(Qt::NoBrush);
-        painter->drawRect(thumbnailRect.adjusted(1, 1, -1, -1));
+        painter->drawRoundedRect(thumbnailRect.adjusted(1, 1, -1, -1), 3, 3);
     }
 
-    // Draw focus indicator if the item has focus
+    // Focus indicator
     if (option.state & QStyle::State_HasFocus) {
         QPen focusPen(Qt::DotLine);
         focusPen.setColor(QColor("#60a5fa"));
         painter->setPen(focusPen);
         painter->setBrush(Qt::NoBrush);
-        painter->drawRect(thumbnailRect.adjusted(-2, -2, 2, 2));
+        painter->drawRoundedRect(thumbnailRect.adjusted(-2, -2, 2, 2), 5, 5);
     }
 
     painter->restore();
