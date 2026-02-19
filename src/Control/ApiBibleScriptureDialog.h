@@ -4,7 +4,7 @@
 #include "Core/Song.h"  // For SlideStyle
 #include "Core/ApiBibleClient.h"
 #include "Core/ThemeManager.h"
-#include <QDialog>
+#include <QWidget>
 #include <QLineEdit>
 #include <QComboBox>
 #include <QLabel>
@@ -27,13 +27,25 @@ class SettingsManager;
  * - Preview with formatting options
  * - Inserting as slides
  */
-class ApiBibleScriptureDialog : public QDialog {
+class ApiBibleScriptureDialog : public QWidget {
     Q_OBJECT
 
 public:
     explicit ApiBibleScriptureDialog(ApiBibleClient* client, SettingsManager* settings = nullptr,
                                      ThemeManager* themeManager = nullptr, QWidget* parent = nullptr);
 
+    /**
+     * @brief Whether valid content is available for insertion
+     */
+    bool hasValidContent() const;
+
+signals:
+    /**
+     * @brief Emitted when content readiness changes
+     */
+    void contentReadyChanged(bool ready);
+
+public:
     /**
      * @brief Get the fetched passage data
      */
@@ -73,6 +85,11 @@ private:
     void populateThemes();
     void applyTheme(const Theme& theme);
     void loadBibles();
+    void onLanguageChanged(int index);
+    void onBibleVersionChanged(int index);
+    void filterBiblesByLanguage(const QString& languageId);
+    void populateEditions(const QString& abbreviation);
+    QString selectedBibleId() const;
 
     // References
     ApiBibleClient* m_client;
@@ -80,8 +97,14 @@ private:
     ThemeManager* m_themeManager;
 
     // Bible version selector
+    QComboBox* m_languageCombo;
     QComboBox* m_bibleCombo;
+    QComboBox* m_editionCombo;
+    QLabel* m_editionLabel;
     QPushButton* m_refreshBiblesButton;
+
+    // Cached full bible list for client-side language filtering
+    QList<ApiBibleVersion> m_allBibles;
 
     // Search controls
     QLineEdit* m_searchEdit;
@@ -97,10 +120,6 @@ private:
     QCheckBox* m_includeVerseNumbersCheck;
     QCheckBox* m_onePerSlideCheck;
     QSpinBox* m_fontSizeSpinBox;
-
-    // Dialog buttons
-    QPushButton* m_insertButton;
-    QPushButton* m_cancelButton;
 
     // Fetched data
     ApiBiblePassage m_passage;

@@ -4,7 +4,7 @@
 #include "Core/Song.h"  // For SlideStyle
 #include "Core/BibleDatabase.h"
 #include "Core/ThemeManager.h"
-#include <QDialog>
+#include <QWidget>
 #include <QLineEdit>
 #include <QComboBox>
 #include <QListWidget>
@@ -27,13 +27,13 @@ class SettingsManager;
  * - Verse preview with formatting options
  * - Insert as slides with configurable options
  */
-class ScriptureDialog : public QDialog {
+class ScriptureDialog : public QWidget {
     Q_OBJECT
 
 public:
     /**
-     * @brief Construct scripture dialog
-     * @param bible Pointer to BibleDatabase (must remain valid during dialog lifetime)
+     * @brief Construct scripture widget (embedded in ScriptureInsertDialog)
+     * @param bible Pointer to BibleDatabase (must remain valid during widget lifetime)
      * @param settings Pointer to SettingsManager for remembering translation preference
      * @param themeManager Pointer to ThemeManager for theme selection
      * @param parent Parent widget
@@ -41,6 +41,18 @@ public:
     explicit ScriptureDialog(BibleDatabase* bible, SettingsManager* settings = nullptr,
                             ThemeManager* themeManager = nullptr, QWidget* parent = nullptr);
 
+    /**
+     * @brief Whether valid content is available for insertion
+     */
+    bool hasValidContent() const;
+
+signals:
+    /**
+     * @brief Emitted when content readiness changes (e.g., selection made/cleared)
+     */
+    void contentReadyChanged(bool ready);
+
+public:
     /**
      * @brief Get the slides created from selected scripture
      * @return List of slides (empty if cancelled or no selection)
@@ -120,10 +132,6 @@ private:
     QCheckBox* m_includeReferenceCheck;
     QCheckBox* m_onePerSlideCheck;
     QSpinBox* m_fontSizeSpinBox;
-
-    // Dialog buttons
-    QPushButton* m_insertButton;
-    QPushButton* m_cancelButton;
 
     // Selected verses
     QList<BibleVerse> m_searchResults;

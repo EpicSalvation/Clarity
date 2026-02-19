@@ -178,6 +178,16 @@ public:
      */
     void setApiBibleLastBibleId(const QString& bibleId);
 
+    /**
+     * @brief Get the last selected API.bible language code
+     */
+    QString apiBibleLastLanguage() const;
+
+    /**
+     * @brief Set the last selected API.bible language code
+     */
+    void setApiBibleLastLanguage(const QString& languageCode);
+
     // Reset all settings to defaults
     void resetToDefaults();
 

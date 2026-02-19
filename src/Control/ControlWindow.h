@@ -83,9 +83,7 @@ private slots:
 
     // Content insertion
     void onInsertScripture();
-    void onInsertEsvScripture();
     void onPurgeEsvCache();
-    void onInsertApiBibleScripture();
     void onInsertSong();
     void onInsertSlideGroup();
     void onInsertSlideGroupFromLibrary(int groupId);

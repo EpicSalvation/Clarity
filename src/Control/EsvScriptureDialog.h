@@ -4,7 +4,7 @@
 #include "Core/Song.h"  // For SlideStyle
 #include "Core/EsvApiClient.h"
 #include "Core/ThemeManager.h"
-#include <QDialog>
+#include <QWidget>
 #include <QLineEdit>
 #include <QComboBox>
 #include <QLabel>
@@ -28,12 +28,12 @@ class EsvApiClient;
  * - Inserting as slides
  * - Cache limit awareness (500 verse max per ESV terms)
  */
-class EsvScriptureDialog : public QDialog {
+class EsvScriptureDialog : public QWidget {
     Q_OBJECT
 
 public:
     /**
-     * @brief Construct ESV scripture dialog
+     * @brief Construct ESV scripture widget (embedded in ScriptureInsertDialog)
      * @param esvClient ESV API client for fetching passages
      * @param settings Settings manager for preferences
      * @param themeManager Theme manager for theme selection
@@ -42,6 +42,18 @@ public:
     explicit EsvScriptureDialog(EsvApiClient* esvClient, SettingsManager* settings = nullptr,
                                 ThemeManager* themeManager = nullptr, QWidget* parent = nullptr);
 
+    /**
+     * @brief Whether valid content is available for insertion
+     */
+    bool hasValidContent() const;
+
+signals:
+    /**
+     * @brief Emitted when content readiness changes
+     */
+    void contentReadyChanged(bool ready);
+
+public:
     /**
      * @brief Get the fetched passage data
      */
@@ -100,10 +112,6 @@ private:
     QCheckBox* m_includeVerseNumbersCheck;
     QCheckBox* m_onePerSlideCheck;
     QSpinBox* m_fontSizeSpinBox;
-
-    // Dialog buttons
-    QPushButton* m_insertButton;
-    QPushButton* m_cancelButton;
 
     // Fetched data
     EsvPassage m_passage;

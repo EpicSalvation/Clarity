@@ -9,7 +9,7 @@
 
 namespace Clarity {
 
-const QString ApiBibleClient::API_BASE_URL = QStringLiteral("https://api.scripture.api.bible/v1");
+const QString ApiBibleClient::API_BASE_URL = QStringLiteral("https://rest.api.bible/v1");
 
 ApiBibleClient::ApiBibleClient(QObject* parent)
     : QObject(parent)
@@ -67,10 +67,10 @@ void ApiBibleClient::fetchPassage(const QString& bibleId, const QString& passage
         return;
     }
 
-    // Use content-type=text for plain text, include verse numbers
+    // Use content-type=html to preserve red letter (wj) markup
     QUrl url(API_BASE_URL + "/bibles/" + bibleId + "/passages/" + passageId);
     QUrlQuery query;
-    query.addQueryItem("content-type", "text");
+    query.addQueryItem("content-type", "html");
     query.addQueryItem("include-notes", "false");
     query.addQueryItem("include-titles", "false");
     query.addQueryItem("include-chapter-numbers", "false");
@@ -275,15 +275,16 @@ ApiBiblePassage ApiBibleClient::parsePassageResponse(const QByteArray& data) con
     passage.reference = dataObj["reference"].toString();
     passage.copyright = dataObj["copyright"].toString();
 
-    // The content field contains the passage text (format depends on content-type param)
+    // The content field contains HTML (with potential wj red letter markup)
     QString content = dataObj["content"].toString();
+    QString richContent = convertToRichText(content);
     passage.fullText = stripHtml(content).trimmed();
 
     // Get verse count from API
     passage.verseCount = dataObj["verseCount"].toInt(0);
 
-    // Parse individual verses from the text
-    passage.verses = parseVerses(passage.fullText);
+    // Parse individual verses from plain text and rich text in parallel
+    passage.verses = parseVerses(passage.fullText, richContent);
     if (passage.verses.count() > 0) {
         passage.verseCount = passage.verses.count();
     }
@@ -320,10 +321,11 @@ ApiBiblePassage ApiBibleClient::parseSearchResponse(const QByteArray& data) cons
         passage.copyright = passageObj["copyright"].toString();
 
         QString content = passageObj["content"].toString();
+        QString richContent = convertToRichText(content);
         passage.fullText = stripHtml(content).trimmed();
 
         passage.verseCount = passageObj["verseCount"].toInt(0);
-        passage.verses = parseVerses(passage.fullText);
+        passage.verses = parseVerses(passage.fullText, richContent);
         if (passage.verses.count() > 0) {
             passage.verseCount = passage.verses.count();
         }
@@ -345,7 +347,9 @@ ApiBiblePassage ApiBibleClient::parseSearchResponse(const QByteArray& data) cons
             QString verseId = verseObj["id"].toString();
             QStringList parts = verseId.split('.');
             verse.number = parts.isEmpty() ? 0 : parts.last().toInt();
-            verse.text = stripHtml(verseObj["text"].toString()).trimmed();
+            QString verseHtml = verseObj["text"].toString();
+            verse.text = stripHtml(verseHtml).trimmed();
+            verse.richText = convertToRichText(verseHtml);
 
             if (!verse.text.isEmpty()) {
                 passage.verses.append(verse);
@@ -376,6 +380,11 @@ QString ApiBibleClient::stripHtml(const QString& html) const
     // Remove HTML tags while preserving paragraph/line breaks
     QString text = html;
 
+    // Convert HTML verse markers (<span data-number="N" class="v">N</span>)
+    // to bracketed [N] format before stripping tags, so parseVerses can find them
+    text.replace(QRegularExpression(R"RE(<span[^>]*data-number="(\d+)"[^>]*class="v"[^>]*>\d+</span>)RE"), "[\\1] ");
+    text.replace(QRegularExpression(R"RE(<span[^>]*class="v"[^>]*data-number="(\d+)"[^>]*>\d+</span>)RE"), "[\\1] ");
+
     // Replace <p> and <br> tags with newlines before stripping all tags
     text.replace(QRegularExpression("<br\\s*/?>"), "\n");
     text.replace(QRegularExpression("<p[^>]*>"), "\n");
@@ -399,96 +408,150 @@ QString ApiBibleClient::stripHtml(const QString& html) const
     return text.trimmed();
 }
 
-QList<ApiBibleVerse> ApiBibleClient::parseVerses(const QString& content) const
+QString ApiBibleClient::convertToRichText(const QString& html) const
 {
-    QList<ApiBibleVerse> verses;
-
-    // API.bible with include-verse-numbers=true and content-type=text
-    // typically produces text with verse number markers like [16] or just numbers at line starts.
-    // Try the [N] format first (common with text content-type).
-    static const QRegularExpression bracketPattern(R"(\[(\d+)\]\s*)");
-
-    QRegularExpressionMatchIterator it = bracketPattern.globalMatch(content);
-
-    struct VerseMatch {
-        int number;
-        int textStart;
-    };
-
-    QList<VerseMatch> matches;
-    while (it.hasNext()) {
-        QRegularExpressionMatch match = it.next();
-        VerseMatch vm;
-        vm.number = match.captured(1).toInt();
-        vm.textStart = match.capturedEnd();
-        matches.append(vm);
+    // Check if the HTML contains any words-of-Jesus markup
+    if (!html.contains("class=\"wj\"") && !html.contains("class='wj'")) {
+        return QString();  // No red letter markup present
     }
 
-    // Extract text between consecutive markers
+    QString text = html;
+
+    // Convert verse number spans to bracketed markers (same as stripHtml)
+    text.replace(QRegularExpression(R"RE(<span[^>]*data-number="(\d+)"[^>]*class="v"[^>]*>\d+</span>)RE"), "[\\1] ");
+    text.replace(QRegularExpression(R"RE(<span[^>]*class="v"[^>]*data-number="(\d+)"[^>]*>\d+</span>)RE"), "[\\1] ");
+
+    // Convert <span class="wj"> to <span class="jesus"> (matching local Bible convention)
+    text.replace(QRegularExpression(R"RE(<span[^>]*class=["']wj["'][^>]*>)RE"), "<span class=\"jesus\">");
+
+    // Replace <p> and <br> tags with newlines
+    text.replace(QRegularExpression("<br\\s*/?>"), "\n");
+    text.replace(QRegularExpression("<p[^>]*>"), "\n");
+    text.replace(QRegularExpression("</p>"), "");
+
+    // Strip all remaining HTML tags EXCEPT <span class="jesus"> and </span>
+    // First, temporarily protect the jesus spans
+    text.replace("<span class=\"jesus\">", "\x01JESUS_OPEN\x01");
+    text.replace("</span>", "\x01JESUS_CLOSE\x01");
+
+    // Strip all remaining HTML tags
+    text.replace(QRegularExpression("<[^>]+>"), "");
+
+    // Restore the jesus spans
+    text.replace("\x01JESUS_OPEN\x01", "<span class=\"jesus\">");
+    text.replace("\x01JESUS_CLOSE\x01", "</span>");
+
+    // Decode common HTML entities
+    text.replace("&amp;", "&");
+    text.replace("&lt;", "<");
+    text.replace("&gt;", ">");
+    text.replace("&quot;", "\"");
+    text.replace("&#39;", "'");
+    text.replace("&nbsp;", " ");
+
+    // Collapse multiple whitespace/newlines
+    text.replace(QRegularExpression("[ \\t]+"), " ");
+    text.replace(QRegularExpression("\\n\\s*\\n+"), "\n");
+
+    return text.trimmed();
+}
+
+QList<ApiBibleVerse> ApiBibleClient::parseVerses(const QString& plainContent, const QString& richContent) const
+{
+    QList<ApiBibleVerse> verses;
+    bool hasRich = !richContent.isEmpty();
+
+    // Helper: extract verse text from a source string between bracket markers
+    auto extractBracketVerses = [](const QString& source, const QRegularExpression& pattern) {
+        struct VerseMatch { int number; int textStart; };
+        QList<VerseMatch> matches;
+
+        QRegularExpressionMatchIterator it = pattern.globalMatch(source);
+        while (it.hasNext()) {
+            QRegularExpressionMatch match = it.next();
+            matches.append({match.captured(1).toInt(), static_cast<int>(match.capturedEnd())});
+        }
+
+        QList<QPair<int, QString>> results;
+        for (int i = 0; i < matches.count(); ++i) {
+            int start = matches[i].textStart;
+            int end = source.length();
+            if (i + 1 < matches.count()) {
+                QString nextMarker = QStringLiteral("[%1]").arg(matches[i + 1].number);
+                int markerPos = source.indexOf(nextMarker, start);
+                if (markerPos >= 0) end = markerPos;
+            }
+            results.append({matches[i].number, source.mid(start, end - start).trimmed()});
+        }
+        return results;
+    };
+
+    // Try the [N] bracket format first (standard with HTML content-type + verse numbers)
+    static const QRegularExpression bracketPattern(R"(\[(\d+)\]\s*)");
+
+    auto plainVerses = extractBracketVerses(plainContent, bracketPattern);
+    auto richVerses = hasRich ? extractBracketVerses(richContent, bracketPattern) : decltype(plainVerses)();
+
+    if (!plainVerses.isEmpty()) {
+        for (int i = 0; i < plainVerses.count(); ++i) {
+            ApiBibleVerse verse;
+            verse.number = plainVerses[i].first;
+            verse.text = plainVerses[i].second;
+            // Match rich text by verse number
+            if (hasRich) {
+                for (const auto& rv : richVerses) {
+                    if (rv.first == verse.number) {
+                        verse.richText = rv.second;
+                        break;
+                    }
+                }
+            }
+            if (!verse.text.isEmpty()) {
+                verses.append(verse);
+            }
+        }
+        return verses;
+    }
+
+    // If no [N] markers found, try plain numeric markers at line/sentence starts
+    static const QRegularExpression numPattern(R"((?:^|\n)\s*(\d+)\s+)");
+
+    struct VerseMatch { int number; int textStart; };
+    QList<VerseMatch> matches;
+    QRegularExpressionMatchIterator it = numPattern.globalMatch(plainContent);
+    while (it.hasNext()) {
+        QRegularExpressionMatch match = it.next();
+        matches.append({match.captured(1).toInt(), static_cast<int>(match.capturedEnd())});
+    }
+
     for (int i = 0; i < matches.count(); ++i) {
         ApiBibleVerse verse;
         verse.number = matches[i].number;
 
         int start = matches[i].textStart;
-        int end = content.length();
+        int end = plainContent.length();
 
         if (i + 1 < matches.count()) {
-            // Find the opening bracket of the next marker
-            QString nextMarker = QStringLiteral("[%1]").arg(matches[i + 1].number);
-            int markerPos = content.indexOf(nextMarker, start);
-            if (markerPos >= 0) {
-                end = markerPos;
+            int nextMatchStart = matches[i + 1].textStart - QString::number(matches[i + 1].number).length() - 1;
+            if (nextMatchStart > start) {
+                end = nextMatchStart;
             }
         }
 
-        verse.text = content.mid(start, end - start).trimmed();
+        verse.text = plainContent.mid(start, end - start).trimmed();
         if (!verse.text.isEmpty()) {
             verses.append(verse);
         }
     }
 
-    // If no [N] markers found, try plain numeric markers at line/sentence starts
-    if (verses.isEmpty()) {
-        // Try matching "N " at the start of lines or after newlines
-        static const QRegularExpression numPattern(R"((?:^|\n)\s*(\d+)\s+)");
-        it = numPattern.globalMatch(content);
-
-        matches.clear();
-        while (it.hasNext()) {
-            QRegularExpressionMatch match = it.next();
-            VerseMatch vm;
-            vm.number = match.captured(1).toInt();
-            vm.textStart = match.capturedEnd();
-            matches.append(vm);
-        }
-
-        for (int i = 0; i < matches.count(); ++i) {
-            ApiBibleVerse verse;
-            verse.number = matches[i].number;
-
-            int start = matches[i].textStart;
-            int end = content.length();
-
-            if (i + 1 < matches.count()) {
-                // Look backward from next match start for start of its line
-                int nextMatchStart = matches[i + 1].textStart - QString::number(matches[i + 1].number).length() - 1;
-                if (nextMatchStart > start) {
-                    end = nextMatchStart;
-                }
-            }
-
-            verse.text = content.mid(start, end - start).trimmed();
-            if (!verse.text.isEmpty()) {
-                verses.append(verse);
-            }
-        }
-    }
-
     // Last resort: treat entire text as a single verse
-    if (verses.isEmpty() && !content.trimmed().isEmpty()) {
+    if (verses.isEmpty() && !plainContent.trimmed().isEmpty()) {
         ApiBibleVerse verse;
         verse.number = 1;
-        verse.text = content.trimmed();
+        verse.text = plainContent.trimmed();
+        if (hasRich) {
+            verse.richText = richContent;
+        }
         verses.append(verse);
     }
 

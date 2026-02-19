@@ -643,7 +643,7 @@ Presentation* Presentation::fromJson(const QJsonObject& json,
             } else if (typeName == "esvScripture") {
                 item = EsvScriptureItem::fromJson(itemJson, settingsManager);
             } else if (typeName == "apiBibleScripture") {
-                item = ApiBibleScriptureItem::fromJson(itemJson);
+                item = ApiBibleScriptureItem::fromJson(itemJson, settingsManager);
             } else {
                 qWarning("Unknown item type: %s", qPrintable(typeName));
                 continue;

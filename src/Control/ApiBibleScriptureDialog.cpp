@@ -6,12 +6,14 @@
 #include <QGroupBox>
 #include <QMessageBox>
 #include <QDebug>
+#include <QMap>
+#include <algorithm>
 
 namespace Clarity {
 
 ApiBibleScriptureDialog::ApiBibleScriptureDialog(ApiBibleClient* client, SettingsManager* settings,
                                                    ThemeManager* themeManager, QWidget* parent)
-    : QDialog(parent)
+    : QWidget(parent)
     , m_client(client)
     , m_settings(settings)
     , m_themeManager(themeManager)
@@ -22,9 +24,6 @@ ApiBibleScriptureDialog::ApiBibleScriptureDialog(ApiBibleClient* client, Setting
 {
     setupUI();
     populateThemes();
-
-    setWindowTitle(tr("Insert API.bible Scripture"));
-    resize(700, 550);
 
     // Connect to API client signals
     connect(m_client, &ApiBibleClient::biblesLoaded, this, &ApiBibleScriptureDialog::onBiblesLoaded);
@@ -37,26 +36,69 @@ ApiBibleScriptureDialog::ApiBibleScriptureDialog(ApiBibleClient* client, Setting
     m_searchEdit->setFocus();
 }
 
+bool ApiBibleScriptureDialog::hasValidContent() const
+{
+    return m_passage.isValid();
+}
+
 void ApiBibleScriptureDialog::setupUI()
 {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
 
     // Bible version selection
     QGroupBox* bibleGroup = new QGroupBox(tr("Bible Version"), this);
-    QHBoxLayout* bibleLayout = new QHBoxLayout(bibleGroup);
+    QVBoxLayout* bibleGroupLayout = new QVBoxLayout(bibleGroup);
+
+    // Language filter row
+    QHBoxLayout* languageRow = new QHBoxLayout();
+    QLabel* languageLabel = new QLabel(tr("Language:"), this);
+    languageRow->addWidget(languageLabel);
+
+    m_languageCombo = new QComboBox(this);
+    m_languageCombo->addItem(tr("Loading languages..."), "");
+    connect(m_languageCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ApiBibleScriptureDialog::onLanguageChanged);
+    languageRow->addWidget(m_languageCombo, 1);
+
+    m_refreshBiblesButton = new QPushButton(tr("Refresh"), this);
+    connect(m_refreshBiblesButton, &QPushButton::clicked, this, [this]() {
+        m_allBibles.clear();
+        m_languageCombo->clear();
+        m_languageCombo->addItem(tr("Loading languages..."), "");
+        m_bibleCombo->clear();
+        m_bibleCombo->addItem(tr("Loading Bible versions..."), "");
+        m_client->fetchBibles("");  // Fetch all languages
+    });
+    languageRow->addWidget(m_refreshBiblesButton);
+
+    bibleGroupLayout->addLayout(languageRow);
+
+    // Bible version row
+    QHBoxLayout* bibleRow = new QHBoxLayout();
+    QLabel* versionLabel = new QLabel(tr("Version:"), this);
+    bibleRow->addWidget(versionLabel);
 
     m_bibleCombo = new QComboBox(this);
     m_bibleCombo->setMinimumWidth(300);
     m_bibleCombo->addItem(tr("Loading Bible versions..."), "");
-    bibleLayout->addWidget(m_bibleCombo, 1);
+    connect(m_bibleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ApiBibleScriptureDialog::onBibleVersionChanged);
+    bibleRow->addWidget(m_bibleCombo, 1);
 
-    m_refreshBiblesButton = new QPushButton(tr("Refresh"), this);
-    connect(m_refreshBiblesButton, &QPushButton::clicked, this, [this]() {
-        m_bibleCombo->clear();
-        m_bibleCombo->addItem(tr("Loading Bible versions..."), "");
-        m_client->fetchBibles("eng");
-    });
-    bibleLayout->addWidget(m_refreshBiblesButton);
+    bibleGroupLayout->addLayout(bibleRow);
+
+    // Edition row (shown only when a version has multiple editions)
+    QHBoxLayout* editionRow = new QHBoxLayout();
+    m_editionLabel = new QLabel(tr("Edition:"), this);
+    editionRow->addWidget(m_editionLabel);
+
+    m_editionCombo = new QComboBox(this);
+    editionRow->addWidget(m_editionCombo, 1);
+
+    m_editionLabel->setVisible(false);
+    m_editionCombo->setVisible(false);
+
+    bibleGroupLayout->addLayout(editionRow);
 
     mainLayout->addWidget(bibleGroup);
 
@@ -157,21 +199,6 @@ void ApiBibleScriptureDialog::setupUI()
     optionsMainLayout->addLayout(optionsRow2);
 
     mainLayout->addWidget(optionsGroup);
-
-    // Dialog buttons
-    QHBoxLayout* buttonLayout = new QHBoxLayout();
-    buttonLayout->addStretch();
-
-    m_insertButton = new QPushButton(tr("Insert"), this);
-    m_insertButton->setEnabled(false);
-    connect(m_insertButton, &QPushButton::clicked, this, &QDialog::accept);
-    buttonLayout->addWidget(m_insertButton);
-
-    m_cancelButton = new QPushButton(tr("Cancel"), this);
-    connect(m_cancelButton, &QPushButton::clicked, this, &QDialog::reject);
-    buttonLayout->addWidget(m_cancelButton);
-
-    mainLayout->addLayout(buttonLayout);
 }
 
 void ApiBibleScriptureDialog::populateThemes()
@@ -268,36 +295,194 @@ void ApiBibleScriptureDialog::loadBibles()
         // Use previously fetched list
         onBiblesLoaded(m_client->cachedBibles());
     } else {
-        // Fetch from API
-        m_client->fetchBibles("eng");
+        // Fetch all languages from API
+        m_client->fetchBibles("");
     }
 }
 
 void ApiBibleScriptureDialog::onBiblesLoaded(const QList<ApiBibleVersion>& bibles)
 {
+    m_allBibles = bibles;
+
+    // Extract unique languages and sort by name
+    QMap<QString, QString> languageMap;  // id -> name
+    for (const ApiBibleVersion& bible : bibles) {
+        if (!bible.languageId.isEmpty() && !languageMap.contains(bible.languageId)) {
+            languageMap.insert(bible.languageId, bible.language);
+        }
+    }
+
+    // Populate language combo sorted by language name
+    m_languageCombo->blockSignals(true);
+    m_languageCombo->clear();
+    m_languageCombo->addItem(tr("All Languages"), "");
+
+    // Build sorted list by name
+    QList<QPair<QString, QString>> sortedLangs;  // name, id
+    for (auto it = languageMap.constBegin(); it != languageMap.constEnd(); ++it) {
+        sortedLangs.append({it.value(), it.key()});
+    }
+    std::sort(sortedLangs.begin(), sortedLangs.end());
+
+    for (const auto& pair : sortedLangs) {
+        m_languageCombo->addItem(pair.first, pair.second);
+    }
+
+    // Restore last selected language (default: "eng")
+    QString lastLang = m_settings ? m_settings->apiBibleLastLanguage() : QStringLiteral("eng");
+    int langIdx = m_languageCombo->findData(lastLang);
+    if (langIdx < 0) langIdx = m_languageCombo->findData("eng");
+    if (langIdx < 0) langIdx = 0;
+    m_languageCombo->setCurrentIndex(langIdx);
+    m_languageCombo->blockSignals(false);
+
+    // Filter bibles by selected language
+    filterBiblesByLanguage(m_languageCombo->currentData().toString());
+}
+
+void ApiBibleScriptureDialog::onLanguageChanged(int index)
+{
+    Q_UNUSED(index);
+    QString languageId = m_languageCombo->currentData().toString();
+    filterBiblesByLanguage(languageId);
+
+    // Persist language selection
+    if (m_settings) {
+        m_settings->setApiBibleLastLanguage(languageId);
+    }
+}
+
+void ApiBibleScriptureDialog::filterBiblesByLanguage(const QString& languageId)
+{
+    m_bibleCombo->blockSignals(true);
     m_bibleCombo->clear();
 
-    if (bibles.isEmpty()) {
+    // Filter by language
+    QList<ApiBibleVersion> filtered;
+    for (const ApiBibleVersion& bible : m_allBibles) {
+        if (languageId.isEmpty() || bible.languageId == languageId) {
+            filtered.append(bible);
+        }
+    }
+
+    if (filtered.isEmpty()) {
         m_bibleCombo->addItem(tr("No Bible versions available"), "");
+        m_editionLabel->setVisible(false);
+        m_editionCombo->setVisible(false);
+        m_bibleCombo->blockSignals(false);
         return;
     }
 
-    // Populate combo box, sorted by abbreviation
-    for (const ApiBibleVersion& bible : bibles) {
-        QString displayText = QStringLiteral("%1 - %2").arg(bible.abbreviation, bible.name);
-        m_bibleCombo->addItem(displayText, bible.id);
+    // Show unique abbreviations only (first occurrence represents the group)
+    QSet<QString> seenAbbreviations;
+    for (const ApiBibleVersion& bible : filtered) {
+        if (!seenAbbreviations.contains(bible.abbreviation)) {
+            seenAbbreviations.insert(bible.abbreviation);
+            QString displayText = QStringLiteral("%1 - %2").arg(bible.abbreviation, bible.name);
+            // Store abbreviation as data so we can look up editions
+            m_bibleCombo->addItem(displayText, bible.abbreviation);
+        }
     }
 
-    // Try to select a saved preference or default to first item
+    // Try to restore last selected Bible version by finding its abbreviation
+    QString targetAbbr;
     if (m_settings) {
         QString lastBibleId = m_settings->apiBibleLastBibleId();
         if (!lastBibleId.isEmpty()) {
-            int idx = m_bibleCombo->findData(lastBibleId);
-            if (idx >= 0) {
-                m_bibleCombo->setCurrentIndex(idx);
+            for (const ApiBibleVersion& bible : m_allBibles) {
+                if (bible.id == lastBibleId) {
+                    targetAbbr = bible.abbreviation;
+                    break;
+                }
             }
         }
     }
+
+    if (!targetAbbr.isEmpty()) {
+        int idx = m_bibleCombo->findData(targetAbbr);
+        if (idx >= 0) {
+            m_bibleCombo->setCurrentIndex(idx);
+        }
+    }
+
+    m_bibleCombo->blockSignals(false);
+
+    // Populate editions for the current selection
+    onBibleVersionChanged(m_bibleCombo->currentIndex());
+}
+
+void ApiBibleScriptureDialog::onBibleVersionChanged(int index)
+{
+    Q_UNUSED(index);
+    QString abbreviation = m_bibleCombo->currentData().toString();
+    populateEditions(abbreviation);
+}
+
+void ApiBibleScriptureDialog::populateEditions(const QString& abbreviation)
+{
+    m_editionCombo->blockSignals(true);
+    m_editionCombo->clear();
+
+    if (abbreviation.isEmpty()) {
+        m_editionLabel->setVisible(false);
+        m_editionCombo->setVisible(false);
+        m_editionCombo->blockSignals(false);
+        return;
+    }
+
+    // Find all variants with this abbreviation in the current language
+    QString languageId = m_languageCombo->currentData().toString();
+    QList<ApiBibleVersion> variants;
+    for (const ApiBibleVersion& bible : m_allBibles) {
+        if (bible.abbreviation == abbreviation &&
+            (languageId.isEmpty() || bible.languageId == languageId)) {
+            variants.append(bible);
+        }
+    }
+
+    if (variants.size() <= 1) {
+        // Single edition — hide the combo
+        m_editionLabel->setVisible(false);
+        m_editionCombo->setVisible(false);
+    } else {
+        // Multiple editions — show the combo
+        for (const ApiBibleVersion& bible : variants) {
+            QString label = bible.description.isEmpty() ? bible.id : bible.description;
+            m_editionCombo->addItem(label, bible.id);
+        }
+
+        // Try to restore last selected Bible ID
+        if (m_settings) {
+            QString lastBibleId = m_settings->apiBibleLastBibleId();
+            int idx = m_editionCombo->findData(lastBibleId);
+            if (idx >= 0) {
+                m_editionCombo->setCurrentIndex(idx);
+            }
+        }
+
+        m_editionLabel->setVisible(true);
+        m_editionCombo->setVisible(true);
+    }
+
+    m_editionCombo->blockSignals(false);
+}
+
+QString ApiBibleScriptureDialog::selectedBibleId() const
+{
+    if (m_editionCombo->isVisible() && m_editionCombo->count() > 0) {
+        return m_editionCombo->currentData().toString();
+    }
+
+    // Single edition — look up the ID from the abbreviation
+    QString abbreviation = m_bibleCombo->currentData().toString();
+    QString languageId = m_languageCombo->currentData().toString();
+    for (const ApiBibleVersion& bible : m_allBibles) {
+        if (bible.abbreviation == abbreviation &&
+            (languageId.isEmpty() || bible.languageId == languageId)) {
+            return bible.id;
+        }
+    }
+    return QString();
 }
 
 void ApiBibleScriptureDialog::onSearch()
@@ -307,7 +492,7 @@ void ApiBibleScriptureDialog::onSearch()
         return;
     }
 
-    QString bibleId = m_bibleCombo->currentData().toString();
+    QString bibleId = selectedBibleId();
     if (bibleId.isEmpty()) {
         QMessageBox::warning(this, tr("No Bible Selected"),
             tr("Please select a Bible version before searching."));
@@ -317,7 +502,7 @@ void ApiBibleScriptureDialog::onSearch()
     m_statusLabel->setText(tr("Fetching from API.bible..."));
     m_statusLabel->setStyleSheet("");
     m_searchButton->setEnabled(false);
-    m_insertButton->setEnabled(false);
+    emit contentReadyChanged(false);
     m_passage = ApiBiblePassage();  // Clear previous
 
     // Use the search endpoint which handles human-readable references well
@@ -329,24 +514,20 @@ void ApiBibleScriptureDialog::onPassageFetched(const ApiBiblePassage& passage)
     m_searchButton->setEnabled(true);
     m_passage = passage;
 
-    // Store the Bible abbreviation from the selected combo item
-    int currentIdx = m_bibleCombo->currentIndex();
-    if (currentIdx >= 0 && m_client->hasCachedBibles()) {
-        const QList<ApiBibleVersion>& bibles = m_client->cachedBibles();
-        QString selectedId = m_bibleCombo->currentData().toString();
-        for (const ApiBibleVersion& bible : bibles) {
-            if (bible.id == selectedId) {
-                m_passage.bibleAbbreviation = bible.abbreviation;
-                m_passage.copyright = bible.copyright;
-                break;
-            }
+    // Store the Bible abbreviation and copyright from the selected version
+    QString bibleId = selectedBibleId();
+    for (const ApiBibleVersion& bible : m_allBibles) {
+        if (bible.id == bibleId) {
+            m_passage.bibleAbbreviation = bible.abbreviation;
+            m_passage.copyright = bible.copyright;
+            break;
         }
     }
 
     if (!passage.isValid()) {
         m_statusLabel->setText(tr("No passage found for the given reference."));
         m_statusLabel->setStyleSheet("QLabel { color: red; }");
-        m_insertButton->setEnabled(false);
+        emit contentReadyChanged(false);
         m_previewEdit->clear();
         m_copyrightLabel->clear();
         return;
@@ -364,10 +545,10 @@ void ApiBibleScriptureDialog::onPassageFetched(const ApiBiblePassage& passage)
 
     // Save the selected Bible ID for next time
     if (m_settings) {
-        m_settings->setApiBibleLastBibleId(m_bibleCombo->currentData().toString());
+        m_settings->setApiBibleLastBibleId(selectedBibleId());
     }
 
-    m_insertButton->setEnabled(true);
+    emit contentReadyChanged(true);
     updatePreview();
 }
 
@@ -376,7 +557,7 @@ void ApiBibleScriptureDialog::onFetchError(const QString& error)
     m_searchButton->setEnabled(true);
     m_statusLabel->setText(error);
     m_statusLabel->setStyleSheet("QLabel { color: red; }");
-    m_insertButton->setEnabled(false);
+    emit contentReadyChanged(false);
     m_previewEdit->clear();
 }
 

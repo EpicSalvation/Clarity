@@ -12,7 +12,7 @@ namespace Clarity {
 
 EsvScriptureDialog::EsvScriptureDialog(EsvApiClient* esvClient, SettingsManager* settings,
                                        ThemeManager* themeManager, QWidget* parent)
-    : QDialog(parent)
+    : QWidget(parent)
     , m_esvClient(esvClient)
     , m_settings(settings)
     , m_themeManager(themeManager)
@@ -25,14 +25,16 @@ EsvScriptureDialog::EsvScriptureDialog(EsvApiClient* esvClient, SettingsManager*
     populateThemes();
     updateCacheStatus();
 
-    setWindowTitle(tr("Insert ESV Scripture"));
-    resize(650, 500);
-
     // Connect to ESV API client signals
     connect(m_esvClient, &EsvApiClient::passageFetched, this, &EsvScriptureDialog::onPassageFetched);
     connect(m_esvClient, &EsvApiClient::fetchError, this, &EsvScriptureDialog::onFetchError);
 
     m_searchEdit->setFocus();
+}
+
+bool EsvScriptureDialog::hasValidContent() const
+{
+    return m_passage.isValid();
 }
 
 void EsvScriptureDialog::setupUI()
@@ -127,21 +129,6 @@ void EsvScriptureDialog::setupUI()
     optionsMainLayout->addLayout(optionsRow2);
 
     mainLayout->addWidget(optionsGroup);
-
-    // Dialog buttons
-    QHBoxLayout* buttonLayout = new QHBoxLayout();
-    buttonLayout->addStretch();
-
-    m_insertButton = new QPushButton(tr("Insert"), this);
-    m_insertButton->setEnabled(false);
-    connect(m_insertButton, &QPushButton::clicked, this, &QDialog::accept);
-    buttonLayout->addWidget(m_insertButton);
-
-    m_cancelButton = new QPushButton(tr("Cancel"), this);
-    connect(m_cancelButton, &QPushButton::clicked, this, &QDialog::reject);
-    buttonLayout->addWidget(m_cancelButton);
-
-    mainLayout->addLayout(buttonLayout);
 }
 
 void EsvScriptureDialog::populateThemes()
@@ -250,7 +237,7 @@ void EsvScriptureDialog::onSearch()
     m_statusLabel->setText(tr("Fetching from ESV API..."));
     m_statusLabel->setStyleSheet("");
     m_searchButton->setEnabled(false);
-    m_insertButton->setEnabled(false);
+    emit contentReadyChanged(false);
     m_passage = EsvPassage();  // Clear previous
 
     m_esvClient->fetchPassage(reference);
@@ -264,7 +251,7 @@ void EsvScriptureDialog::onPassageFetched(const EsvPassage& passage)
     if (!passage.isValid()) {
         m_statusLabel->setText(tr("No passage found for the given reference."));
         m_statusLabel->setStyleSheet("QLabel { color: red; }");
-        m_insertButton->setEnabled(false);
+        emit contentReadyChanged(false);
         m_previewEdit->clear();
         return;
     }
@@ -283,7 +270,7 @@ void EsvScriptureDialog::onPassageFetched(const EsvPassage& passage)
         m_statusLabel->setStyleSheet("QLabel { color: green; }");
     }
 
-    m_insertButton->setEnabled(true);
+    emit contentReadyChanged(true);
     updatePreview();
     updateCacheStatus();
 }
@@ -293,7 +280,7 @@ void EsvScriptureDialog::onFetchError(const QString& error)
     m_searchButton->setEnabled(true);
     m_statusLabel->setText(error);
     m_statusLabel->setStyleSheet("QLabel { color: red; }");
-    m_insertButton->setEnabled(false);
+    emit contentReadyChanged(false);
     m_previewEdit->clear();
 }
 

@@ -117,6 +117,8 @@ add_executable(Clarity
     src/Control/EsvScriptureDialog.cpp
     src/Control/ApiBibleScriptureDialog.h
     src/Control/ApiBibleScriptureDialog.cpp
+    src/Control/ScriptureInsertDialog.h
+    src/Control/ScriptureInsertDialog.cpp
     src/Control/SongLibraryDialog.h
     src/Control/SongLibraryDialog.cpp
     src/Control/SongEditorDialog.h

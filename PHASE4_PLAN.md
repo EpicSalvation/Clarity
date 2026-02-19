@@ -51,6 +51,7 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [x] Multiple translation support
   - [x] Automatic verse formatting
   - [x] Scripture-specific themes
+  - [x] Unified tabbed scripture dialog (Local Bible, ESV API, API.bible)
 
 - [x] **Bible Translation Importer**
   - [x] Multi-format support: OSIS XML, USFM, USX, USFX, Zefania XML, TSV
@@ -66,6 +67,7 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [x] Verse-level markup in database schema
   - [x] UI option to enable/disable red letters
   - [x] Rich text support in slides
+  - [x] API.bible red letter support (via `<span class="wj">` → `<span class="jesus">` conversion)
 
 - [x] **SongSelect Integration**
   - [x] USR file format import (SongSelect's native format)

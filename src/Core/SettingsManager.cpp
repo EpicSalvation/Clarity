@@ -568,6 +568,19 @@ void SettingsManager::setApiBibleLastBibleId(const QString& bibleId)
     }
 }
 
+QString SettingsManager::apiBibleLastLanguage() const
+{
+    return m_settings->value("ApiBible/LastLanguage", "eng").toString();
+}
+
+void SettingsManager::setApiBibleLastLanguage(const QString& languageCode)
+{
+    if (apiBibleLastLanguage() != languageCode) {
+        m_settings->setValue("ApiBible/LastLanguage", languageCode);
+        m_settings->sync();
+    }
+}
+
 void SettingsManager::resetToDefaults()
 {
     qDebug() << "SettingsManager: Resetting all settings to defaults";

@@ -12,7 +12,7 @@ namespace Clarity {
 
 ScriptureDialog::ScriptureDialog(BibleDatabase* bible, SettingsManager* settings,
                                    ThemeManager* themeManager, QWidget* parent)
-    : QDialog(parent)
+    : QWidget(parent)
     , m_bible(bible)
     , m_settings(settings)
     , m_themeManager(themeManager)
@@ -25,11 +25,13 @@ ScriptureDialog::ScriptureDialog(BibleDatabase* bible, SettingsManager* settings
     populateTranslations();
     populateThemes();
 
-    setWindowTitle(tr("Insert Scripture"));
-    resize(700, 550);
-
     // Set focus to search field
     m_searchEdit->setFocus();
+}
+
+bool ScriptureDialog::hasValidContent() const
+{
+    return !m_selectedVerses.isEmpty();
 }
 
 void ScriptureDialog::setupUI()
@@ -169,21 +171,6 @@ void ScriptureDialog::setupUI()
     optionsMainLayout->addLayout(optionsRow2);
 
     mainLayout->addWidget(optionsGroup);
-
-    // Dialog buttons
-    QHBoxLayout* buttonLayout = new QHBoxLayout();
-    buttonLayout->addStretch();
-
-    m_insertButton = new QPushButton("Insert", this);
-    m_insertButton->setEnabled(false);  // Disabled until selection
-    connect(m_insertButton, &QPushButton::clicked, this, &QDialog::accept);
-    buttonLayout->addWidget(m_insertButton);
-
-    m_cancelButton = new QPushButton("Cancel", this);
-    connect(m_cancelButton, &QPushButton::clicked, this, &QDialog::reject);
-    buttonLayout->addWidget(m_cancelButton);
-
-    mainLayout->addLayout(buttonLayout);
 }
 
 void ScriptureDialog::populateTranslations()
@@ -362,7 +349,7 @@ void ScriptureDialog::onReferenceSearch()
     if (verses.isEmpty()) {
         m_resultsCountLabel->setText("Results: 0 - Reference not found");
         m_previewEdit->clear();
-        m_insertButton->setEnabled(false);
+        emit contentReadyChanged(false);
         return;
     }
 
@@ -409,7 +396,7 @@ void ScriptureDialog::onKeywordSearch()
     if (verses.isEmpty()) {
         m_resultsCountLabel->setText("Results: 0 - No matching verses found");
         m_previewEdit->clear();
-        m_insertButton->setEnabled(false);
+        emit contentReadyChanged(false);
         return;
     }
 
@@ -443,7 +430,7 @@ void ScriptureDialog::onResultSelectionChanged()
         }
     }
 
-    m_insertButton->setEnabled(!m_selectedVerses.isEmpty());
+    emit contentReadyChanged(!m_selectedVerses.isEmpty());
     updatePreview();
 }
 

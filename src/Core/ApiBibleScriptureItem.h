@@ -5,6 +5,8 @@
 
 namespace Clarity {
 
+class SettingsManager;
+
 /**
  * @brief A presentation item that displays scripture from the API.bible service
  *
@@ -70,9 +72,13 @@ public:
     bool includeHeaderSlide() const { return m_includeHeaderSlide; }
     void setIncludeHeaderSlide(bool include);
 
+    // Settings manager (for red letter support)
+    SettingsManager* settingsManager() const { return m_settingsManager; }
+    void setSettingsManager(SettingsManager* settings);
+
     // JSON serialization
     QJsonObject toJson() const override;
-    static ApiBibleScriptureItem* fromJson(const QJsonObject& json);
+    static ApiBibleScriptureItem* fromJson(const QJsonObject& json, SettingsManager* settings = nullptr);
 
 private:
     QString m_reference;
@@ -84,6 +90,8 @@ private:
     bool m_oneVersePerSlide;
     bool m_includeVerseNumbers;
     bool m_includeHeaderSlide;
+
+    SettingsManager* m_settingsManager;
 };
 
 } // namespace Clarity

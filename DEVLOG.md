@@ -4,6 +4,108 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-18 - Graceful Child Process Shutdown on Control App Close
+
+### Summary
+Fixed an issue where output, confidence, and NDI child processes were not closing when the control app was closed deliberately. The `closeEvent()` was missing a call to `ProcessManager::quitAll()`, so detached child processes were orphaned on graceful shutdown while still correctly surviving crashes.
+
+### Work Completed
+- Added `m_processManager->quitAll()` call in `ControlWindow::closeEvent()` before `event->accept()`
+- This sends `"quit"` IPC messages to all connected child processes (output, confidence, NDI), which call `QCoreApplication::quit()` to shut down cleanly
+- Crash resilience is preserved: if the control app crashes, no quit message is sent, so children stay alive and auto-reconnect every 2 seconds as designed
+
+### Technical Decisions
+- One-line fix in `closeEvent()` — the `quitAll()` mechanism already existed in ProcessManager but was never called during window close
+- The fix is placed before `event->accept()` so the quit messages are sent while the IPC server is still running
+
+### Testing
+- Build succeeds
+- Manual verification: close control window, observe all child processes exit
+
+---
+
+## 2026-02-18 - API.bible Red Letter Support & Settings Scrollability
+
+### Summary
+Added red letter (words of Jesus) support for API.bible scripture passages, and made the Settings dialog pages scrollable so the Bible settings page doesn't force the window to be oversized.
+
+### Work Completed
+
+#### Red Letter Support for API.bible
+- Changed `ApiBibleClient::fetchPassage()` from `content-type=text` to `content-type=html` to receive markup including `<span class="wj">` (words of Jesus) tags
+- Added `convertToRichText()` method to convert API.bible's `wj` class to Clarity's `jesus` class convention (`<span class="jesus">`)
+- Added `richText` field to `ApiBibleVerse` struct for per-verse rich text storage
+- Updated `parseVerses()` to process both plain and rich content in parallel, matching rich text to verses by verse number
+- Updated `ApiBibleScriptureItem::generateSlides()` to use rich text when red letters are enabled (follows same pattern as local `ScriptureItem`)
+- Added `SettingsManager*` to `ApiBibleScriptureItem` for runtime access to red letter setting
+- Updated JSON serialization/deserialization to persist `richText` per verse
+- Updated `Presentation::fromJson()` to pass `SettingsManager*` to `ApiBibleScriptureItem::fromJson()`
+- Updated `ControlWindow::onInsertScripture()` to set settings manager on new ApiBible items
+
+#### Settings Dialog Scrollability
+- Wrapped all four settings pages (General, Display, Remote Control, Bible) in `QScrollArea`
+- Used `setWidgetResizable(true)` and `setFrameShape(QFrame::NoFrame)` for seamless integration
+- Dialog now fits comfortably on screen regardless of page content height
+
+#### Red Letter Settings Note
+- Updated the red letter help text in SettingsDialog to note that not all translations support the feature
+- Clarified that local imports (WEB, NET, etc.) and some API.bible versions support red letters, while ESV API does not
+
+### Technical Decisions
+- API.bible uses `<span class="wj">` for words of Jesus; converted to `<span class="jesus">` to match Clarity's existing pipeline (BibleImporter, Slide.richText, OutputDisplay QML)
+- Rich text is stored per verse rather than per passage for accurate verse-level rendering
+- If no `wj` markup exists in the HTML response, `richText` is left empty (no overhead for translations without red letters)
+
+### Testing
+- Build succeeds
+- Manual verification needed: fetch API.bible passage with red letter translation, verify red text on slides
+
+---
+
+## 2026-02-18 - Combine Scripture Dialogs into Single Tabbed Dialog
+
+### Summary
+Consolidated three separate scripture dialogs (Local Bible, ESV API, API.bible) into a single tabbed dialog accessible via Ctrl+B. Previously each source had its own menu item and keyboard shortcut; now all are discoverable in one place with a unified Insert/Cancel button bar.
+
+### Work Completed
+
+#### Dialog Refactoring
+- Converted `ScriptureDialog`, `EsvScriptureDialog`, and `ApiBibleScriptureDialog` from `QDialog` to `QWidget` subclasses
+- Removed dialog-level Insert/Cancel buttons, window title, and resize from each widget
+- Added `hasValidContent()` method and `contentReadyChanged(bool)` signal to each widget so the wrapper can track content state
+
+#### New ScriptureInsertDialog (wrapper)
+- Created `ScriptureInsertDialog` (`QDialog`) with a `QTabWidget` containing all three scripture widgets as tabs
+- Tabs: "Local Bible" (default), "ESV (API)", "API.bible"
+- Shared Insert/Cancel buttons at the bottom of the dialog
+- Insert button enables/disables based on active tab's content readiness
+- Tab switching correctly updates the Insert button state via `onTabChanged()`
+- `activeSource()` enum returns which tab is active so `ControlWindow` can create the correct item type
+
+#### ControlWindow Simplification
+- Replaced three menu items (Insert Scripture, Insert ESV Scripture, Insert API.bible Scripture) with a single "Insert Scripture..." (Ctrl+B)
+- Removed Ctrl+Shift+B and Ctrl+Alt+B shortcuts
+- Rewrote `onInsertScripture()` to use `ScriptureInsertDialog`, then switch on `activeSource()` to create the appropriate item type
+- Deleted `onInsertEsvScripture()` and `onInsertApiBibleScripture()` methods and slot declarations
+- API key syncing for both ESV and API.bible happens at dialog open time
+
+### Technical Decisions
+- Kept each tab as a self-contained widget with its own search, preview, options, and theme controls — avoids complex cross-tab synchronization
+- Tabs are always shown even if prerequisites aren't met (no bible.db, no API key) — more discoverable than hiding/disabling tabs
+- Used signal-based content readiness (`contentReadyChanged`) rather than polling, with `sender()` check to ignore signals from non-active tabs
+
+### Testing
+- Build succeeds (9/9 compilation units)
+- Manual verification needed: open dialog, switch tabs, search in each, insert from each
+
+### Issues/Blockers
+None.
+
+### Next Steps
+- Test all three tabs end-to-end
+
+---
+
 ## 2026-02-18 - API.bible Integration for Scripture
 
 ### Summary

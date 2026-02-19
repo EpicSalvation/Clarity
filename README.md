@@ -65,10 +65,13 @@ Clarity now includes comprehensive presentation features suitable for worship se
 - **SongSelect search** opens browser search on Google or SongSelect directly
 
 #### Scripture Support
+- **Unified scripture dialog** — single tabbed interface for all scripture sources (Ctrl+B)
 - **Built-in Bible database** with multiple translations
+- **ESV API** integration for English Standard Version text
+- **API.bible** integration with 2500+ Bible versions across 1600+ languages
 - **Quick verse lookup** by book, chapter, verse
 - **Import additional translations** (OSIS, USFM, USX, USFX, Zefania, TSV)
-- **Red Letter Edition** - words of Jesus in red (configurable)
+- **Red Letter Edition** - words of Jesus in red (local Bibles and supported API.bible versions)
 - **One verse per slide** option
 
 #### NDI Output
@@ -218,6 +221,7 @@ clarity/
 │   ├── Control/           # Control application (Qt Widgets)
 │   │   ├── ControlWindow.*
 │   │   ├── SlideEditorDialog.*
+│   │   ├── ScriptureInsertDialog.*
 │   │   ├── MediaLibraryDialog.*
 │   │   └── ProcessManager.*
 │   ├── Output/            # Output display (Qt Quick)
@@ -256,6 +260,9 @@ See [DEVLOG.md](DEVLOG.md) for development history and technical decisions.
 - [x] Multi-stop & radial gradients, updated themes
 - [x] NDI streaming output
 - [x] Cascading backgrounds & scripture theme override
+- [x] ESV API & API.bible scripture integration
+- [x] Unified tabbed scripture dialog
+- [x] API.bible red letter support
 - [ ] Audio playback support
 - [ ] Video playback controls (start/end times)
 

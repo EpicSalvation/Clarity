@@ -13,7 +13,8 @@ namespace Clarity {
  */
 struct ApiBibleVerse {
     int number;      ///< Verse number (1-indexed)
-    QString text;    ///< Verse text content
+    QString text;    ///< Verse text content (plain text)
+    QString richText;///< HTML with red letter markup: <span class="jesus">...</span>
 };
 
 /**
@@ -155,14 +156,23 @@ private:
     ApiBiblePassage parseSearchResponse(const QByteArray& data) const;
 
     /**
-     * @brief Strip HTML tags from API.bible content
+     * @brief Strip HTML tags from API.bible content, producing plain text
      */
     QString stripHtml(const QString& html) const;
 
     /**
+     * @brief Convert API.bible HTML to rich text, preserving words-of-Jesus markup
+     *
+     * Converts <span class="wj"> to <span class="jesus"> (matching local Bible convention)
+     * and strips all other HTML tags.
+     * Returns empty string if no wj markup is present.
+     */
+    QString convertToRichText(const QString& html) const;
+
+    /**
      * @brief Parse verse text with verse number markers into individual verses
      */
-    QList<ApiBibleVerse> parseVerses(const QString& content) const;
+    QList<ApiBibleVerse> parseVerses(const QString& plainContent, const QString& richContent) const;
 
     QNetworkAccessManager* m_networkManager;
     QString m_apiKey;

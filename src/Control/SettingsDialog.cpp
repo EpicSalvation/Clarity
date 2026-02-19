@@ -8,6 +8,7 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QDialogButtonBox>
+#include <QScrollArea>
 #include <QScreen>
 #include <QGuiApplication>
 #include <QColorDialog>
@@ -258,7 +259,11 @@ void SettingsDialog::createGeneralPage()
 
     pageLayout->addStretch(); // Push content to top
 
-    m_pageStack->addWidget(generalPage);
+    QScrollArea* scrollArea = new QScrollArea(this);
+    scrollArea->setWidget(generalPage);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    m_pageStack->addWidget(scrollArea);
 }
 
 void SettingsDialog::createDisplayPage()
@@ -421,7 +426,11 @@ void SettingsDialog::createDisplayPage()
 
     pageLayout->addStretch(); // Push content to top
 
-    m_pageStack->addWidget(displayPage);
+    QScrollArea* scrollArea = new QScrollArea(this);
+    scrollArea->setWidget(displayPage);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    m_pageStack->addWidget(scrollArea);
 }
 
 void SettingsDialog::createRemoteControlPage()
@@ -491,7 +500,11 @@ void SettingsDialog::createRemoteControlPage()
 
     pageLayout->addStretch(); // Push content to top
 
-    m_pageStack->addWidget(remotePage);
+    QScrollArea* scrollArea = new QScrollArea(this);
+    scrollArea->setWidget(remotePage);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    m_pageStack->addWidget(scrollArea);
 }
 
 void SettingsDialog::createBiblePage()
@@ -540,8 +553,10 @@ void SettingsDialog::createBiblePage()
             m_redLetterColorButton, &QPushButton::setEnabled);
 
     QLabel* redLetterHelpLabel = new QLabel(
-        tr("When enabled, words spoken by Jesus will be displayed in the selected color "
-           "for Bible translations that include red letter markup (e.g., WEB, NET)."),
+        tr("When enabled, words spoken by Jesus will be displayed in the selected color. "
+           "Not all translations include red letter markup. Supported sources include "
+           "local imports (WEB, NET, etc.) and some API.bible versions. "
+           "The ESV API does not provide red letter data."),
         redLetterGroup);
     redLetterHelpLabel->setWordWrap(true);
     redLetterHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
@@ -639,7 +654,11 @@ void SettingsDialog::createBiblePage()
 
     pageLayout->addStretch(); // Push content to top
 
-    m_pageStack->addWidget(biblePage);
+    QScrollArea* scrollArea = new QScrollArea(this);
+    scrollArea->setWidget(biblePage);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    m_pageStack->addWidget(scrollArea);
 }
 
 void SettingsDialog::refreshTranslationsList()

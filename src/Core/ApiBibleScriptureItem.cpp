@@ -1,4 +1,5 @@
 #include "ApiBibleScriptureItem.h"
+#include "SettingsManager.h"
 #include <QJsonArray>
 
 namespace Clarity {
@@ -8,6 +9,7 @@ ApiBibleScriptureItem::ApiBibleScriptureItem(QObject* parent)
     , m_oneVersePerSlide(true)
     , m_includeVerseNumbers(true)
     , m_includeHeaderSlide(true)
+    , m_settingsManager(nullptr)
 {
 }
 
@@ -20,6 +22,7 @@ ApiBibleScriptureItem::ApiBibleScriptureItem(const ApiBiblePassage& passage, QOb
     , m_oneVersePerSlide(true)
     , m_includeVerseNumbers(true)
     , m_includeHeaderSlide(true)
+    , m_settingsManager(nullptr)
 {
 }
 
@@ -52,9 +55,14 @@ QList<Slide> ApiBibleScriptureItem::generateSlides() const
         return slides;
     }
 
-    // Helper to create and style a slide
-    auto createSlide = [this](const QString& text) -> Slide {
+    bool useRedLetters = m_settingsManager ? m_settingsManager->redLettersEnabled() : false;
+
+    // Helper to create and style a slide (with optional rich text for red letters)
+    auto createSlide = [this](const QString& text, const QString& richText = QString()) -> Slide {
         Slide slide(text);
+        if (!richText.isEmpty()) {
+            slide.setRichText(richText);
+        }
         if (m_hasCustomStyle) {
             m_itemStyle.applyTo(slide);
         }
@@ -76,24 +84,52 @@ QList<Slide> ApiBibleScriptureItem::generateSlides() const
         // Each verse gets its own slide
         for (const ApiBibleVerse& verse : m_verses) {
             QString slideText;
+            QString slideRichText;
+
             if (m_includeVerseNumbers) {
                 slideText = QStringLiteral("%1 %2").arg(verse.number).arg(verse.text);
+                if (useRedLetters && !verse.richText.isEmpty()) {
+                    slideRichText = QStringLiteral("%1 %2").arg(verse.number).arg(verse.richText);
+                }
             } else {
                 slideText = verse.text;
+                if (useRedLetters && !verse.richText.isEmpty()) {
+                    slideRichText = verse.richText;
+                }
             }
-            slides.append(createSlide(slideText));
+            slides.append(createSlide(slideText, slideRichText));
         }
     } else {
         // All verses on one slide
-        QStringList parts;
+        QString combinedText;
+        QString combinedRichText;
+        bool hasAnyRichText = false;
+
         for (const ApiBibleVerse& verse : m_verses) {
+            if (!combinedText.isEmpty()) {
+                combinedText += " ";
+                combinedRichText += " ";
+            }
             if (m_includeVerseNumbers) {
-                parts.append(QStringLiteral("%1 %2").arg(verse.number).arg(verse.text));
+                combinedText += QStringLiteral("%1 %2").arg(verse.number).arg(verse.text);
+                if (!verse.richText.isEmpty()) {
+                    combinedRichText += QStringLiteral("%1 %2").arg(verse.number).arg(verse.richText);
+                    hasAnyRichText = true;
+                } else {
+                    combinedRichText += QStringLiteral("%1 %2").arg(verse.number).arg(verse.text.toHtmlEscaped());
+                }
             } else {
-                parts.append(verse.text);
+                combinedText += verse.text;
+                if (!verse.richText.isEmpty()) {
+                    combinedRichText += verse.richText;
+                    hasAnyRichText = true;
+                } else {
+                    combinedRichText += verse.text.toHtmlEscaped();
+                }
             }
         }
-        slides.append(createSlide(parts.join(" ")));
+        slides.append(createSlide(combinedText,
+            (useRedLetters && hasAnyRichText) ? combinedRichText : QString()));
     }
 
     // Cascading backgrounds: slides don't have explicit backgrounds by default.
@@ -157,6 +193,11 @@ void ApiBibleScriptureItem::setIncludeHeaderSlide(bool include)
     }
 }
 
+void ApiBibleScriptureItem::setSettingsManager(SettingsManager* settings)
+{
+    m_settingsManager = settings;
+}
+
 QJsonObject ApiBibleScriptureItem::toJson() const
 {
     QJsonObject json = baseToJson();
@@ -173,6 +214,9 @@ QJsonObject ApiBibleScriptureItem::toJson() const
         QJsonObject verseJson;
         verseJson["number"] = verse.number;
         verseJson["text"] = verse.text;
+        if (!verse.richText.isEmpty()) {
+            verseJson["richText"] = verse.richText;
+        }
         versesArray.append(verseJson);
     }
     json["verses"] = versesArray;
@@ -180,7 +224,7 @@ QJsonObject ApiBibleScriptureItem::toJson() const
     return json;
 }
 
-ApiBibleScriptureItem* ApiBibleScriptureItem::fromJson(const QJsonObject& json)
+ApiBibleScriptureItem* ApiBibleScriptureItem::fromJson(const QJsonObject& json, SettingsManager* settings)
 {
     if (json["type"].toString() != "apiBibleScripture") {
         qWarning("ApiBibleScriptureItem::fromJson: type mismatch");
@@ -195,6 +239,7 @@ ApiBibleScriptureItem* ApiBibleScriptureItem::fromJson(const QJsonObject& json)
     item->m_oneVersePerSlide = json["oneVersePerSlide"].toBool(true);
     item->m_includeVerseNumbers = json["includeVerseNumbers"].toBool(true);
     item->m_includeHeaderSlide = json["includeHeaderSlide"].toBool(true);
+    item->m_settingsManager = settings;
 
     // Deserialize cached verses
     if (json.contains("verses")) {
@@ -204,6 +249,7 @@ ApiBibleScriptureItem* ApiBibleScriptureItem::fromJson(const QJsonObject& json)
             ApiBibleVerse verse;
             verse.number = verseJson["number"].toInt();
             verse.text = verseJson["text"].toString();
+            verse.richText = verseJson["richText"].toString();
             item->m_verses.append(verse);
         }
     }

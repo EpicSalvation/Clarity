@@ -1,9 +1,7 @@
 #include "ControlWindow.h"
 #include "SettingsDialog.h"
 #include "SlideEditorDialog.h"
-#include "ScriptureDialog.h"
-#include "EsvScriptureDialog.h"
-#include "ApiBibleScriptureDialog.h"
+#include "ScriptureInsertDialog.h"
 #include "SongLibraryDialog.h"
 #include "ThemeSelectorDialog.h"
 #include "Core/SlidePreviewRenderer.h"
@@ -339,8 +337,6 @@ void ControlWindow::setupUI()
     slideMenu->addAction(tr("&Delete Slide"), QKeySequence::Delete, this, &ControlWindow::onDeleteSlide);
     slideMenu->addSeparator();
     slideMenu->addAction(tr("Insert &Scripture..."), QKeySequence("Ctrl+B"), this, &ControlWindow::onInsertScripture);
-    slideMenu->addAction(tr("Insert &ESV Scripture..."), QKeySequence("Ctrl+Shift+B"), this, &ControlWindow::onInsertEsvScripture);
-    slideMenu->addAction(tr("Insert API.&bible Scripture..."), QKeySequence("Ctrl+Alt+B"), this, &ControlWindow::onInsertApiBibleScripture);
     slideMenu->addAction(tr("Insert S&ong..."), QKeySequence("Ctrl+L"), this, &ControlWindow::onInsertSong);
     slideMenu->addAction(tr("Insert Slide &Group..."), QKeySequence("Ctrl+G"), this, &ControlWindow::onInsertSlideGroup);
     slideMenu->addSeparator();
@@ -1489,6 +1485,7 @@ bool ControlWindow::promptSaveIfDirty()
 void ControlWindow::closeEvent(QCloseEvent* event)
 {
     if (promptSaveIfDirty()) {
+        m_processManager->quitAll();
         event->accept();
     } else {
         event->ignore();
@@ -1666,95 +1663,18 @@ void ControlWindow::initializeBibleDatabase()
 
 void ControlWindow::onInsertScripture()
 {
-    if (!m_bibleDatabase->isValid()) {
-        QMessageBox::warning(
-            this,
-            tr("Bible Database Not Available"),
-            tr("The Bible database could not be loaded.\n\n"
-               "Please ensure the bible.db file is present in one of the following locations:\n"
-               "- <app directory>/data/bible.db\n"
-               "- <app data>/Clarity/data/bible.db\n\n"
-               "You can download the database from the Clarity releases page.")
-        );
-        return;
-    }
-
-    ScriptureDialog dialog(m_bibleDatabase, m_settingsManager, m_themeManager, this);
-
-    // Set default style based on current presentation theme (used if "Current Style" is selected)
-    Presentation* presentation = m_presentationModel->presentation();
-    if (presentation && presentation->slideCount() > 0) {
-        Slide currentSlide = presentation->currentSlide();
-        dialog.setDefaultStyle(
-            currentSlide.backgroundColor(),
-            currentSlide.textColor(),
-            currentSlide.fontFamily(),
-            currentSlide.fontSize()
-        );
-    }
-
-    if (dialog.exec() == QDialog::Accepted) {
-        QString reference = dialog.reference();
-        if (reference.isEmpty()) {
-            return;
-        }
-
-        saveUndoSnapshot(tr("Insert Scripture"));
-
-        // Create a ScriptureItem with the selected passage
-        ScriptureItem* scriptureItem = new ScriptureItem(
-            reference,
-            dialog.translation(),
-            m_bibleDatabase
-        );
-        scriptureItem->setSettingsManager(m_settingsManager);  // For red letter settings
-        scriptureItem->setOneVersePerSlide(dialog.oneVersePerSlide());
-        scriptureItem->setIncludeVerseReferences(dialog.includeVerseReferences());
-        scriptureItem->setIncludeHeaderSlide(true);
-
-        // Apply custom style if set
-        SlideStyle style = dialog.slideStyle();
-        scriptureItem->setItemStyle(style);
-
-        // Calculate insertion position - after current item
-        SlidePosition currentPos = presentation->positionForFlatIndex(presentation->currentSlideIndex());
-        int insertItemIndex = currentPos.isValid() ? currentPos.itemIndex + 1 : presentation->itemCount();
-
-        // Insert the scripture item
-        m_presentationModel->insertItem(insertItemIndex, scriptureItem);
-
-        // Navigate to first slide of the new item (re-fetch presentation after insert)
-        Presentation* updatedPres = m_presentationModel->presentation();
-        int firstSlideIndex = updatedPres->flatIndexForPosition(insertItemIndex, 0);
-        if (firstSlideIndex >= 0) {
-            m_slideGridView->setCurrentIndex(m_presentationModel->index(firstSlideIndex, 0));
-            m_presentationModel->setCurrentSlideIndex(firstSlideIndex);
-        }
-        broadcastCurrentSlide();
-        updateUI();
-
-        qDebug() << "Inserted scripture item:" << scriptureItem->displayName();
-    }
-}
-
-void ControlWindow::onInsertEsvScripture()
-{
-    // Sync API key from settings in case it was changed
+    // Sync API keys from settings in case they were changed
     if (m_settingsManager->hasEsvApiKey()) {
         m_esvApiClient->setApiKey(m_settingsManager->esvApiKey());
     }
-
-    if (!m_esvApiClient->hasApiKey()) {
-        QMessageBox::warning(this, tr("ESV API Key Required"),
-            tr("No ESV API key is configured.\n\n"
-               "Please go to Settings > Bible and enter your ESV API key.\n"
-               "You can obtain a free key at api.esv.org."));
-        return;
+    if (m_settingsManager->hasApiBibleApiKey()) {
+        m_apiBibleClient->setApiKey(m_settingsManager->apiBibleApiKey());
     }
 
-    EsvScriptureDialog dialog(m_esvApiClient, m_settingsManager, m_themeManager, this);
+    ScriptureInsertDialog dialog(m_bibleDatabase, m_esvApiClient, m_apiBibleClient,
+                                  m_settingsManager, m_themeManager, this);
 
-    // Set default style based on current slide
+    // Set default style based on current presentation theme
     Presentation* presentation = m_presentationModel->presentation();
     if (presentation && presentation->slideCount() > 0) {
         Slide currentSlide = presentation->currentSlide();
@@ -1766,50 +1686,89 @@ void ControlWindow::onInsertEsvScripture()
         );
     }
 
-    if (dialog.exec() == QDialog::Accepted) {
-        EsvPassage passage = dialog.passage();
-        if (!passage.isValid()) {
-            return;
-        }
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    // Calculate insertion position - after current item
+    SlidePosition currentPos = presentation->positionForFlatIndex(presentation->currentSlideIndex());
+    int insertItemIndex = currentPos.isValid() ? currentPos.itemIndex + 1 : presentation->itemCount();
+
+    switch (dialog.activeSource()) {
+    case ScriptureInsertDialog::ScriptureSource::Local: {
+        ScriptureDialog* page = dialog.localPage();
+        QString reference = page->reference();
+        if (reference.isEmpty()) return;
+
+        saveUndoSnapshot(tr("Insert Scripture"));
+
+        ScriptureItem* scriptureItem = new ScriptureItem(
+            reference, page->translation(), m_bibleDatabase
+        );
+        scriptureItem->setSettingsManager(m_settingsManager);
+        scriptureItem->setOneVersePerSlide(page->oneVersePerSlide());
+        scriptureItem->setIncludeVerseReferences(page->includeVerseReferences());
+        scriptureItem->setIncludeHeaderSlide(true);
+        scriptureItem->setItemStyle(page->slideStyle());
+
+        m_presentationModel->insertItem(insertItemIndex, scriptureItem);
+        qDebug() << "Inserted scripture item:" << scriptureItem->displayName();
+        break;
+    }
+    case ScriptureInsertDialog::ScriptureSource::Esv: {
+        EsvScriptureDialog* page = dialog.esvPage();
+        EsvPassage passage = page->passage();
+        if (!passage.isValid()) return;
 
         saveUndoSnapshot(tr("Insert ESV Scripture"));
 
-        // Create an EsvScriptureItem with the fetched passage
         EsvScriptureItem* esvItem = new EsvScriptureItem(passage);
         esvItem->setSettingsManager(m_settingsManager);
-        esvItem->setOneVersePerSlide(dialog.oneVersePerSlide());
-        esvItem->setIncludeVerseNumbers(dialog.includeVerseNumbers());
+        esvItem->setOneVersePerSlide(page->oneVersePerSlide());
+        esvItem->setIncludeVerseNumbers(page->includeVerseNumbers());
         esvItem->setIncludeHeaderSlide(true);
-
-        // Apply style
-        SlideStyle style = dialog.slideStyle();
-        esvItem->setItemStyle(style);
+        esvItem->setItemStyle(page->slideStyle());
 
         // Track cached verse count (per ESV API terms: max 500 cached verses)
         m_esvApiClient->addCachedVerses(passage.verseCount);
         m_settingsManager->setEsvCachedVerseCount(m_esvApiClient->cachedVerseCount());
 
-        // Calculate insertion position - after current item
-        SlidePosition currentPos = presentation->positionForFlatIndex(presentation->currentSlideIndex());
-        int insertItemIndex = currentPos.isValid() ? currentPos.itemIndex + 1 : presentation->itemCount();
-
-        // Insert the ESV scripture item
         m_presentationModel->insertItem(insertItemIndex, esvItem);
-
-        // Navigate to first slide of the new item
-        Presentation* updatedPres = m_presentationModel->presentation();
-        int firstSlideIndex = updatedPres->flatIndexForPosition(insertItemIndex, 0);
-        if (firstSlideIndex >= 0) {
-            m_slideGridView->setCurrentIndex(m_presentationModel->index(firstSlideIndex, 0));
-            m_presentationModel->setCurrentSlideIndex(firstSlideIndex);
-        }
-        broadcastCurrentSlide();
-        updateUI();
-
         qDebug() << "Inserted ESV scripture item:" << esvItem->displayName()
                  << "(" << passage.verseCount << "verses, total cached:"
                  << m_esvApiClient->cachedVerseCount() << ")";
+        break;
     }
+    case ScriptureInsertDialog::ScriptureSource::ApiBible: {
+        ApiBibleScriptureDialog* page = dialog.apiBiblePage();
+        ApiBiblePassage passage = page->passage();
+        if (!passage.isValid()) return;
+
+        saveUndoSnapshot(tr("Insert API.bible Scripture"));
+
+        ApiBibleScriptureItem* item = new ApiBibleScriptureItem(passage);
+        item->setSettingsManager(m_settingsManager);
+        item->setOneVersePerSlide(page->oneVersePerSlide());
+        item->setIncludeVerseNumbers(page->includeVerseNumbers());
+        item->setIncludeHeaderSlide(true);
+        item->setItemStyle(page->slideStyle());
+
+        m_presentationModel->insertItem(insertItemIndex, item);
+        qDebug() << "Inserted API.bible scripture item:" << item->displayName()
+                 << "(" << passage.verseCount << "verses)";
+        break;
+    }
+    }
+
+    // Navigate to first slide of the new item
+    Presentation* updatedPres = m_presentationModel->presentation();
+    int firstSlideIndex = updatedPres->flatIndexForPosition(insertItemIndex, 0);
+    if (firstSlideIndex >= 0) {
+        m_slideGridView->setCurrentIndex(m_presentationModel->index(firstSlideIndex, 0));
+        m_presentationModel->setCurrentSlideIndex(firstSlideIndex);
+    }
+    broadcastCurrentSlide();
+    updateUI();
 }
 
 void ControlWindow::onPurgeEsvCache()
@@ -1873,75 +1832,6 @@ void ControlWindow::onPurgeEsvCache()
     broadcastCurrentSlide();
     qDebug() << "Purged ESV cache: removed" << esvVerseCount << "cached verses from"
              << esvItemCount << "items";
-}
-
-void ControlWindow::onInsertApiBibleScripture()
-{
-    // Sync API key from settings in case it was changed
-    if (m_settingsManager->hasApiBibleApiKey()) {
-        m_apiBibleClient->setApiKey(m_settingsManager->apiBibleApiKey());
-    }
-
-    if (!m_apiBibleClient->hasApiKey()) {
-        QMessageBox::warning(this, tr("API.bible Key Required"),
-            tr("No API.bible key is configured.\n\n"
-               "Please go to Settings > Bible and enter your API.bible key.\n"
-               "You can obtain a free key at scripture.api.bible."));
-        return;
-    }
-
-    ApiBibleScriptureDialog dialog(m_apiBibleClient, m_settingsManager, m_themeManager, this);
-
-    // Set default style based on current slide
-    Presentation* presentation = m_presentationModel->presentation();
-    if (presentation && presentation->slideCount() > 0) {
-        Slide currentSlide = presentation->currentSlide();
-        dialog.setDefaultStyle(
-            currentSlide.backgroundColor(),
-            currentSlide.textColor(),
-            currentSlide.fontFamily(),
-            currentSlide.fontSize()
-        );
-    }
-
-    if (dialog.exec() == QDialog::Accepted) {
-        ApiBiblePassage passage = dialog.passage();
-        if (!passage.isValid()) {
-            return;
-        }
-
-        saveUndoSnapshot(tr("Insert API.bible Scripture"));
-
-        // Create an ApiBibleScriptureItem with the fetched passage
-        ApiBibleScriptureItem* item = new ApiBibleScriptureItem(passage);
-        item->setOneVersePerSlide(dialog.oneVersePerSlide());
-        item->setIncludeVerseNumbers(dialog.includeVerseNumbers());
-        item->setIncludeHeaderSlide(true);
-
-        // Apply style
-        SlideStyle style = dialog.slideStyle();
-        item->setItemStyle(style);
-
-        // Calculate insertion position - after current item
-        SlidePosition currentPos = presentation->positionForFlatIndex(presentation->currentSlideIndex());
-        int insertItemIndex = currentPos.isValid() ? currentPos.itemIndex + 1 : presentation->itemCount();
-
-        // Insert the API.bible scripture item
-        m_presentationModel->insertItem(insertItemIndex, item);
-
-        // Navigate to first slide of the new item
-        Presentation* updatedPres = m_presentationModel->presentation();
-        int firstSlideIndex = updatedPres->flatIndexForPosition(insertItemIndex, 0);
-        if (firstSlideIndex >= 0) {
-            m_slideGridView->setCurrentIndex(m_presentationModel->index(firstSlideIndex, 0));
-            m_presentationModel->setCurrentSlideIndex(firstSlideIndex);
-        }
-        broadcastCurrentSlide();
-        updateUI();
-
-        qDebug() << "Inserted API.bible scripture item:" << item->displayName()
-                 << "(" << passage.verseCount << "verses)";
-    }
 }
 
 void ControlWindow::onInsertSong()
