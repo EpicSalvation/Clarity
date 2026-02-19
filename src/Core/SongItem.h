@@ -4,6 +4,8 @@
 #include "Song.h"
 #include "SongLibrary.h"
 
+namespace Clarity { class SettingsManager; }
+
 namespace Clarity {
 
 /**
@@ -122,6 +124,10 @@ public:
      */
     bool removeSongSection(int orderIndex);
 
+    // Settings manager (for CCLI display on title slides)
+    SettingsManager* settingsManager() const { return m_settingsManager; }
+    void setSettingsManager(SettingsManager* settings);
+
     // JSON serialization
     QJsonObject toJson() const override;
 
@@ -129,9 +135,10 @@ public:
      * @brief Create a SongItem from JSON
      * @param json JSON object with type="song"
      * @param library Song library for looking up songs
+     * @param settings Settings manager for CCLI display (optional)
      * @return New SongItem or nullptr on error
      */
-    static SongItem* fromJson(const QJsonObject& json, SongLibrary* library);
+    static SongItem* fromJson(const QJsonObject& json, SongLibrary* library, SettingsManager* settings = nullptr);
 
 private slots:
     /**
@@ -147,6 +154,7 @@ private slots:
 private:
     int m_songId;
     SongLibrary* m_songLibrary;
+    SettingsManager* m_settingsManager;
 
     // Generation options
     bool m_includeTitleSlide;

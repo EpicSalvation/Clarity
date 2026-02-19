@@ -119,6 +119,11 @@ private:
     QPushButton* m_redLetterColorButton;
     QColor m_redLetterColor;
 
+    // Copyright & CCLI settings
+    QLineEdit* m_ccliLicenseNumberEdit;
+    QCheckBox* m_showCcliOnTitleSlidesCheckBox;
+    QCheckBox* m_showCopyrightSlideCheckBox;
+
     // ESV API settings
     QLineEdit* m_esvApiKeyEdit;
     QLabel* m_esvCacheStatusLabel;

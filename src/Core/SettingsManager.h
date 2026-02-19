@@ -110,6 +110,16 @@ public:
     QString defaultEventName() const;        // Default event name (e.g., "Sunday Service")
     void setDefaultEventName(const QString& name);
 
+    // Copyright & CCLI display settings
+    bool showCcliOnTitleSlides() const;        // Show CCLI song# and license# on song title slides
+    void setShowCcliOnTitleSlides(bool enabled);
+
+    QString ccliLicenseNumber() const;         // Church's CCLI license number
+    void setCcliLicenseNumber(const QString& number);
+
+    bool showCopyrightSlide() const;           // Auto-generate copyright slide at end
+    void setShowCopyrightSlide(bool enabled);
+
     // Cascading background settings
     bool cascadingBackgrounds() const;
     void setCascadingBackgrounds(bool enabled);

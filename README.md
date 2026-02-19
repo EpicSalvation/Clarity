@@ -63,6 +63,7 @@ Clarity now includes comprehensive presentation features suitable for worship se
 - **Usage tracking** for CCLI reporting
 - **CCLI Report generator** with date range filtering and CSV/text export
 - **SongSelect search** opens browser search on Google or SongSelect directly
+- **Copyright compliance** — optional CCLI info on song title slides and auto-generated copyright slide at end of presentation
 
 #### Scripture Support
 - **Unified scripture dialog** — single tabbed interface for all scripture sources (Ctrl+B)
@@ -263,6 +264,7 @@ See [DEVLOG.md](DEVLOG.md) for development history and technical decisions.
 - [x] ESV API & API.bible scripture integration
 - [x] Unified tabbed scripture dialog
 - [x] API.bible red letter support
+- [x] Copyright compliance (CCLI title slides, auto-generated copyright slide)
 - [ ] Audio playback support
 - [ ] Video playback controls (start/end times)
 

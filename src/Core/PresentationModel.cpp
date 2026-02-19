@@ -10,6 +10,7 @@ PresentationModel::PresentationModel(QObject* parent)
     : QAbstractListModel(parent)
     , m_presentation(nullptr)
     , m_ownsPresentation(false)
+    , m_resetting(false)
 {
     // Create a default empty presentation
     m_presentation = new Presentation(this);
@@ -287,11 +288,11 @@ bool PresentationModel::dropMimeData(const QMimeData* data, Qt::DropAction actio
 
         if (fromSection == toSection) return false;
 
+        m_resetting = true;
         beginResetModel();
-        m_presentation->blockSignals(true);
         songItem->moveSongSection(fromSection, toSection);
-        m_presentation->blockSignals(false);
         endResetModel();
+        m_resetting = false;
 
         emit presentationModified();
         return true;
@@ -307,13 +308,13 @@ bool PresentationModel::dropMimeData(const QMimeData* data, Qt::DropAction actio
 
         slides.move(sourcePos.slideInItem, adjustedTarget.slideInItem);
 
+        m_resetting = true;
         beginResetModel();
-        m_presentation->blockSignals(true);
         m_presentation->removeItem(itemIndex);
         auto* groupItem = new SlideGroupItem(name, slides);
         m_presentation->insertItem(itemIndex, groupItem);
-        m_presentation->blockSignals(false);
         endResetModel();
+        m_resetting = false;
 
         setCurrentSlideIndex(targetRow);
         emit presentationModified();
@@ -433,11 +434,11 @@ void PresentationModel::removeSlide(int index)
 
     // Use model reset instead of beginRemoveRows: removing a slide from a
     // SlideGroupItem emits slidesChanged which would nest inside beginRemoveRows
+    m_resetting = true;
     beginResetModel();
-    m_presentation->blockSignals(true);
     m_presentation->removeSlide(index);
-    m_presentation->blockSignals(false);
     endResetModel();
+    m_resetting = false;
     emit presentationModified();
 }
 
@@ -463,24 +464,23 @@ void PresentationModel::moveSlide(int fromIndex, int toIndex)
     // Presentation::moveSlide emits slidesChanged(), which would trigger
     // onSlidesChanged() → beginResetModel() while we're already inside
     // beginMoveRows or beginResetModel.
+    m_resetting = true;
     if (isSimpleMove) {
         // Within same SlideGroupItem — safe to use beginMoveRows/endMoveRows
         int destIndex = (toIndex > fromIndex) ? toIndex + 1 : toIndex;
         if (!beginMoveRows(QModelIndex(), fromIndex, fromIndex, QModelIndex(), destIndex)) {
+            m_resetting = false;
             return;
         }
-        m_presentation->blockSignals(true);
         m_presentation->moveSlide(fromIndex, toIndex);
-        m_presentation->blockSignals(false);
         endMoveRows();
     } else {
         // Cross-item move restructures the item list, use model reset
         beginResetModel();
-        m_presentation->blockSignals(true);
         m_presentation->moveSlide(fromIndex, toIndex);
-        m_presentation->blockSignals(false);
         endResetModel();
     }
+    m_resetting = false;
 }
 
 Slide PresentationModel::getSlide(int index) const
@@ -495,26 +495,27 @@ void PresentationModel::addItem(PresentationItem* item)
 {
     if (!m_presentation || !item) return;
 
-    // Use model reset: addItem emits slidesChanged which would cause
-    // nested beginResetModel inside beginInsertRows
+    // Guard flag prevents onSlidesChanged() from nesting a reset
+    // while still allowing Presentation signals to reach other models
+    // (e.g., ItemListModel needs itemsChanged to update the playlist)
+    m_resetting = true;
     beginResetModel();
-    m_presentation->blockSignals(true);
     m_presentation->addItem(item);
-    m_presentation->blockSignals(false);
     endResetModel();
+    m_resetting = false;
 }
 
 void PresentationModel::insertItem(int index, PresentationItem* item)
 {
     if (!m_presentation || !item) return;
 
-    // Use model reset: insertItem shifts ItemIndexRole for all subsequent
-    // slides, and emits slidesChanged which would nest inside beginInsertRows
+    // Guard flag prevents onSlidesChanged() from nesting a reset
+    // while still allowing Presentation signals to reach other models
+    m_resetting = true;
     beginResetModel();
-    m_presentation->blockSignals(true);
     m_presentation->insertItem(index, item);
-    m_presentation->blockSignals(false);
     endResetModel();
+    m_resetting = false;
 }
 
 void PresentationModel::removeItem(int index)
@@ -522,13 +523,13 @@ void PresentationModel::removeItem(int index)
     if (!m_presentation) return;
     if (index < 0 || index >= m_presentation->itemCount()) return;
 
-    // Use model reset: removeItem shifts ItemIndexRole for all subsequent
-    // slides, and emits slidesChanged which would nest inside beginRemoveRows
+    // Guard flag prevents onSlidesChanged() from nesting a reset
+    // while still allowing Presentation signals to reach other models
+    m_resetting = true;
     beginResetModel();
-    m_presentation->blockSignals(true);
     m_presentation->removeItem(index);
-    m_presentation->blockSignals(false);
     endResetModel();
+    m_resetting = false;
 }
 
 int PresentationModel::itemCount() const
@@ -554,6 +555,10 @@ void PresentationModel::notifyGroupItemChanged()
 
 void PresentationModel::onSlidesChanged()
 {
+    // Skip if we're already inside a beginResetModel/endResetModel block
+    // (e.g., from addItem/insertItem/removeItem which triggered this signal)
+    if (m_resetting) return;
+
     // When slides change in a way we didn't directly cause,
     // reset the model to be safe
     beginResetModel();

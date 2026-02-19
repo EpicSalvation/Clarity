@@ -452,6 +452,45 @@ void SettingsManager::setDefaultEventName(const QString& name)
     }
 }
 
+bool SettingsManager::showCcliOnTitleSlides() const
+{
+    return m_settings->value("Copyright/ShowCcliOnTitleSlides", false).toBool();
+}
+
+void SettingsManager::setShowCcliOnTitleSlides(bool enabled)
+{
+    if (showCcliOnTitleSlides() != enabled) {
+        m_settings->setValue("Copyright/ShowCcliOnTitleSlides", enabled);
+        m_settings->sync();
+    }
+}
+
+QString SettingsManager::ccliLicenseNumber() const
+{
+    return m_settings->value("Copyright/CcliLicenseNumber", "").toString();
+}
+
+void SettingsManager::setCcliLicenseNumber(const QString& number)
+{
+    if (ccliLicenseNumber() != number) {
+        m_settings->setValue("Copyright/CcliLicenseNumber", number);
+        m_settings->sync();
+    }
+}
+
+bool SettingsManager::showCopyrightSlide() const
+{
+    return m_settings->value("Copyright/ShowCopyrightSlide", false).toBool();
+}
+
+void SettingsManager::setShowCopyrightSlide(bool enabled)
+{
+    if (showCopyrightSlide() != enabled) {
+        m_settings->setValue("Copyright/ShowCopyrightSlide", enabled);
+        m_settings->sync();
+    }
+}
+
 bool SettingsManager::cascadingBackgrounds() const
 {
     return m_settings->value("Presentation/CascadingBackgrounds", true).toBool();

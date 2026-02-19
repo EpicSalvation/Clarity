@@ -1864,6 +1864,7 @@ void ControlWindow::onInsertSong()
 
         // Create a SongItem with the selected song
         SongItem* songItem = new SongItem(songId, m_songLibrary);
+        songItem->setSettingsManager(m_settingsManager);
         songItem->setIncludeTitleSlide(true);
         songItem->setIncludeSectionLabels(dialog.includeSectionLabels());
         songItem->setMaxLinesPerSlide(dialog.maxLinesPerSlide());

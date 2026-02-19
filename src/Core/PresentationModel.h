@@ -137,6 +137,7 @@ private slots:
 private:
     Presentation* m_presentation;
     bool m_ownsPresentation;
+    bool m_resetting;  ///< Guard flag to prevent nested resets
 };
 
 } // namespace Clarity

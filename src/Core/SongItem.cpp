@@ -1,4 +1,5 @@
 #include "SongItem.h"
+#include "SettingsManager.h"
 #include <QJsonArray>
 
 namespace Clarity {
@@ -7,6 +8,7 @@ SongItem::SongItem(QObject* parent)
     : PresentationItem(parent)
     , m_songId(-1)
     , m_songLibrary(nullptr)
+    , m_settingsManager(nullptr)
     , m_includeTitleSlide(true)
     , m_includeSectionLabels(false)
     , m_maxLinesPerSlide(0)
@@ -18,6 +20,7 @@ SongItem::SongItem(int songId, SongLibrary* library, QObject* parent)
     : PresentationItem(parent)
     , m_songId(songId)
     , m_songLibrary(library)
+    , m_settingsManager(nullptr)
     , m_includeTitleSlide(true)
     , m_includeSectionLabels(false)
     , m_maxLinesPerSlide(0)
@@ -82,7 +85,20 @@ QList<Slide> SongItem::generateSlides() const
     // Add title slide if requested
     if (m_includeTitleSlide && !s.title().isEmpty()) {
         Slide titleSlide;
-        titleSlide.setText(s.title());
+        QString titleText = s.title();
+
+        // Append CCLI info if enabled and song has a CCLI number
+        if (m_settingsManager && m_settingsManager->showCcliOnTitleSlides()
+            && !s.ccliNumber().isEmpty()) {
+            QString ccliLine = tr("CCLI Song #%1").arg(s.ccliNumber());
+            QString licenseNum = m_settingsManager->ccliLicenseNumber();
+            if (!licenseNum.isEmpty()) {
+                ccliLine += tr(" | CCLI License #%1").arg(licenseNum);
+            }
+            titleText += "\n" + ccliLine;
+        }
+
+        titleSlide.setText(titleText);
         style.applyTo(titleSlide);
         // Title slide: groupIndex = -1, groupLabel = empty (defaults)
         slides.append(titleSlide);
@@ -173,6 +189,12 @@ void SongItem::setIncludeSectionLabels(bool include)
         invalidateSlideCache();
         emit itemChanged();
     }
+}
+
+void SongItem::setSettingsManager(SettingsManager* settings)
+{
+    m_settingsManager = settings;
+    invalidateSlideCache();
 }
 
 void SongItem::setMaxLinesPerSlide(int maxLines)
@@ -315,7 +337,7 @@ QJsonObject SongItem::toJson() const
     return json;
 }
 
-SongItem* SongItem::fromJson(const QJsonObject& json, SongLibrary* library)
+SongItem* SongItem::fromJson(const QJsonObject& json, SongLibrary* library, SettingsManager* settings)
 {
     if (json["type"].toString() != "song") {
         qWarning("SongItem::fromJson: type mismatch");
@@ -328,6 +350,7 @@ SongItem* SongItem::fromJson(const QJsonObject& json, SongLibrary* library)
     item->m_includeTitleSlide = json["includeTitleSlide"].toBool(true);
     item->m_includeSectionLabels = json["includeSectionLabels"].toBool(false);
     item->m_maxLinesPerSlide = json["maxLinesPerSlide"].toInt(0);
+    item->m_settingsManager = settings;
 
     // Restore custom section order
     if (json.contains("sectionOrder")) {

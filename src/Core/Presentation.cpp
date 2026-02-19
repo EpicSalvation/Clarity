@@ -215,11 +215,17 @@ void Presentation::rebuildFlatIndex() const
 int Presentation::totalSlideCount() const
 {
     rebuildFlatIndex();
-    return m_cachedTotalSlides;
+    return m_cachedTotalSlides + (hasCopyrightSlide() ? 1 : 0);
 }
 
 Slide Presentation::slideAt(int flatIndex) const
 {
+    rebuildFlatIndex();
+    // Check if this is the virtual copyright slide
+    if (hasCopyrightSlide() && flatIndex == m_cachedTotalSlides) {
+        return generateCopyrightSlide();
+    }
+
     SlidePosition pos = positionForFlatIndex(flatIndex);
     if (!pos.isValid()) {
         return Slide();
@@ -252,6 +258,12 @@ static void copyBackgroundTo(const Slide& source, Slide& target)
 
 Slide Presentation::resolvedSlideAt(int flatIndex) const
 {
+    rebuildFlatIndex();
+    // Copyright slide has an explicit background — no cascading needed
+    if (hasCopyrightSlide() && flatIndex == m_cachedTotalSlides) {
+        return generateCopyrightSlide();
+    }
+
     Slide slide = slideAt(flatIndex);
     if (!m_settingsManager) {
         return slide;
@@ -338,8 +350,8 @@ int Presentation::flatIndexForPosition(int itemIndex, int slideInItem) const
 
 void Presentation::setCurrentSlideIndex(int index)
 {
-    rebuildFlatIndex();
-    if (index >= 0 && index < m_cachedTotalSlides) {
+    int total = totalSlideCount();
+    if (index >= 0 && index < total) {
         if (m_currentSlideIndex != index) {
             m_currentSlideIndex = index;
             emit currentSlideChanged(index);
@@ -349,8 +361,8 @@ void Presentation::setCurrentSlideIndex(int index)
 
 bool Presentation::nextSlide()
 {
-    rebuildFlatIndex();
-    if (m_currentSlideIndex < m_cachedTotalSlides - 1) {
+    int total = totalSlideCount();
+    if (m_currentSlideIndex < total - 1) {
         m_currentSlideIndex++;
         emit currentSlideChanged(m_currentSlideIndex);
         return true;
@@ -370,8 +382,8 @@ bool Presentation::prevSlide()
 
 bool Presentation::gotoSlide(int index)
 {
-    rebuildFlatIndex();
-    if (index >= 0 && index < m_cachedTotalSlides) {
+    int total = totalSlideCount();
+    if (index >= 0 && index < total) {
         if (m_currentSlideIndex != index) {
             m_currentSlideIndex = index;
             emit currentSlideChanged(m_currentSlideIndex);
@@ -574,6 +586,122 @@ void Presentation::onItemChanged()
     emit presentationModified();
 }
 
+// === Copyright slide ===
+
+bool Presentation::hasCopyrightSlide() const
+{
+    if (!m_settingsManager || !m_settingsManager->showCopyrightSlide()) {
+        return false;
+    }
+
+    // Check if at least one item has copyright data
+    for (PresentationItem* item : m_items) {
+        if (auto* songItem = qobject_cast<SongItem*>(item)) {
+            Song s = songItem->song();
+            if (!s.copyright().isEmpty() || !s.author().isEmpty() || !s.ccliNumber().isEmpty()) {
+                return true;
+            }
+        } else if (auto* esvItem = qobject_cast<EsvScriptureItem*>(item)) {
+            if (!esvItem->copyright().isEmpty()) {
+                return true;
+            }
+        } else if (auto* apiItem = qobject_cast<ApiBibleScriptureItem*>(item)) {
+            if (!apiItem->copyright().isEmpty()) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+Slide Presentation::generateCopyrightSlide() const
+{
+    QStringList songLines;
+    QStringList scriptureLines;
+
+    for (PresentationItem* item : m_items) {
+        if (auto* songItem = qobject_cast<SongItem*>(item)) {
+            Song s = songItem->song();
+            if (s.copyright().isEmpty() && s.author().isEmpty() && s.ccliNumber().isEmpty()) {
+                continue;
+            }
+
+            QString entry;
+            // "Title" by Author
+            if (!s.author().isEmpty()) {
+                entry = QString("\"%1\" by %2").arg(s.title(), s.author());
+            } else {
+                entry = QString("\"%1\"").arg(s.title());
+            }
+            if (!s.copyright().isEmpty()) {
+                entry += "\n  " + s.copyright();
+            }
+            if (!s.ccliNumber().isEmpty()) {
+                entry += "\n  CCLI Song #" + s.ccliNumber();
+            }
+            songLines.append(entry);
+
+        } else if (auto* esvItem = qobject_cast<EsvScriptureItem*>(item)) {
+            if (!esvItem->copyright().isEmpty()) {
+                scriptureLines.append(esvItem->copyright());
+            }
+
+        } else if (auto* apiItem = qobject_cast<ApiBibleScriptureItem*>(item)) {
+            if (!apiItem->copyright().isEmpty()) {
+                QString entry;
+                if (!apiItem->reference().isEmpty()) {
+                    entry = apiItem->reference();
+                    if (!apiItem->bibleAbbreviation().isEmpty()) {
+                        entry += " (" + apiItem->bibleAbbreviation() + ")";
+                    }
+                    entry += ": " + apiItem->copyright();
+                } else {
+                    entry = apiItem->copyright();
+                }
+                scriptureLines.append(entry);
+            }
+        }
+    }
+
+    // Build the copyright slide text
+    QStringList parts;
+
+    // License line at top if configured
+    if (m_settingsManager) {
+        QString licenseNum = m_settingsManager->ccliLicenseNumber();
+        if (!licenseNum.isEmpty()) {
+            parts.append(QObject::tr("Used by Permission. CCLI License #%1").arg(licenseNum));
+        }
+    }
+
+    if (!songLines.isEmpty()) {
+        parts.append("");
+        parts.append(QObject::tr("Songs:"));
+        for (const QString& line : songLines) {
+            parts.append("  " + line);
+        }
+    }
+
+    if (!scriptureLines.isEmpty()) {
+        parts.append("");
+        parts.append(QObject::tr("Scripture:"));
+        for (const QString& line : scriptureLines) {
+            parts.append("  " + line);
+        }
+    }
+
+    Slide slide;
+    slide.setText(parts.join("\n").trimmed());
+    slide.setBackgroundColor(QColor("#000000"));
+    slide.setTextColor(QColor("#ffffff"));
+    slide.setFontFamily("Arial");
+    slide.setFontSize(28);
+    slide.setHasExplicitBackground(true);
+
+    return slide;
+}
+
 // === JSON serialization ===
 
 QJsonObject Presentation::toJson() const
@@ -633,7 +761,7 @@ Presentation* Presentation::fromJson(const QJsonObject& json,
             PresentationItem* item = nullptr;
 
             if (typeName == "song") {
-                item = SongItem::fromJson(itemJson, songLibrary);
+                item = SongItem::fromJson(itemJson, songLibrary, settingsManager);
             } else if (typeName == "scripture") {
                 item = ScriptureItem::fromJson(itemJson, bibleDatabase, settingsManager);
             } else if (typeName == "customSlide") {

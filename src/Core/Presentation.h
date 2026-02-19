@@ -128,6 +128,22 @@ public:
     Slide resolvedSlideAt(int flatIndex) const;
 
     /**
+     * @brief Check if a virtual copyright slide should be appended
+     *
+     * Returns true when the "Show copyright slide" setting is enabled AND
+     * at least one item in the presentation has copyright data.
+     */
+    bool hasCopyrightSlide() const;
+
+    /**
+     * @brief Generate the virtual copyright slide
+     *
+     * Collects copyright/attribution data from all items and produces
+     * a single summary slide.
+     */
+    Slide generateCopyrightSlide() const;
+
+    /**
      * @brief Set the settings manager for cascading background settings
      */
     void setSettingsManager(SettingsManager* mgr) { m_settingsManager = mgr; }

@@ -51,6 +51,9 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_redLettersEnabledCheckBox(nullptr)
     , m_redLetterColorButton(nullptr)
     , m_redLetterColor("#cc0000")
+    , m_ccliLicenseNumberEdit(nullptr)
+    , m_showCcliOnTitleSlidesCheckBox(nullptr)
+    , m_showCopyrightSlideCheckBox(nullptr)
     , m_esvApiKeyEdit(nullptr)
     , m_esvCacheStatusLabel(nullptr)
     , m_apiBibleApiKeyEdit(nullptr)
@@ -609,6 +612,33 @@ void SettingsDialog::createBiblePage()
     helpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
     pageLayout->addWidget(helpLabel);
 
+    // Copyright & CCLI group
+    QGroupBox* copyrightGroup = new QGroupBox(tr("Copyright && CCLI"), biblePage);
+    QFormLayout* copyrightLayout = new QFormLayout(copyrightGroup);
+
+    m_ccliLicenseNumberEdit = new QLineEdit(copyrightGroup);
+    m_ccliLicenseNumberEdit->setPlaceholderText(tr("e.g. 1234567"));
+    copyrightLayout->addRow(tr("CCLI License Number:"), m_ccliLicenseNumberEdit);
+
+    m_showCcliOnTitleSlidesCheckBox = new QCheckBox(
+        tr("Show CCLI info on song title slides"), copyrightGroup);
+    copyrightLayout->addRow(m_showCcliOnTitleSlidesCheckBox);
+
+    m_showCopyrightSlideCheckBox = new QCheckBox(
+        tr("Auto-generate copyright slide at end of presentation"), copyrightGroup);
+    copyrightLayout->addRow(m_showCopyrightSlideCheckBox);
+
+    QLabel* copyrightHelpLabel = new QLabel(
+        tr("When CCLI info is shown on title slides, the CCLI song number and your license number "
+           "appear below the song title. The copyright slide collects all copyright and attribution "
+           "notices into a single slide at the end of the presentation."),
+        copyrightGroup);
+    copyrightHelpLabel->setWordWrap(true);
+    copyrightHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    copyrightLayout->addRow(copyrightHelpLabel);
+
+    pageLayout->addWidget(copyrightGroup);
+
     // ESV API group
     QGroupBox* esvGroup = new QGroupBox(tr("ESV Bible API"), biblePage);
     QFormLayout* esvLayout = new QFormLayout(esvGroup);
@@ -886,6 +916,11 @@ void SettingsDialog::loadSettings()
     updateColorButtonStyle(m_redLetterColorButton, m_redLetterColor);
     m_redLetterColorButton->setEnabled(m_settingsManager->redLettersEnabled());
 
+    // Load Copyright & CCLI settings
+    m_ccliLicenseNumberEdit->setText(m_settingsManager->ccliLicenseNumber());
+    m_showCcliOnTitleSlidesCheckBox->setChecked(m_settingsManager->showCcliOnTitleSlides());
+    m_showCopyrightSlideCheckBox->setChecked(m_settingsManager->showCopyrightSlide());
+
     // Load ESV API settings
     m_esvApiKeyEdit->setText(m_settingsManager->esvApiKey());
     int cachedVerses = m_settingsManager->esvCachedVerseCount();
@@ -959,6 +994,11 @@ void SettingsDialog::saveSettings()
     // Save red letter settings
     m_settingsManager->setRedLettersEnabled(m_redLettersEnabledCheckBox->isChecked());
     m_settingsManager->setRedLetterColor(m_redLetterColor.name());
+
+    // Save Copyright & CCLI settings
+    m_settingsManager->setCcliLicenseNumber(m_ccliLicenseNumberEdit->text());
+    m_settingsManager->setShowCcliOnTitleSlides(m_showCcliOnTitleSlidesCheckBox->isChecked());
+    m_settingsManager->setShowCopyrightSlide(m_showCopyrightSlideCheckBox->isChecked());
 
     // Save ESV API settings
     m_settingsManager->setEsvApiKey(m_esvApiKeyEdit->text());

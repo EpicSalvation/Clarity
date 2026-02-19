@@ -4,6 +4,43 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-19 - Copyright Compliance Options & Playlist Item Disappearance Fix
+
+### Summary
+Added CCLI/copyright compliance features (settings, title slide annotation, auto-generated copyright slide) and fixed a bug where adding items to the middle of the playlist caused the last item to disappear.
+
+### Work Completed
+
+**Copyright & CCLI Compliance:**
+- Added three new settings to `SettingsManager`: `showCcliOnTitleSlides`, `ccliLicenseNumber`, `showCopyrightSlide`
+- Added `SettingsManager*` support to `SongItem` (setter, member, passed through `fromJson`)
+- `SongItem::generateSlides()` now appends CCLI song# and license# to title slides when enabled
+- `Presentation` gains `hasCopyrightSlide()` and `generateCopyrightSlide()` — virtual slide appended at the end collecting all copyright data from songs and scripture items
+- `totalSlideCount()`, `slideAt()`, `resolvedSlideAt()`, and navigation methods all account for the virtual copyright slide
+- `SettingsDialog` Bible page now has a "Copyright & CCLI" group with license number input, title slide checkbox, and copyright slide checkbox
+- `ControlWindow::onInsertSong()` passes `m_settingsManager` to new SongItems
+- `Presentation::fromJson()` passes `settingsManager` to `SongItem::fromJson()`
+
+**Playlist Bug Fix:**
+- `PresentationModel::insertItem/removeItem/addItem` were using `m_presentation->blockSignals(true/false)` to prevent nested model resets — but this suppressed ALL Presentation signals including `itemsChanged`, so `ItemListModel` never learned about the change
+- Replaced all `blockSignals` usage in PresentationModel with an `m_resetting` guard flag that only prevents `onSlidesChanged()` from nesting a reset, while allowing Presentation signals to flow normally to other models
+- Same fix applied to `moveSlide`, `removeSlide`, and section-move/scripture-convert operations in `dropMimeData`
+
+### Technical Decisions
+- Copyright slide is "virtual" — it exists only in the flat slide index space and is generated on demand. It has no `SlidePosition` (positionForFlatIndex returns invalid), so edit/remove operations safely ignore it
+- Used `m_resetting` guard flag instead of `blockSignals` to preserve signal flow between models while preventing nested Qt model resets
+- Copyright slide uses smaller font (28pt) and black background for readability of multi-line attribution text
+
+### Issues/Blockers
+None.
+
+### Next Steps
+- Test copyright slide appearance with various item combinations
+- Consider whether copyright slide needs special handling in the confidence monitor
+- Verify settings persist across restart
+
+---
+
 ## 2026-02-18 - Graceful Child Process Shutdown on Control App Close
 
 ### Summary
