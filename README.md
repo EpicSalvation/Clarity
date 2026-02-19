@@ -63,7 +63,12 @@ Clarity now includes comprehensive presentation features suitable for worship se
 - **Usage tracking** for CCLI reporting
 - **CCLI Report generator** with date range filtering and CSV/text export
 - **SongSelect search** opens browser search on Google or SongSelect directly
-- **Copyright compliance** — optional CCLI info on song title slides and auto-generated copyright slide at end of presentation
+
+#### Copyright & CCLI
+- **Dedicated Copyright settings page** for all licensing options
+- **CCLI license number** display on song title slides
+- **Auto-generated copyright slide** at end of presentation
+- **CCLI Usage Report** accessible directly from settings
 
 #### Scripture Support
 - **Unified scripture dialog** — single tabbed interface for all scripture sources (Ctrl+B)
@@ -87,6 +92,10 @@ Clarity now includes comprehensive presentation features suitable for worship se
 - **Scripture theme override** — optionally apply a chosen theme's background to all scripture slides
 - **"Use own background" toggle** in the slide editor to control whether a slide inherits or defines its own background
 - Enabled by default; can be toggled in Settings > General > Backgrounds
+
+#### Import
+- **Import PowerPoint** (Ctrl+Shift+P) — exports slides as images via PowerShell COM automation (Windows)
+- **Import Slide Images** (Ctrl+Shift+I) — import PNG/JPG/BMP files as slide backgrounds
 
 #### Additional Features
 - **Themes** for consistent slide styling (15 built-in themes with gradients)
@@ -265,6 +274,8 @@ See [DEVLOG.md](DEVLOG.md) for development history and technical decisions.
 - [x] Unified tabbed scripture dialog
 - [x] API.bible red letter support
 - [x] Copyright compliance (CCLI title slides, auto-generated copyright slide)
+- [x] Dedicated Copyright settings page with CCLI report access
+- [x] Import PowerPoint & Import Slide Images
 - [ ] Audio playback support
 - [ ] Video playback controls (start/end times)
 

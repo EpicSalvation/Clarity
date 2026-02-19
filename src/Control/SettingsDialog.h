@@ -15,6 +15,7 @@
 namespace Clarity {
 
 class BibleDatabase;
+class SongLibrary;
 class ThemeManager;
 
 /**
@@ -42,6 +43,11 @@ public:
      */
     void setThemeManager(ThemeManager* themeManager);
 
+    /**
+     * @brief Set the song library for CCLI report generation
+     */
+    void setSongLibrary(SongLibrary* library);
+
 private slots:
     void onCategoryChanged(int row);
     void onOkClicked();
@@ -58,6 +64,7 @@ private:
     void createDisplayPage();
     void createRemoteControlPage();
     void createBiblePage();
+    void createCopyrightPage();
     void loadSettings();
     void saveSettings();
     void updateColorButtonStyle(QPushButton* button, const QColor& color);
@@ -110,6 +117,7 @@ private:
     QCheckBox* m_scriptureThemeOverrideCheckBox;
     QComboBox* m_scriptureThemeOverrideCombo;
     ThemeManager* m_themeManager;
+    SongLibrary* m_songLibrary;
 
     // Library settings
     QCheckBox* m_autoSyncLibraryGroupsCheckBox;

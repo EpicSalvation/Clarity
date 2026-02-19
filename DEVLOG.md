@@ -4,6 +4,61 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-19 - Move Copyright/CCLI Settings to Dedicated Page
+
+### Summary
+Moved the Copyright & CCLI settings from the Bible settings page to their own dedicated "Copyright" page in the Settings dialog. Added a CCLI Usage Report button for quick access to report generation.
+
+### Work Completed
+- Created new `createCopyrightPage()` method with three sections: CCLI License group, Copyright Slide group, and CCLI Usage Report button
+- Removed the "Copyright & CCLI" group box from `createBiblePage()`
+- Added "Copyright" category to settings sidebar (between Bible and Remote Control)
+- Added `setSongLibrary()` setter and `m_songLibrary` member to `SettingsDialog` for CCLI report access
+- Updated `ControlWindow::onSettings()` to pass the song library to the settings dialog
+- Settings save/load unchanged — same widget pointers, same settings keys
+
+### Technical Decisions
+- Split the original combined group into two logical groups (CCLI License + Copyright Slide) for clarity
+- CCLI Report button opens `CCLIReportDialog` directly from the settings page via lambda connection
+
+### Testing
+- Build succeeds cleanly
+- Settings now shows 5 categories: General, Display, Bible, Copyright, Remote Control
+- Manual verification needed: page navigation, settings persistence, CCLI Report button
+
+---
+
+## 2026-02-19 - Import PowerPoint & Import Slide Images
+
+### Summary
+Added two new import features: "Import PowerPoint" (Ctrl+Shift+P) automates PowerPoint via COM/PowerShell to export slides as PNGs and import them, and "Import Slide Images" (Ctrl+Shift+I) allows direct import of PNG/JPG/BMP files as slide backgrounds. Both create a SlideGroupItem with the imported slides.
+
+### Work Completed
+
+- Added `onImportPowerPoint()` and `onImportSlideImages()` slots to `ControlWindow`
+- Added menu items under Slide menu with keyboard shortcuts (Ctrl+Shift+P and Ctrl+Shift+I)
+- **Import Slide Images**: Opens multi-file dialog for PNG/JPG/BMP, sorts files naturally (numeric ordering), reads each image into a Slide with Image background type, groups into a SlideGroupItem named after the parent folder
+- **Import PowerPoint**: Detects PowerPoint via COM probe (PowerShell), shows helpful fallback message if unavailable, exports slides as PNGs using PowerShell COM automation with `SaveAs(path, 18)` (ppSaveAsPNG), shows indeterminate QProgressDialog with cancel support, handles PowerPoint's subfolder output structure, imports exported PNGs using same pattern as Import Slide Images
+- Both features follow the established insertion pattern: undo snapshot, insert after current item, navigate to first slide, broadcast and update UI
+- Error handling: PowerPoint not installed, export failure (stderr shown), user cancellation (process kill), no PNGs produced, unreadable files
+
+### Technical Decisions
+- Used PowerShell COM automation rather than native C++ COM for simplicity and reliability
+- QEventLoop with QProgressDialog for non-blocking wait during export
+- QTemporaryDir for automatic cleanup of exported PNGs
+- QCollator with numeric mode for natural sort order (Slide1, Slide2, ..., Slide10)
+- PowerPoint's SaveAs with ppSaveAsPNG (format code 18) creates a subfolder — code checks both direct and subdirectory locations
+
+### Testing
+- Build succeeds cleanly
+- Manual testing needed: import images, import PowerPoint (with/without PowerPoint installed), cancel during export, undo after import
+
+### Next Steps
+- Test with real PowerPoint files
+- Consider LibreOffice Impress automation as alternative backend
+
+---
+
 ## 2026-02-19 - Copyright Compliance Options & Playlist Item Disappearance Fix
 
 ### Summary

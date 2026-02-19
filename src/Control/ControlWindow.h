@@ -87,6 +87,8 @@ private slots:
     void onInsertSong();
     void onInsertSlideGroup();
     void onInsertSlideGroupFromLibrary(int groupId);
+    void onImportPowerPoint();
+    void onImportSlideImages();
     void onSaveCurrentGroupToLibrary();
     void onAddSlideToGroup();
     void onDuplicateSlideInGroup();

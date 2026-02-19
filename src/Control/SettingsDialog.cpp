@@ -1,6 +1,8 @@
 #include "SettingsDialog.h"
 #include "BibleImportDialog.h"
+#include "CCLIReportDialog.h"
 #include "Core/BibleDatabase.h"
+#include "Core/SongLibrary.h"
 #include "Core/ThemeManager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -47,6 +49,7 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_scriptureThemeOverrideCheckBox(nullptr)
     , m_scriptureThemeOverrideCombo(nullptr)
     , m_themeManager(nullptr)
+    , m_songLibrary(nullptr)
     , m_autoSyncLibraryGroupsCheckBox(nullptr)
     , m_redLettersEnabledCheckBox(nullptr)
     , m_redLetterColorButton(nullptr)
@@ -92,6 +95,11 @@ void SettingsDialog::setThemeManager(ThemeManager* themeManager)
     }
 }
 
+void SettingsDialog::setSongLibrary(SongLibrary* library)
+{
+    m_songLibrary = library;
+}
+
 SettingsDialog::~SettingsDialog()
 {
 }
@@ -116,6 +124,7 @@ void SettingsDialog::setupUI()
     m_categoryList->addItem(tr("General"));
     m_categoryList->addItem(tr("Display"));
     m_categoryList->addItem(tr("Bible"));
+    m_categoryList->addItem(tr("Copyright"));
     m_categoryList->addItem(tr("Remote Control"));
 
     connect(m_categoryList, &QListWidget::currentRowChanged,
@@ -131,6 +140,7 @@ void SettingsDialog::setupUI()
     createGeneralPage();
     createDisplayPage();
     createBiblePage();
+    createCopyrightPage();
     createRemoteControlPage();
 
     // Set initial selection
@@ -612,33 +622,6 @@ void SettingsDialog::createBiblePage()
     helpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
     pageLayout->addWidget(helpLabel);
 
-    // Copyright & CCLI group
-    QGroupBox* copyrightGroup = new QGroupBox(tr("Copyright && CCLI"), biblePage);
-    QFormLayout* copyrightLayout = new QFormLayout(copyrightGroup);
-
-    m_ccliLicenseNumberEdit = new QLineEdit(copyrightGroup);
-    m_ccliLicenseNumberEdit->setPlaceholderText(tr("e.g. 1234567"));
-    copyrightLayout->addRow(tr("CCLI License Number:"), m_ccliLicenseNumberEdit);
-
-    m_showCcliOnTitleSlidesCheckBox = new QCheckBox(
-        tr("Show CCLI info on song title slides"), copyrightGroup);
-    copyrightLayout->addRow(m_showCcliOnTitleSlidesCheckBox);
-
-    m_showCopyrightSlideCheckBox = new QCheckBox(
-        tr("Auto-generate copyright slide at end of presentation"), copyrightGroup);
-    copyrightLayout->addRow(m_showCopyrightSlideCheckBox);
-
-    QLabel* copyrightHelpLabel = new QLabel(
-        tr("When CCLI info is shown on title slides, the CCLI song number and your license number "
-           "appear below the song title. The copyright slide collects all copyright and attribution "
-           "notices into a single slide at the end of the presentation."),
-        copyrightGroup);
-    copyrightHelpLabel->setWordWrap(true);
-    copyrightHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
-    copyrightLayout->addRow(copyrightHelpLabel);
-
-    pageLayout->addWidget(copyrightGroup);
-
     // ESV API group
     QGroupBox* esvGroup = new QGroupBox(tr("ESV Bible API"), biblePage);
     QFormLayout* esvLayout = new QFormLayout(esvGroup);
@@ -686,6 +669,68 @@ void SettingsDialog::createBiblePage()
 
     QScrollArea* scrollArea = new QScrollArea(this);
     scrollArea->setWidget(biblePage);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    m_pageStack->addWidget(scrollArea);
+}
+
+void SettingsDialog::createCopyrightPage()
+{
+    QWidget* copyrightPage = new QWidget(this);
+    QVBoxLayout* pageLayout = new QVBoxLayout(copyrightPage);
+
+    // CCLI License group
+    QGroupBox* ccliGroup = new QGroupBox(tr("CCLI License"), copyrightPage);
+    QFormLayout* ccliLayout = new QFormLayout(ccliGroup);
+
+    m_ccliLicenseNumberEdit = new QLineEdit(ccliGroup);
+    m_ccliLicenseNumberEdit->setPlaceholderText(tr("e.g. 1234567"));
+    ccliLayout->addRow(tr("License Number:"), m_ccliLicenseNumberEdit);
+
+    m_showCcliOnTitleSlidesCheckBox = new QCheckBox(
+        tr("Show CCLI info on song title slides"), ccliGroup);
+    ccliLayout->addRow(m_showCcliOnTitleSlidesCheckBox);
+
+    QLabel* ccliHelpLabel = new QLabel(
+        tr("When enabled, the CCLI song number and your license number appear below the song title "
+           "on title slides."),
+        ccliGroup);
+    ccliHelpLabel->setWordWrap(true);
+    ccliHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    ccliLayout->addRow(ccliHelpLabel);
+
+    pageLayout->addWidget(ccliGroup);
+
+    // Copyright Slide group
+    QGroupBox* copyrightSlideGroup = new QGroupBox(tr("Copyright Slide"), copyrightPage);
+    QVBoxLayout* copyrightSlideLayout = new QVBoxLayout(copyrightSlideGroup);
+
+    m_showCopyrightSlideCheckBox = new QCheckBox(
+        tr("Auto-generate copyright slide at end of presentation"), copyrightSlideGroup);
+    copyrightSlideLayout->addWidget(m_showCopyrightSlideCheckBox);
+
+    QLabel* copyrightSlideHelpLabel = new QLabel(
+        tr("Collects all copyright and attribution notices into a single slide at the end "
+           "of the presentation."),
+        copyrightSlideGroup);
+    copyrightSlideHelpLabel->setWordWrap(true);
+    copyrightSlideHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    copyrightSlideLayout->addWidget(copyrightSlideHelpLabel);
+
+    pageLayout->addWidget(copyrightSlideGroup);
+
+    // CCLI Usage Report button
+    QPushButton* ccliReportButton = new QPushButton(tr("CCLI Usage Report..."), copyrightPage);
+    connect(ccliReportButton, &QPushButton::clicked, this, [this]() {
+        CCLIReportDialog dialog(m_songLibrary, this);
+        dialog.exec();
+    });
+    pageLayout->addWidget(ccliReportButton);
+
+    pageLayout->addStretch();
+
+    QScrollArea* scrollArea = new QScrollArea(this);
+    scrollArea->setWidget(copyrightPage);
     scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
     m_pageStack->addWidget(scrollArea);

@@ -80,6 +80,7 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [x] Usage statistics in song library (times used, last used)
   - [x] Quick filters (used this month/year, never used, has CCLI#)
   - [x] Copyright compliance: CCLI info on song title slides, auto-generated copyright slide
+  - [x] Dedicated Copyright settings page with CCLI report access
   - [ ] Direct API integration (requires CCLI developer account - future)
 
 ### Low Priority

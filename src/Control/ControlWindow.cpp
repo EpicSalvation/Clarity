@@ -33,6 +33,12 @@
 #include <QPixmap>
 #include <QBuffer>
 #include <QDebug>
+#include <QProcess>
+#include <QProgressDialog>
+#include <QTemporaryDir>
+#include <QEventLoop>
+#include <QCollator>
+#include <QFileInfo>
 #include <cstdlib>
 
 namespace Clarity {
@@ -339,6 +345,11 @@ void ControlWindow::setupUI()
     slideMenu->addAction(tr("Insert &Scripture..."), QKeySequence("Ctrl+B"), this, &ControlWindow::onInsertScripture);
     slideMenu->addAction(tr("Insert S&ong..."), QKeySequence("Ctrl+L"), this, &ControlWindow::onInsertSong);
     slideMenu->addAction(tr("Insert Slide &Group..."), QKeySequence("Ctrl+G"), this, &ControlWindow::onInsertSlideGroup);
+    slideMenu->addSeparator();
+    slideMenu->addAction(tr("Import &PowerPoint..."), QKeySequence("Ctrl+Shift+P"),
+                         this, &ControlWindow::onImportPowerPoint);
+    slideMenu->addAction(tr("Import Slide &Images..."), QKeySequence("Ctrl+Shift+I"),
+                         this, &ControlWindow::onImportSlideImages);
     slideMenu->addSeparator();
     slideMenu->addAction(tr("Purge ESV &Cache..."), this, &ControlWindow::onPurgeEsvCache);
     slideMenu->addSeparator();
@@ -848,6 +859,7 @@ void ControlWindow::onSettings()
     SettingsDialog dialog(m_settingsManager, this);
     dialog.setBibleDatabase(m_bibleDatabase);
     dialog.setThemeManager(m_themeManager);
+    dialog.setSongLibrary(m_songLibrary);
     dialog.exec();
 }
 
@@ -1928,6 +1940,258 @@ void ControlWindow::onInsertSlideGroup()
     updateUI();
 
     qDebug() << "Inserted new slide group:" << name;
+}
+
+void ControlWindow::onImportSlideImages()
+{
+    QStringList files = QFileDialog::getOpenFileNames(
+        this, tr("Import Slide Images"),
+        QDir::homePath(),
+        tr("Images (*.png *.jpg *.jpeg *.bmp);;All Files (*)"));
+    if (files.isEmpty()) return;
+
+    // Sort by filename using natural ordering (Slide1, Slide2, ..., Slide10)
+    QCollator collator;
+    collator.setNumericMode(true);
+    std::sort(files.begin(), files.end(), [&](const QString& a, const QString& b) {
+        return collator.compare(QFileInfo(a).fileName(), QFileInfo(b).fileName()) < 0;
+    });
+
+    // Build slides from images
+    QList<Slide> slides;
+    for (const QString& filePath : files) {
+        QFile file(filePath);
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning() << "Failed to read image file:" << filePath;
+            continue;
+        }
+        QByteArray imageData = file.readAll();
+
+        Slide slide;
+        slide.setBackgroundType(Slide::Image);
+        slide.setBackgroundImagePath(filePath);
+        slide.setBackgroundImageData(imageData);
+        slide.setHasExplicitBackground(true);
+        slides.append(slide);
+    }
+
+    if (slides.isEmpty()) return;
+
+    // Derive group name from the parent folder of the first file
+    QString groupName = QFileInfo(files.first()).dir().dirName();
+    if (groupName.isEmpty()) groupName = tr("Imported Slides");
+
+    saveUndoSnapshot(tr("Import Slide Images"));
+
+    SlideGroupItem* groupItem = new SlideGroupItem(groupName, slides);
+
+    Presentation* presentation = m_presentationModel->presentation();
+    SlidePosition currentPos = presentation->positionForFlatIndex(presentation->currentSlideIndex());
+    int insertItemIndex = currentPos.isValid() ? currentPos.itemIndex + 1 : presentation->itemCount();
+
+    m_presentationModel->insertItem(insertItemIndex, groupItem);
+
+    // Navigate to first slide of the new item
+    Presentation* updatedPres = m_presentationModel->presentation();
+    int firstSlideIndex = updatedPres->flatIndexForPosition(insertItemIndex, 0);
+    if (firstSlideIndex >= 0) {
+        m_slideGridView->setCurrentIndex(m_presentationModel->index(firstSlideIndex, 0));
+        m_presentationModel->setCurrentSlideIndex(firstSlideIndex);
+    }
+    broadcastCurrentSlide();
+    updateUI();
+
+    qDebug() << "Imported" << slides.size() << "slide images as group:" << groupName;
+}
+
+void ControlWindow::onImportPowerPoint()
+{
+    QString pptxPath = QFileDialog::getOpenFileName(
+        this, tr("Import PowerPoint"),
+        QDir::homePath(),
+        tr("PowerPoint (*.pptx);;All Files (*)"));
+    if (pptxPath.isEmpty()) return;
+
+    // Detect if PowerPoint is installed via COM probe
+    {
+        QProcess probe;
+        probe.start("powershell.exe", {
+            "-NoProfile", "-Command",
+            "try { $p = New-Object -ComObject PowerPoint.Application; $p.Quit(); [System.Runtime.InteropServices.Marshal]::ReleaseComObject($p) | Out-Null; exit 0 } catch { exit 1 }"
+        });
+        probe.waitForFinished(10000);
+        if (probe.exitCode() != 0) {
+            QMessageBox::information(this, tr("PowerPoint Not Available"),
+                tr("Microsoft PowerPoint was not detected on this computer.\n\n"
+                   "To import a PowerPoint presentation:\n"
+                   "1. Open the .pptx file in PowerPoint or LibreOffice Impress\n"
+                   "2. Export/Save As → PNG (all slides)\n"
+                   "3. Use Slide → Import Slide Images to import the exported PNGs\n\n"
+                   "Keyboard shortcut: Ctrl+Shift+I"));
+            return;
+        }
+    }
+
+    // Create temp directory for exported PNGs
+    QTemporaryDir tempDir;
+    if (!tempDir.isValid()) {
+        QMessageBox::warning(this, tr("Error"), tr("Failed to create temporary directory."));
+        return;
+    }
+    QString outputDir = tempDir.path();
+
+    // Build PowerShell script to export slides as PNGs
+    // Notes:
+    // - Open() with only ReadOnly param; WithWindow=false causes E_FAIL when app isn't visible
+    // - SaveAs to a non-existing subdirectory so PowerPoint can create it (format 18 = ppSaveAsPNG)
+    QString exportSubdir = outputDir + "/slides";
+    QString script = QString(
+        "try {"
+        "  $ppt = New-Object -ComObject PowerPoint.Application;"
+        "  $pres = $ppt.Presentations.Open('%1', [int32](-1));"
+        "  $pres.SaveAs('%2', [int32]18);"
+        "  $pres.Close();"
+        "  $ppt.Quit();"
+        "  [System.Runtime.InteropServices.Marshal]::ReleaseComObject($pres) | Out-Null;"
+        "  [System.Runtime.InteropServices.Marshal]::ReleaseComObject($ppt) | Out-Null;"
+        "  exit 0"
+        "} catch {"
+        "  Write-Error $_.Exception.Message;"
+        "  exit 1"
+        "}"
+    ).arg(
+        QString(pptxPath).replace("'", "''").replace("/", "\\"),
+        QString(exportSubdir).replace("'", "''").replace("/", "\\")
+    );
+
+    QProcess* process = new QProcess(this);
+    process->setProgram("powershell.exe");
+    process->setArguments({"-NoProfile", "-Command", script});
+
+    // Progress dialog (indeterminate)
+    QProgressDialog progress(tr("Exporting slides from PowerPoint..."), tr("Cancel"), 0, 0, this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(0);
+
+    // Cancel button kills the process
+    connect(&progress, &QProgressDialog::canceled, process, &QProcess::kill);
+
+    // Event loop to wait for process completion
+    QEventLoop loop;
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            &loop, &QEventLoop::quit);
+
+    process->start();
+    if (!process->waitForStarted(5000)) {
+        QMessageBox::warning(this, tr("Error"), tr("Failed to start PowerShell."));
+        delete process;
+        return;
+    }
+
+    loop.exec();
+    progress.close();
+
+    int exitCode = process->exitCode();
+    QProcess::ExitStatus exitStatus = process->exitStatus();
+    QString stderrOutput = QString::fromUtf8(process->readAllStandardError());
+    delete process;
+
+    if (exitStatus == QProcess::CrashExit) {
+        // User cancelled or process crashed
+        qDebug() << "PowerPoint export was cancelled or crashed";
+        return;
+    }
+
+    if (exitCode != 0) {
+        QMessageBox::warning(this, tr("Export Failed"),
+            tr("PowerPoint export failed:\n%1").arg(stderrOutput.trimmed()));
+        return;
+    }
+
+    // PowerPoint's SaveAs with ppSaveAsPNG creates a subfolder named after the file
+    // e.g., "My Presentation" folder inside outputDir containing Slide1.PNG, Slide2.PNG, ...
+    // Find the PNG files in the output directory (may be in a subfolder)
+    QStringList pngFiles;
+    QDir outDir(outputDir);
+
+    // Check for PNGs directly in outputDir
+    pngFiles = outDir.entryList({"*.PNG", "*.png"}, QDir::Files);
+    if (pngFiles.isEmpty()) {
+        // Check subdirectories (PowerPoint creates a subfolder)
+        QStringList subdirs = outDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+        for (const QString& subdir : subdirs) {
+            QDir sub(outDir.filePath(subdir));
+            QStringList subPngs = sub.entryList({"*.PNG", "*.png"}, QDir::Files);
+            if (!subPngs.isEmpty()) {
+                outDir = sub;
+                pngFiles = subPngs;
+                break;
+            }
+        }
+    }
+
+    if (pngFiles.isEmpty()) {
+        QMessageBox::warning(this, tr("No Slides Found"),
+            tr("PowerPoint did not produce any slide images."));
+        return;
+    }
+
+    // Sort naturally (Slide1.PNG, Slide2.PNG, ..., Slide10.PNG)
+    QCollator collator;
+    collator.setNumericMode(true);
+    std::sort(pngFiles.begin(), pngFiles.end(), [&](const QString& a, const QString& b) {
+        return collator.compare(a, b) < 0;
+    });
+
+    // Build slides from exported PNGs
+    QList<Slide> slides;
+    for (const QString& pngFile : pngFiles) {
+        QString fullPath = outDir.absoluteFilePath(pngFile);
+        QFile file(fullPath);
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning() << "Failed to read exported PNG:" << fullPath;
+            continue;
+        }
+        QByteArray imageData = file.readAll();
+
+        Slide slide;
+        slide.setBackgroundType(Slide::Image);
+        slide.setBackgroundImagePath(fullPath);
+        slide.setBackgroundImageData(imageData);
+        slide.setHasExplicitBackground(true);
+        slides.append(slide);
+    }
+
+    if (slides.isEmpty()) {
+        QMessageBox::warning(this, tr("No Slides Found"),
+            tr("PowerPoint did not produce any slide images."));
+        return;
+    }
+
+    // Group name from PPTX filename (without extension)
+    QString groupName = QFileInfo(pptxPath).completeBaseName();
+
+    saveUndoSnapshot(tr("Import PowerPoint"));
+
+    SlideGroupItem* groupItem = new SlideGroupItem(groupName, slides);
+
+    Presentation* presentation = m_presentationModel->presentation();
+    SlidePosition currentPos = presentation->positionForFlatIndex(presentation->currentSlideIndex());
+    int insertItemIndex = currentPos.isValid() ? currentPos.itemIndex + 1 : presentation->itemCount();
+
+    m_presentationModel->insertItem(insertItemIndex, groupItem);
+
+    // Navigate to first slide of the new item
+    Presentation* updatedPres = m_presentationModel->presentation();
+    int firstSlideIndex = updatedPres->flatIndexForPosition(insertItemIndex, 0);
+    if (firstSlideIndex >= 0) {
+        m_slideGridView->setCurrentIndex(m_presentationModel->index(firstSlideIndex, 0));
+        m_presentationModel->setCurrentSlideIndex(firstSlideIndex);
+    }
+    broadcastCurrentSlide();
+    updateUI();
+
+    qDebug() << "Imported" << slides.size() << "slides from PowerPoint:" << groupName;
 }
 
 void ControlWindow::onAddSlideToGroup()
