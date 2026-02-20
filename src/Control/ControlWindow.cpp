@@ -46,6 +46,9 @@ namespace Clarity {
 
 ControlWindow::ControlWindow(QWidget* parent)
     : QMainWindow(parent)
+    , m_stackedWidget(nullptr)
+    , m_startupWidget(nullptr)
+    , m_editingWidget(nullptr)
     , m_slideListView(nullptr)
     , m_slideGridView(nullptr)
     , m_slideDelegate(nullptr)
@@ -59,6 +62,13 @@ ControlWindow::ControlWindow(QWidget* parent)
     , m_moveUpButton(nullptr)
     , m_moveDownButton(nullptr)
     , m_statusLabel(nullptr)
+    , m_saveAction(nullptr)
+    , m_saveAsAction(nullptr)
+    , m_closeAction(nullptr)
+    , m_editMenu(nullptr)
+    , m_slideMenu(nullptr)
+    , m_viewMenu(nullptr)
+    , m_formatMenu(nullptr)
     , m_presentationModel(new PresentationModel(this))
     , m_itemListModel(new ItemListModel(this))
     , m_slideFilterProxy(new SlideFilterProxyModel(this))
@@ -97,7 +107,7 @@ ControlWindow::ControlWindow(QWidget* parent)
         m_slideListView->viewport()->update();
     });
 
-    createDemoPresentation();
+    showStartupScreen();
 
     // Initialize Bible database
     initializeBibleDatabase();
@@ -303,9 +313,6 @@ ControlWindow::ControlWindow(QWidget* parent)
     connect(m_settingsManager, &SettingsManager::slidePreviewSizeChanged, this, [this](const QString& size) {
         applySlidePreviewSize(size);
     });
-
-    updateUI();
-    updateWindowTitle();
 }
 
 ControlWindow::~ControlWindow()
@@ -323,52 +330,53 @@ void ControlWindow::setupUI()
 
     fileMenu->addAction(tr("&New"), QKeySequence::New, this, &ControlWindow::newPresentation);
     fileMenu->addAction(tr("&Open..."), QKeySequence::Open, this, &ControlWindow::openPresentation);
-    fileMenu->addAction(tr("&Save"), QKeySequence::Save, this, &ControlWindow::savePresentation);
-    fileMenu->addAction(tr("Save &As..."), QKeySequence::SaveAs, this, &ControlWindow::saveAsPresentation);
+    m_saveAction = fileMenu->addAction(tr("&Save"), QKeySequence::Save, this, &ControlWindow::savePresentation);
+    m_saveAsAction = fileMenu->addAction(tr("Save &As..."), QKeySequence::SaveAs, this, &ControlWindow::saveAsPresentation);
+    m_closeAction = fileMenu->addAction(tr("&Close"), QKeySequence("Ctrl+W"), this, &ControlWindow::closePresentation);
     fileMenu->addSeparator();
     fileMenu->addAction(tr("&Settings..."), this, &ControlWindow::onSettings);
     fileMenu->addSeparator();
     fileMenu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
 
     // Edit menu (Undo/Redo)
-    QMenu* editMenu = menuBar->addMenu(tr("&Edit"));
-    m_undoAction = editMenu->addAction(tr("&Undo"), QKeySequence::Undo, this, &ControlWindow::onUndo);
-    m_redoAction = editMenu->addAction(tr("&Redo"), QKeySequence::Redo, this, &ControlWindow::onRedo);
+    m_editMenu = menuBar->addMenu(tr("&Edit"));
+    m_undoAction = m_editMenu->addAction(tr("&Undo"), QKeySequence::Undo, this, &ControlWindow::onUndo);
+    m_redoAction = m_editMenu->addAction(tr("&Redo"), QKeySequence::Redo, this, &ControlWindow::onRedo);
     m_undoAction->setEnabled(false);
     m_redoAction->setEnabled(false);
 
     // Slide menu
-    QMenu* slideMenu = menuBar->addMenu(tr("&Slide"));
-    slideMenu->addAction(tr("&Add Slide"), QKeySequence("Ctrl+Shift+N"), this, &ControlWindow::onAddSlide);
-    slideMenu->addAction(tr("&Edit Slide"), QKeySequence("Ctrl+E"), this, &ControlWindow::onEditSlide);
-    slideMenu->addAction(tr("&Delete Slide"), QKeySequence::Delete, this, &ControlWindow::onDeleteSlide);
-    slideMenu->addSeparator();
-    slideMenu->addAction(tr("Insert &Scripture..."), QKeySequence("Ctrl+B"), this, &ControlWindow::onInsertScripture);
-    slideMenu->addAction(tr("Insert S&ong..."), QKeySequence("Ctrl+L"), this, &ControlWindow::onInsertSong);
-    slideMenu->addAction(tr("Insert Slide &Group..."), QKeySequence("Ctrl+G"), this, &ControlWindow::onInsertSlideGroup);
-    slideMenu->addSeparator();
-    slideMenu->addAction(tr("Import &PowerPoint..."), QKeySequence("Ctrl+Shift+P"),
+    m_slideMenu = menuBar->addMenu(tr("&Slide"));
+    m_slideMenu->addAction(tr("&Add Slide"), QKeySequence("Ctrl+Shift+N"), this, &ControlWindow::onAddSlide);
+    m_slideMenu->addAction(tr("&Edit Slide"), QKeySequence("Ctrl+E"), this, &ControlWindow::onEditSlide);
+    m_slideMenu->addAction(tr("&Delete Slide"), QKeySequence::Delete, this, &ControlWindow::onDeleteSlide);
+    m_slideMenu->addSeparator();
+    m_slideMenu->addAction(tr("Insert &Scripture..."), QKeySequence("Ctrl+B"), this, &ControlWindow::onInsertScripture);
+    m_slideMenu->addAction(tr("Insert S&ong..."), QKeySequence("Ctrl+L"), this, &ControlWindow::onInsertSong);
+    m_slideMenu->addAction(tr("Insert Slide &Group..."), QKeySequence("Ctrl+G"), this, &ControlWindow::onInsertSlideGroup);
+    m_slideMenu->addSeparator();
+    m_slideMenu->addAction(tr("Import &PowerPoint..."), QKeySequence("Ctrl+Shift+P"),
                          this, &ControlWindow::onImportPowerPoint);
-    slideMenu->addAction(tr("Import Slide &Images..."), QKeySequence("Ctrl+Shift+I"),
+    m_slideMenu->addAction(tr("Import Slide &Images..."), QKeySequence("Ctrl+Shift+I"),
                          this, &ControlWindow::onImportSlideImages);
-    slideMenu->addSeparator();
-    slideMenu->addAction(tr("Purge ESV &Cache..."), this, &ControlWindow::onPurgeEsvCache);
-    slideMenu->addSeparator();
-    slideMenu->addAction(tr("Apply &Theme..."), QKeySequence("Ctrl+T"), this, &ControlWindow::onApplyTheme);
-    slideMenu->addAction(tr("Apply Theme to Current Slide..."), this, &ControlWindow::onApplyThemeToSlide);
-    slideMenu->addAction(tr("Apply Theme to &Group..."), QKeySequence("Ctrl+Shift+T"), this, &ControlWindow::onApplyThemeToGroup);
-    slideMenu->addAction(tr("Clone &Format to Group"), QKeySequence("Ctrl+Shift+F"), this, &ControlWindow::onCloneFormatToGroup);
+    m_slideMenu->addSeparator();
+    m_slideMenu->addAction(tr("Purge ESV &Cache..."), this, &ControlWindow::onPurgeEsvCache);
+    m_slideMenu->addSeparator();
+    m_slideMenu->addAction(tr("Apply &Theme..."), QKeySequence("Ctrl+T"), this, &ControlWindow::onApplyTheme);
+    m_slideMenu->addAction(tr("Apply Theme to Current Slide..."), this, &ControlWindow::onApplyThemeToSlide);
+    m_slideMenu->addAction(tr("Apply Theme to &Group..."), QKeySequence("Ctrl+Shift+T"), this, &ControlWindow::onApplyThemeToGroup);
+    m_slideMenu->addAction(tr("Clone &Format to Group"), QKeySequence("Ctrl+Shift+F"), this, &ControlWindow::onCloneFormatToGroup);
 
     // View menu
-    QMenu* viewMenu = menuBar->addMenu(tr("&View"));
-    m_toggleMediaDrawerAction = viewMenu->addAction(tr("&Library"), QKeySequence("Ctrl+M"),
+    m_viewMenu = menuBar->addMenu(tr("&View"));
+    m_toggleMediaDrawerAction = m_viewMenu->addAction(tr("&Library"), QKeySequence("Ctrl+M"),
                                                      this, &ControlWindow::toggleMediaDrawer);
     m_toggleMediaDrawerAction->setCheckable(true);
     m_toggleMediaDrawerAction->setChecked(false);
 
     // Format menu (for theme management)
-    QMenu* formatMenu = menuBar->addMenu(tr("F&ormat"));
-    formatMenu->addAction(tr("&Manage Themes..."), this, &ControlWindow::onManageThemes);
+    m_formatMenu = menuBar->addMenu(tr("F&ormat"));
+    m_formatMenu->addAction(tr("&Manage Themes..."), this, &ControlWindow::onManageThemes);
 
     // Help menu
     QMenu* helpMenu = menuBar->addMenu(tr("&Help"));
@@ -385,12 +393,32 @@ void ControlWindow::setupUI()
 
     setMenuBar(menuBar);
 
-    // Central widget
-    QWidget* centralWidget = new QWidget(this);
-    setCentralWidget(centralWidget);
+    // Stacked widget: page 0 = startup, page 1 = editing
+    m_stackedWidget = new QStackedWidget(this);
+    setCentralWidget(m_stackedWidget);
+
+    // Page 0: Startup/welcome screen
+    m_startupWidget = new StartupWidget(this);
+    m_stackedWidget->addWidget(m_startupWidget);
+    connect(m_startupWidget, &StartupWidget::newPresentationRequested, this, &ControlWindow::newPresentation);
+    connect(m_startupWidget, &StartupWidget::openPresentationRequested, this, &ControlWindow::openPresentation);
+    connect(m_startupWidget, &StartupWidget::openRecentRequested, this, [this](const QString& path) {
+        if (!QFile::exists(path)) {
+            QMessageBox::warning(this, tr("File Not Found"),
+                tr("The file could not be found:\n%1").arg(path));
+            m_settingsManager->removeRecentFile(path);
+            m_startupWidget->setRecentFiles(m_settingsManager->recentFiles());
+            return;
+        }
+        openFile(path);
+    });
+
+    // Page 1: Editing UI
+    m_editingWidget = new QWidget(this);
+    m_stackedWidget->addWidget(m_editingWidget);
 
     // Main layout - vertical with content area on top and buttons at bottom
-    QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
+    QVBoxLayout* mainLayout = new QVBoxLayout(m_editingWidget);
 
     // Content area: horizontal layout with list on left, grid in center, preview on right
     QHBoxLayout* contentLayout = new QHBoxLayout();
@@ -603,29 +631,98 @@ void ControlWindow::setupUI()
     statusBar()->addPermanentWidget(m_remoteStatusLabel);
 }
 
-void ControlWindow::createDemoPresentation()
+void ControlWindow::showStartupScreen()
 {
-    // Create a demo presentation for Phase 1 testing
-    Presentation* demo = new Presentation("Demo Presentation");
+    m_hasPresentation = false;
+    m_stackedWidget->setCurrentIndex(0);
+    m_startupWidget->setRecentFiles(m_settingsManager->recentFiles());
+    setWindowTitle(tr("Clarity"));
+    updateMenuStates();
+}
 
-    demo->addSlide(Slide("Welcome to Clarity", QColor("#1e3a8a"), QColor("#ffffff")));
-    demo->addSlide(Slide("Amazing Grace\nHow sweet the sound", QColor("#064e3b"), QColor("#ffffff")));
-    demo->addSlide(Slide("That saved a wretch like me", QColor("#064e3b"), QColor("#ffffff")));
-    demo->addSlide(Slide("I once was lost\nBut now am found", QColor("#064e3b"), QColor("#ffffff")));
-    demo->addSlide(Slide("Was blind but now I see", QColor("#064e3b"), QColor("#ffffff")));
-    demo->addSlide(Slide("John 3:16\n\nFor God so loved the world...", QColor("#7c2d12"), QColor("#ffffff")));
+void ControlWindow::showEditingUI()
+{
+    m_hasPresentation = true;
+    m_stackedWidget->setCurrentIndex(1);
+    updateWindowTitle();
+    updateMenuStates();
+}
 
-    demo->setSettingsManager(m_settingsManager);
-    demo->setThemeManager(m_themeManager);
-    m_itemListModel->setPresentation(demo);
-    m_presentationModel->setPresentation(demo);
+void ControlWindow::openFile(const QString& filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::critical(this, tr("Error"), tr("Could not open file: %1").arg(file.errorString()));
+        qCritical() << "Failed to open file:" << filePath << file.errorString();
+        return;
+    }
 
-    // Initialize filter to first item
+    QByteArray data = file.readAll();
+    file.close();
+
+    QJsonDocument doc = QJsonDocument::fromJson(data);
+
+    if (doc.isNull() || !doc.isObject()) {
+        QMessageBox::critical(this, tr("Error"), tr("Invalid presentation file format."));
+        qCritical() << "Invalid JSON in file:" << filePath;
+        return;
+    }
+
+    Presentation* loaded = Presentation::fromJson(doc.object(), m_songLibrary, m_bibleDatabase, m_settingsManager);
+    loaded->setSettingsManager(m_settingsManager);
+    loaded->setThemeManager(m_themeManager);
+    m_itemListModel->setPresentation(loaded);
+    m_presentationModel->setPresentation(loaded);
+
     m_slideFilterProxy->setFilterItemIndex(0);
+
+    m_undoManager->clear();
+    m_currentFilePath = filePath;
+    m_isDirty = false;
+    m_settingsManager->addRecentFile(filePath);
+    showEditingUI();
+    updateUI();
+    broadcastCurrentSlide();
+
+    qDebug() << "Loaded presentation from:" << filePath;
+}
+
+void ControlWindow::closePresentation()
+{
+    if (m_hasPresentation && !promptSaveIfDirty()) {
+        return;
+    }
+
+    // Clear output displays
+    onClearOutput();
+
+    // Clear models by setting a null/empty presentation
+    m_itemListModel->setPresentation(nullptr);
+    m_presentationModel->setPresentation(nullptr);
+
+    m_undoManager->clear();
+    m_currentFilePath.clear();
+    m_isDirty = false;
+    m_recordedSongUsage.clear();
+
+    showStartupScreen();
+}
+
+void ControlWindow::updateMenuStates()
+{
+    bool hasPresentation = m_hasPresentation;
+    m_saveAction->setEnabled(hasPresentation);
+    m_saveAsAction->setEnabled(hasPresentation);
+    m_closeAction->setEnabled(hasPresentation);
+    m_editMenu->setEnabled(hasPresentation);
+    m_slideMenu->setEnabled(hasPresentation);
+    m_viewMenu->setEnabled(hasPresentation);
+    m_formatMenu->setEnabled(hasPresentation);
 }
 
 void ControlWindow::updateUI()
 {
+    if (!m_hasPresentation) return;
     int currentIndex = m_presentationModel->currentSlideIndex();
     int slideCount = m_presentationModel->rowCount();
 
@@ -774,6 +871,7 @@ void ControlWindow::broadcastCurrentSlide()
 
 void ControlWindow::onPrevSlide()
 {
+    if (!m_hasPresentation) return;
     Presentation* presentation = m_presentationModel->presentation();
     if (presentation && presentation->prevSlide()) {
         updateUI();
@@ -783,6 +881,7 @@ void ControlWindow::onPrevSlide()
 
 void ControlWindow::onNextSlide()
 {
+    if (!m_hasPresentation) return;
     Presentation* presentation = m_presentationModel->presentation();
     if (presentation && presentation->nextSlide()) {
         updateUI();
@@ -1506,17 +1605,17 @@ bool ControlWindow::promptSaveIfDirty()
 
 void ControlWindow::closeEvent(QCloseEvent* event)
 {
-    if (promptSaveIfDirty()) {
-        m_processManager->quitAll();
-        event->accept();
-    } else {
+    if (m_hasPresentation && !promptSaveIfDirty()) {
         event->ignore();
+        return;
     }
+    m_processManager->quitAll();
+    event->accept();
 }
 
 void ControlWindow::newPresentation()
 {
-    if (!promptSaveIfDirty()) {
+    if (m_hasPresentation && !promptSaveIfDirty()) {
         return; // User cancelled
     }
 
@@ -1535,13 +1634,13 @@ void ControlWindow::newPresentation()
     m_undoManager->clear();
     m_currentFilePath.clear();
     m_isDirty = false;
-    updateWindowTitle();
+    showEditingUI();
     updateUI();
 }
 
 void ControlWindow::openPresentation()
 {
-    if (!promptSaveIfDirty()) {
+    if (m_hasPresentation && !promptSaveIfDirty()) {
         return; // User cancelled
     }
 
@@ -1556,42 +1655,7 @@ void ControlWindow::openPresentation()
         return; // User cancelled dialog
     }
 
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        QMessageBox::critical(this, tr("Error"), tr("Could not open file: %1").arg(file.errorString()));
-        qCritical() << "Failed to open file:" << filePath << file.errorString();
-        return;
-    }
-
-    QByteArray data = file.readAll();
-    file.close();
-
-    QJsonDocument doc = QJsonDocument::fromJson(data);
-
-    if (doc.isNull() || !doc.isObject()) {
-        QMessageBox::critical(this, tr("Error"), tr("Invalid presentation file format."));
-        qCritical() << "Invalid JSON in file:" << filePath;
-        return;
-    }
-
-    // Load presentation with song library, bible database, and settings for item resolution
-    Presentation* loaded = Presentation::fromJson(doc.object(), m_songLibrary, m_bibleDatabase, m_settingsManager);
-    loaded->setSettingsManager(m_settingsManager);
-    loaded->setThemeManager(m_themeManager);
-    m_itemListModel->setPresentation(loaded);
-    m_presentationModel->setPresentation(loaded);
-
-    // Reset filter to first item
-    m_slideFilterProxy->setFilterItemIndex(0);
-
-    m_undoManager->clear();
-    m_currentFilePath = filePath;
-    m_isDirty = false;
-    updateWindowTitle();
-    updateUI();
-    broadcastCurrentSlide();
-
-    qDebug() << "Loaded presentation from:" << filePath;
+    openFile(filePath);
 }
 
 void ControlWindow::savePresentation()
@@ -1622,6 +1686,7 @@ void ControlWindow::savePresentation()
     }
 
     markClean();
+    m_settingsManager->addRecentFile(m_currentFilePath);
     qDebug() << "Saved presentation to:" << m_currentFilePath;
 }
 
@@ -2914,6 +2979,7 @@ void ControlWindow::setupShortcuts()
 
 void ControlWindow::gotoFirstSlide()
 {
+    if (!m_hasPresentation) return;
     if (m_presentationModel->rowCount() == 0) {
         return;
     }
@@ -2927,6 +2993,7 @@ void ControlWindow::gotoFirstSlide()
 
 void ControlWindow::gotoLastSlide()
 {
+    if (!m_hasPresentation) return;
     int lastIndex = m_presentationModel->rowCount() - 1;
     if (lastIndex < 0) {
         return;
@@ -2941,6 +3008,7 @@ void ControlWindow::gotoLastSlide()
 
 void ControlWindow::gotoSlide(int index)
 {
+    if (!m_hasPresentation) return;
     if (index < 0 || index >= m_presentationModel->rowCount()) {
         return;
     }
@@ -2954,6 +3022,7 @@ void ControlWindow::gotoSlide(int index)
 
 void ControlWindow::promptGotoSlide()
 {
+    if (!m_hasPresentation) return;
     int slideCount = m_presentationModel->rowCount();
     if (slideCount == 0) {
         return;
@@ -2978,6 +3047,7 @@ void ControlWindow::promptGotoSlide()
 
 void ControlWindow::blackScreen()
 {
+    if (!m_hasPresentation) return;
     // Toggle blackout - if already black, restore slide
     if (m_isBlackout) {
         // Restore the current slide (broadcastCurrentSlide clears both states + buttons)
@@ -3000,6 +3070,7 @@ void ControlWindow::blackScreen()
 
 void ControlWindow::whiteScreen()
 {
+    if (!m_hasPresentation) return;
     // Toggle whiteout - if already white, restore slide
     if (m_isWhiteout) {
         // Restore the current slide (broadcastCurrentSlide clears both states + buttons)

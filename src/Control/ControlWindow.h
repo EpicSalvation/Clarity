@@ -23,9 +23,11 @@
 #include "SlideGridView.h"
 #include "LivePreviewPanel.h"
 #include "MediaDrawer.h"
+#include "StartupWidget.h"
 #include <QMainWindow>
 #include <QListView>
 #include <QSplitter>
+#include <QStackedWidget>
 #include <QPushButton>
 #include <QLabel>
 #include <QShortcut>
@@ -154,7 +156,6 @@ private slots:
 private:
     void setupUI();
     void setupShortcuts();
-    void createDemoPresentation();
     void initializeBibleDatabase();
     void updateUI();
     void broadcastCurrentSlide();
@@ -168,8 +169,16 @@ private:
     void broadcastAutoAdvanceState();
     void autoSyncCurrentGroupToLibrary();
     void restoreFromSnapshot(const QJsonObject& snapshot);
+    void showStartupScreen();
+    void showEditingUI();
+    void openFile(const QString& filePath);
+    void closePresentation();
+    void updateMenuStates();
 
     // UI components
+    QStackedWidget* m_stackedWidget;         ///< Switches between startup and editing pages
+    StartupWidget* m_startupWidget;          ///< Welcome/startup screen (page 0)
+    QWidget* m_editingWidget;                ///< Editing UI container (page 1)
     QListView* m_slideListView;              ///< Left panel list view (playlist)
     SlideGridView* m_slideGridView;           ///< Center grid view for slide thumbnails
     SlideGridDelegate* m_slideDelegate;      ///< Custom delegate for grid rendering
@@ -183,6 +192,15 @@ private:
     QPushButton* m_moveUpButton;
     QPushButton* m_moveDownButton;
     QLabel* m_statusLabel;
+
+    // Menu/action pointers for state management
+    QAction* m_saveAction;
+    QAction* m_saveAsAction;
+    QAction* m_closeAction;
+    QMenu* m_editMenu;
+    QMenu* m_slideMenu;
+    QMenu* m_viewMenu;
+    QMenu* m_formatMenu;
 
     // Data
     PresentationModel* m_presentationModel;
@@ -209,6 +227,7 @@ private:
     // File management
     QString m_currentFilePath;
     bool m_isDirty;
+    bool m_hasPresentation = false;
 
     // Display state tracking for toggle shortcuts
     bool m_isBlackout = false;

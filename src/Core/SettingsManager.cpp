@@ -1,6 +1,7 @@
 #include "SettingsManager.h"
 #include <QCoreApplication>
 #include <QDebug>
+#include <QFile>
 
 namespace Clarity {
 
@@ -618,6 +619,49 @@ void SettingsManager::setApiBibleLastLanguage(const QString& languageCode)
         m_settings->setValue("ApiBible/LastLanguage", languageCode);
         m_settings->sync();
     }
+}
+
+QStringList SettingsManager::recentFiles() const
+{
+    QStringList files = m_settings->value("RecentFiles/List").toStringList();
+    // Prune files that no longer exist
+    QStringList existing;
+    for (const QString& f : files) {
+        if (QFile::exists(f)) {
+            existing.append(f);
+        }
+    }
+    return existing;
+}
+
+void SettingsManager::addRecentFile(const QString& path)
+{
+    QStringList files = m_settings->value("RecentFiles/List").toStringList();
+    files.removeAll(path);
+    files.prepend(path);
+    while (files.size() > 10) {
+        files.removeLast();
+    }
+    m_settings->setValue("RecentFiles/List", files);
+    m_settings->sync();
+    emit recentFilesChanged();
+}
+
+void SettingsManager::removeRecentFile(const QString& path)
+{
+    QStringList files = m_settings->value("RecentFiles/List").toStringList();
+    if (files.removeAll(path) > 0) {
+        m_settings->setValue("RecentFiles/List", files);
+        m_settings->sync();
+        emit recentFilesChanged();
+    }
+}
+
+void SettingsManager::clearRecentFiles()
+{
+    m_settings->remove("RecentFiles/List");
+    m_settings->sync();
+    emit recentFilesChanged();
 }
 
 void SettingsManager::resetToDefaults()

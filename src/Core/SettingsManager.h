@@ -202,10 +202,17 @@ public:
      */
     void setApiBibleLastLanguage(const QString& languageCode);
 
+    // Recent files
+    QStringList recentFiles() const;
+    void addRecentFile(const QString& path);
+    void removeRecentFile(const QString& path);
+    void clearRecentFiles();
+
     // Reset all settings to defaults
     void resetToDefaults();
 
 signals:
+    void recentFilesChanged();
     void outputScreenIndexChanged(int index);
     void confidenceScreenIndexChanged(int index);
     void confidenceDisplaySettingsChanged();

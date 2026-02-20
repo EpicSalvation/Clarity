@@ -141,6 +141,8 @@ add_executable(Clarity
     src/Control/MediaLibraryDialog.cpp
     src/Control/MediaDrawer.h
     src/Control/MediaDrawer.cpp
+    src/Control/StartupWidget.h
+    src/Control/StartupWidget.cpp
     src/Control/BibleImportDialog.h
     src/Control/BibleImportDialog.cpp
     src/Control/BatchImportDialog.h

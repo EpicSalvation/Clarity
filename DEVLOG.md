@@ -4,6 +4,70 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-19 - Replace Demo Presentation with Startup Screen
+
+### Summary
+Replaced the hardcoded 6-slide demo presentation that appeared on every launch with a proper startup/welcome screen. The app now opens to a centered welcome page with "New Presentation" and "Open Presentation" buttons, plus a recent files list. The editing UI is wrapped in a `QStackedWidget` that switches between the startup screen (page 0) and the editing UI (page 1).
+
+### Work Completed
+
+**SettingsManager — Recent Files API**
+- Added `recentFiles()`, `addRecentFile()`, `removeRecentFile()`, `clearRecentFiles()` methods
+- Storage key: `RecentFiles/List` as QStringList, capped at 10 entries
+- `recentFiles()` prunes files that no longer exist on disk
+- Added `recentFilesChanged()` signal
+
+**StartupWidget — New Welcome Screen**
+- Created `StartupWidget.h/.cpp` with centered 450px column layout
+- Title ("Clarity") in large bold font, subtitle in muted palette color
+- Full-width "New Presentation" and "Open Presentation" buttons
+- Recent files section with `QListWidget` (filenames displayed, full paths as tooltips)
+- Recent section auto-hides when list is empty
+- Layout uses grouped sub-layouts: title+subtitle (4px), buttons (8px), recent label+list (wrapper widget), with 24px gaps between groups and a bottom stretch to prevent groups spreading apart on resize
+- Signals: `newPresentationRequested()`, `openPresentationRequested()`, `openRecentRequested(QString)`
+
+**ControlWindow — QStackedWidget Architecture**
+- `m_stackedWidget` as central widget: page 0 = StartupWidget, page 1 = editing UI container
+- Added `m_hasPresentation` flag to track application state
+- New methods: `showStartupScreen()`, `showEditingUI()`, `openFile()`, `closePresentation()`, `updateMenuStates()`
+- Stored action/menu pointers: `m_saveAction`, `m_saveAsAction`, `m_closeAction`, `m_editMenu`, `m_slideMenu`, `m_viewMenu`, `m_formatMenu`
+- Added File > Close (Ctrl+W) between Save As and Settings
+- `updateMenuStates()` disables Save/SaveAs/Close and Edit/Slide/View/Format menus when on startup screen
+- Deleted `createDemoPresentation()` entirely
+
+**Refactored Existing Methods**
+- `newPresentation()`: Guards `promptSaveIfDirty()` with `if (m_hasPresentation)`, calls `showEditingUI()`
+- `openPresentation()`: Guards save prompt, delegates to `openFile()` after dialog
+- `openFile()`: Shared file-loading logic extracted from `openPresentation()`, adds to recent files, calls `showEditingUI()`
+- `savePresentation()`: After successful save, calls `m_settingsManager->addRecentFile()`
+- `closeEvent()`: Guards save prompt with `m_hasPresentation`
+- Navigation shortcuts (onNextSlide, onPrevSlide, gotoFirstSlide, gotoLastSlide, gotoSlide, promptGotoSlide): Early `if (!m_hasPresentation) return;` guard
+- Display shortcuts (blackScreen, whiteScreen): Same guard
+- `updateUI()`: Same guard to prevent null-pointer access
+
+**Edge Cases**
+- Stale recent file: `onOpenRecent` handler checks `QFile::exists()`, shows warning, removes entry, refreshes list
+- Invalid file: `openFile()` shows error dialog, stays on current screen
+- Models with null presentation: Both `PresentationModel` and `ItemListModel` handle `nullptr` safely
+
+### Technical Decisions
+- Used `QStackedWidget` rather than show/hide approach — cleaner separation, no layout interference
+- `closePresentation()` sends `clearOutput` to black out connected displays
+- Recent files pruned lazily (on read) rather than on a timer
+
+### Testing
+- App launches to startup screen with "Clarity" title bar
+- New Presentation creates editing UI with one blank slide
+- File > Close returns to startup screen
+- Save adds file to recent list; recent list opens files on double-click
+- Keyboard shortcuts (Space, arrows, B, W) are no-ops on startup screen
+
+### Next Steps
+- Consider adding drag-and-drop of .cly files onto the startup screen
+- Consider a "Clear Recent Files" button or context menu
+
+---
+
 ## 2026-02-19 - Fix Dark Theme Readability: Highlights, Menus, Icons
 
 ### Summary
