@@ -1,4 +1,5 @@
 #include "SettingsDialog.h"
+#include "AppStyle.h"
 #include "BibleImportDialog.h"
 #include "CCLIReportDialog.h"
 #include "Core/BibleDatabase.h"
@@ -13,6 +14,7 @@
 #include <QScrollArea>
 #include <QScreen>
 #include <QGuiApplication>
+#include <QApplication>
 #include <QColorDialog>
 #include <QRegularExpressionValidator>
 #include <QMessageBox>
@@ -25,6 +27,7 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     : QDialog(parent)
     , m_categoryList(nullptr)
     , m_pageStack(nullptr)
+    , m_themeComboBox(nullptr)
     , m_outputScreenComboBox(nullptr)
     , m_confidenceScreenComboBox(nullptr)
     , m_confidenceFontComboBox(nullptr)
@@ -163,6 +166,31 @@ void SettingsDialog::createGeneralPage()
 {
     QWidget* generalPage = new QWidget(this);
     QVBoxLayout* pageLayout = new QVBoxLayout(generalPage);
+
+    // Appearance Settings group
+    QGroupBox* appearanceGroup = new QGroupBox(tr("Appearance"), generalPage);
+    QFormLayout* appearanceLayout = new QFormLayout(appearanceGroup);
+
+    m_themeComboBox = new QComboBox(appearanceGroup);
+    m_themeComboBox->addItem(tr("System Default"), "system");
+    m_themeComboBox->addItem(tr("Light"),          "light");
+    m_themeComboBox->addItem(tr("Dark"),           "dark");
+    appearanceLayout->addRow(tr("Theme:"), m_themeComboBox);
+
+    // Live preview: apply theme immediately when the combo changes
+    connect(m_themeComboBox, &QComboBox::currentIndexChanged, this, [this]() {
+        QString mode = m_themeComboBox->currentData().toString();
+        AppStyle::apply(qApp, AppStyle::fromString(mode));
+    });
+
+    QLabel* themeHelpLabel = new QLabel(
+        tr("Changes take effect immediately. Restart is not required."),
+        appearanceGroup);
+    themeHelpLabel->setWordWrap(true);
+    themeHelpLabel->setStyleSheet("QLabel { color: palette(mid); font-size: 10pt; }");
+    appearanceLayout->addRow(themeHelpLabel);
+
+    pageLayout->addWidget(appearanceGroup);
 
     // Language Settings group
     QGroupBox* languageGroup = new QGroupBox(tr("Language"), generalPage);
@@ -842,6 +870,13 @@ void SettingsDialog::loadSettings()
         return;
     }
 
+    // Load appearance (theme) setting
+    {
+        QString saved = m_settingsManager->themeMode();
+        int idx = m_themeComboBox->findData(saved);
+        m_themeComboBox->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+
     // Load output screen index
     int outputScreenIndex = m_settingsManager->outputScreenIndex();
 
@@ -981,6 +1016,9 @@ void SettingsDialog::saveSettings()
         qWarning() << "SettingsDialog: No settings manager provided";
         return;
     }
+
+    // Save appearance (theme) setting
+    m_settingsManager->setThemeMode(m_themeComboBox->currentData().toString());
 
     // Save output screen index
     int outputScreenIndex = m_outputScreenComboBox->currentData().toInt();

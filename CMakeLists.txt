@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find Qt6 packages
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql Multimedia WebSockets LinguistTools OpenGL)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql Multimedia WebSockets LinguistTools OpenGL Svg)
 
 # Core library (shared between all modes)
 add_library(ClarityCore STATIC
@@ -149,6 +149,8 @@ add_executable(Clarity
     src/Control/CCLIReportDialog.cpp
     src/Control/SongSelectSearchDialog.h
     src/Control/SongSelectSearchDialog.cpp
+    src/Control/AppStyle.h
+    src/Control/AppStyle.cpp
 
     # Output display files
     src/Output/OutputMain.h
@@ -182,6 +184,7 @@ target_link_libraries(Clarity
         Qt6::Network
         Qt6::Multimedia
         Qt6::OpenGL
+        Qt6::Svg
 )
 
 # NDI streaming support (enabled by default, no SDK install required to build)

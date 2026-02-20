@@ -134,6 +134,10 @@ public:
     bool autoSyncLibraryGroups() const;
     void setAutoSyncLibraryGroups(bool enabled);
 
+    // Appearance / theme settings
+    QString themeMode() const;       // "system", "light", "dark"
+    void setThemeMode(const QString& mode);
+
     // ESV API settings
     /**
      * @brief Get the ESV API key (user must obtain from api.esv.org)
@@ -212,6 +216,7 @@ signals:
     void slidePreviewSizeChanged(const QString& size);
     void esvApiKeyChanged();
     void apiBibleApiKeyChanged();
+    void themeModeChanged(const QString& mode);
 
 private:
     QSettings* m_settings;

@@ -5,5 +5,20 @@
         <file alias="qml/OutputDisplayContent.qml">../src/Output/qml/OutputDisplayContent.qml</file>
         <file alias="qml/ConfidenceMonitor.qml">../src/Confidence/qml/ConfidenceMonitor.qml</file>
         <file alias="icons/clarity.ico">clarity.ico</file>
+
+        <!-- Theme stylesheets -->
+        <file alias="styles/dark.qss">styles/dark.qss</file>
+        <file alias="styles/light.qss">styles/light.qss</file>
+
+        <!-- UI icons (SVG, use currentColor fill for theme adaptation) -->
+        <file alias="icons/add.svg">icons/add.svg</file>
+        <file alias="icons/remove.svg">icons/remove.svg</file>
+        <file alias="icons/arrow-up.svg">icons/arrow-up.svg</file>
+        <file alias="icons/arrow-down.svg">icons/arrow-down.svg</file>
+        <file alias="icons/play.svg">icons/play.svg</file>
+        <file alias="icons/pause.svg">icons/pause.svg</file>
+        <file alias="icons/stop.svg">icons/stop.svg</file>
+        <file alias="icons/chevron-up.svg">icons/chevron-up.svg</file>
+        <file alias="icons/chevron-down.svg">icons/chevron-down.svg</file>
     </qresource>
 </RCC>

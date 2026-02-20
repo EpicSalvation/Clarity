@@ -418,15 +418,24 @@ void ControlWindow::setupUI()
     playlistButtonLayout->setContentsMargins(0, 0, 0, 0);
     playlistButtonLayout->setSpacing(2);
 
-    m_addSlideButton = new QPushButton("+", this);
-    m_deleteSlideButton = new QPushButton(QStringLiteral("\u2212"), this);  // minus sign
-    m_moveUpButton = new QPushButton(QStringLiteral("\u25B2"), this);      // up triangle
-    m_moveDownButton = new QPushButton(QStringLiteral("\u25BC"), this);    // down triangle
+    m_addSlideButton = new QPushButton(this);
+    m_deleteSlideButton = new QPushButton(this);
+    m_moveUpButton = new QPushButton(this);
+    m_moveDownButton = new QPushButton(this);
 
-    // Make buttons compact
+    // Icon-only compact buttons
+    const QSize iconSz(14, 14);
+    m_addSlideButton->setIcon(QIcon(":/icons/add.svg"));
+    m_addSlideButton->setIconSize(iconSz);
+    m_deleteSlideButton->setIcon(QIcon(":/icons/remove.svg"));
+    m_deleteSlideButton->setIconSize(iconSz);
+    m_moveUpButton->setIcon(QIcon(":/icons/arrow-up.svg"));
+    m_moveUpButton->setIconSize(iconSz);
+    m_moveDownButton->setIcon(QIcon(":/icons/arrow-down.svg"));
+    m_moveDownButton->setIconSize(iconSz);
+
     for (QPushButton* btn : {m_addSlideButton, m_deleteSlideButton, m_moveUpButton, m_moveDownButton}) {
         btn->setFixedSize(36, 28);
-        btn->setToolTip("");
     }
     m_addSlideButton->setToolTip(tr("Add slide (Ctrl+Shift+N)"));
     m_deleteSlideButton->setToolTip(tr("Delete slide (Delete)"));

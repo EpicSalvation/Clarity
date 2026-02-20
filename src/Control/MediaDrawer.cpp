@@ -261,9 +261,11 @@ void MediaDrawer::setupUI()
 
 void MediaDrawer::updateToggleBar()
 {
-    // Up chevron when collapsed (click to open upward), down chevron when expanded (click to close)
-    QString chevron = m_expanded ? QStringLiteral("\u25BC") : QStringLiteral("\u25B2");
-    m_toggleBar->setText(chevron + tr("  Library"));
+    // SVG chevron icon: points down when expanded (click to close), up when collapsed (click to open)
+    QIcon chevronIcon = m_expanded ? QIcon(":/icons/chevron-down.svg") : QIcon(":/icons/chevron-up.svg");
+    m_toggleBar->setIcon(chevronIcon);
+    m_toggleBar->setIconSize(QSize(12, 12));
+    m_toggleBar->setText(tr("  Library"));
 }
 
 void MediaDrawer::setExpanded(bool expanded)

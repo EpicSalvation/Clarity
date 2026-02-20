@@ -21,13 +21,12 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     titleLabel->setFont(titleFont);
     layout->addWidget(titleLabel);
 
-    // Compute a group background color midway between window and button palette colors
-    QColor winColor = palette().color(QPalette::Window);
-    QColor btnColor = palette().color(QPalette::Button);
-    QColor groupBg((winColor.red() + btnColor.red()) / 2,
-                   (winColor.green() + btnColor.green()) / 2,
-                   (winColor.blue() + btnColor.blue()) / 2);
-    QString groupStyle = QString("QFrame { background-color: %1; border: 1px solid palette(mid); border-radius: 4px; padding: 2px; }").arg(groupBg.name());
+    // Group frame style — uses palette() references so it adapts to dark/light theme
+    const QString groupStyle =
+        "QFrame { background-color: palette(alternate-base);"
+        " border: 1px solid palette(mid);"
+        " border-radius: 4px;"
+        " padding: 2px; }";
 
     // --- Output group: preview + blackout/whiteout buttons ---
     QFrame* outputGroup = new QFrame(this);
@@ -84,27 +83,21 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     timerButtonLayout->setContentsMargins(0, 0, 0, 0);
     timerButtonLayout->setSpacing(4);
 
-    m_timerPlayButton = new QPushButton(QStringLiteral("\u25B6"), this);   // ▶ play
-    m_timerPauseButton = new QPushButton("||", this);                      // || pause
-    m_timerResetButton = new QPushButton(QStringLiteral("\u25A0"), this);  // ■ stop/reset
+    m_timerPlayButton  = new QPushButton(this);
+    m_timerPauseButton = new QPushButton(this);
+    m_timerResetButton = new QPushButton(this);
+
+    const QSize timerIconSz(14, 14);
+    m_timerPlayButton->setIcon(QIcon(":/icons/play.svg"));
+    m_timerPlayButton->setIconSize(timerIconSz);
+    m_timerPauseButton->setIcon(QIcon(":/icons/pause.svg"));
+    m_timerPauseButton->setIconSize(timerIconSz);
+    m_timerResetButton->setIcon(QIcon(":/icons/stop.svg"));
+    m_timerResetButton->setIconSize(timerIconSz);
 
     for (QPushButton* btn : {m_timerPlayButton, m_timerPauseButton, m_timerResetButton}) {
         btn->setFixedSize(36, 28);
     }
-    // Play icon: larger to match playlist button icons
-    QFont playFont = m_timerPlayButton->font();
-    playFont.setPointSize(playFont.pointSize() + 4);
-    m_timerPlayButton->setFont(playFont);
-    // Pause bars: small, bold, with top padding to push down for vertical centering
-    QFont pauseFont = m_timerPauseButton->font();
-    pauseFont.setPointSize(pauseFont.pointSize() - 2);
-    pauseFont.setBold(true);
-    m_timerPauseButton->setFont(pauseFont);
-    m_timerPauseButton->setStyleSheet("QPushButton { padding-top: -2px; padding-bottom: 2px; }");
-    // Stop icon: keep default size
-    QFont stopFont = m_timerResetButton->font();
-    stopFont.setPointSize(stopFont.pointSize());
-    m_timerResetButton->setFont(stopFont);
     m_timerPlayButton->setToolTip(tr("Start timer"));
     m_timerPauseButton->setToolTip(tr("Pause timer"));
     m_timerResetButton->setToolTip(tr("Reset timer"));

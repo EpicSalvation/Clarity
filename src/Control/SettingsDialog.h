@@ -95,6 +95,9 @@ private:
     QCheckBox* m_showAllSlidesInGridCheckBox;
     QComboBox* m_slidePreviewSizeComboBox;
 
+    // Appearance settings
+    QComboBox* m_themeComboBox;
+
     // Language settings
     QComboBox* m_languageComboBox;
 
