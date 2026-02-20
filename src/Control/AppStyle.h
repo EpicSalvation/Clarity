@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QApplication>
+#include <QIcon>
 #include <QPalette>
 #include <QString>
 
@@ -41,11 +42,23 @@ public:
      */
     static QString toString(ThemeMode mode);
 
+    /**
+     * @brief Load an SVG icon with currentColor replaced by a theme-appropriate color.
+     * Qt's SVG renderer doesn't resolve currentColor from the palette, so this
+     * helper replaces it with light gray (dark theme) or dark gray (light theme).
+     */
+    static QIcon themedIcon(const QString& svgPath);
+
+    /** @brief Returns the most recently applied theme mode. */
+    static ThemeMode currentMode() { return s_currentMode; }
+
 private:
     static QPalette darkPalette();
     static QPalette lightPalette();
     static QString loadStylesheet(ThemeMode mode);
     static void applyFont(QApplication* app);
+
+    static ThemeMode s_currentMode;
 };
 
 } // namespace Clarity

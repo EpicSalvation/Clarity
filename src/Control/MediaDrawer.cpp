@@ -1,4 +1,5 @@
 #include "MediaDrawer.h"
+#include "AppStyle.h"
 #include "Core/VideoThumbnailGenerator.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -262,7 +263,7 @@ void MediaDrawer::setupUI()
 void MediaDrawer::updateToggleBar()
 {
     // SVG chevron icon: points down when expanded (click to close), up when collapsed (click to open)
-    QIcon chevronIcon = m_expanded ? QIcon(":/icons/chevron-down.svg") : QIcon(":/icons/chevron-up.svg");
+    QIcon chevronIcon = m_expanded ? AppStyle::themedIcon(":/icons/chevron-down.svg") : AppStyle::themedIcon(":/icons/chevron-up.svg");
     m_toggleBar->setIcon(chevronIcon);
     m_toggleBar->setIconSize(QSize(12, 12));
     m_toggleBar->setText(tr("  Library"));

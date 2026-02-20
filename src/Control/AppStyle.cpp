@@ -2,12 +2,18 @@
 #include <QFile>
 #include <QFont>
 #include <QFontDatabase>
+#include <QPainter>
+#include <QStyle>
+#include <QSvgRenderer>
 #include <QDebug>
 
 namespace Clarity {
 
+AppStyle::ThemeMode AppStyle::s_currentMode = AppStyle::ThemeMode::System;
+
 void AppStyle::apply(QApplication* app, ThemeMode mode)
 {
+    s_currentMode = mode;
     // Apply palette
     switch (mode) {
     case ThemeMode::Dark:
@@ -62,7 +68,7 @@ QPalette AppStyle::darkPalette()
     const QColor altBase     ("#252525");
     const QColor button      ("#313131");
     const QColor buttonText  ("#d4d4d4");
-    const QColor highlight   ("#0e639c");
+    const QColor highlight   ("#1a85c7");
     const QColor highlightTx ("#ffffff");
     const QColor link        ("#4fc1ff");
     const QColor mid         ("#464646");
@@ -185,6 +191,36 @@ void AppStyle::applyFont(QApplication* app)
 #endif
 
     app->setFont(font);
+}
+
+QIcon AppStyle::themedIcon(const QString& svgPath)
+{
+    // Determine icon color based on current theme
+    QColor color = (s_currentMode == ThemeMode::Dark)
+                       ? QColor("#d4d4d4")   // light gray on dark backgrounds
+                       : QColor("#333333");  // dark gray on light backgrounds
+
+    QFile f(svgPath);
+    if (!f.open(QFile::ReadOnly))
+        return QIcon(svgPath);
+
+    QByteArray data = f.readAll();
+    data.replace("currentColor", color.name().toUtf8());
+
+    QSvgRenderer renderer(data);
+    if (!renderer.isValid())
+        return QIcon(svgPath);
+
+    // Render at multiple sizes for sharp display at different DPIs
+    QIcon icon;
+    for (int s : {16, 24, 32}) {
+        QPixmap pm(s, s);
+        pm.fill(Qt::transparent);
+        QPainter painter(&pm);
+        renderer.render(&painter);
+        icon.addPixmap(pm);
+    }
+    return icon;
 }
 
 } // namespace Clarity

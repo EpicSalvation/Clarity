@@ -73,8 +73,8 @@ QTreeView::item:selected {
 }
 QListView::item:selected:!active,
 QTreeView::item:selected:!active {
-    background: #264f78;
-    color: #d4d4d4;
+    background: #1a6fa0;
+    color: #ffffff;
 }
 
 /* --------------------------------------------------------------------------
@@ -119,32 +119,34 @@ QScrollBar::sub-page {
    Menu Bar and Menus
    -------------------------------------------------------------------------- */
 QMenuBar {
-    background-color: palette(window);
-    color: palette(windowtext);
+    background-color: #1f1f1f;
+    color: #e0e0e0;
     border-bottom: 1px solid #464646;
 }
 QMenuBar::item {
     padding: 4px 10px;
     background: transparent;
+    color: #e0e0e0;
 }
 QMenuBar::item:selected {
-    background: palette(highlight);
-    color: palette(highlighted-text);
+    background: #1a85c7;
+    color: #ffffff;
     border-radius: 3px;
 }
 QMenu {
-    background-color: #252525;
-    color: palette(windowtext);
-    border: 1px solid #464646;
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+    border: 1px solid #555555;
     border-radius: 4px;
     padding: 4px 0;
 }
 QMenu::item {
     padding: 4px 24px 4px 20px;
+    color: #e0e0e0;
 }
 QMenu::item:selected {
-    background: palette(highlight);
-    color: palette(highlighted-text);
+    background: #1a85c7;
+    color: #ffffff;
     border-radius: 2px;
 }
 QMenu::item:disabled {

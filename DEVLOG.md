@@ -4,6 +4,48 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-19 - Fix Dark Theme Readability: Highlights, Menus, Icons
+
+### Summary
+Fixed three dark theme readability issues introduced in the UI modernization PR: text highlight color too close to normal text, menu items nearly unreadable, and SVG icons invisible on dark buttons. Added a theme-aware icon recoloring helper to resolve Qt's inability to resolve `currentColor` in SVG icons from the palette.
+
+### Work Completed
+
+**Build fix**
+- Added missing `#include <QStyle>` in `AppStyle.cpp` — the PR called `app->style()->standardPalette()` but `QStyle` was only forward-declared via `<QApplication>`
+
+**Highlight contrast**
+- Brightened dark palette highlight from `#0e639c` to `#1a85c7` for more visible text selection
+- Changed inactive list/tree selection from `#264f78`/`#d4d4d4` to `#1a6fa0`/`#ffffff` for better contrast when the view loses focus
+
+**Menu readability**
+- Replaced fragile `palette()` CSS references in `dark.qss` menu rules with explicit hex colors
+- Menu bar: `#e0e0e0` text on `#1f1f1f` background
+- Menu popups: `#e0e0e0` text on `#2d2d2d` background with `#555555` border
+- Menu hover: `#ffffff` text on `#1a85c7` background
+
+**Icon visibility**
+- Qt's SVG renderer does not resolve `fill="currentColor"` from the widget palette — icons rendered as black on dark buttons
+- Added `AppStyle::themedIcon()` static helper: loads SVG data, replaces `currentColor` with `#d4d4d4` (dark) or `#333333` (light), renders via `QSvgRenderer` at 16/24/32px sizes
+- Added `AppStyle::currentMode()` accessor and `s_currentMode` static to track the active theme
+- Updated all 9 icon call sites across `ControlWindow.cpp`, `LivePreviewPanel.cpp`, and `MediaDrawer.cpp`
+
+### Technical Decisions
+- Used explicit hex colors in menu QSS rather than `palette()` references — `palette()` proved unreliable in QMenu context under Qt 6.10 Fusion style
+- Chose to render SVG icons at fixed pixel sizes (16/24/32) rather than using a custom `QIconEngine` — simpler, sufficient for the small UI icons used, and avoids additional abstraction
+
+### Testing
+- Manual: verified dark theme menus, text selection, and button icons are clearly readable
+- Light theme verified unaffected
+
+### Issues / Limitations
+- Icons are rendered at `themedIcon()` call time — if the user switches themes at runtime via Settings, icons set in constructors won't auto-update until app restart. The palette/QSS changes do live-update.
+
+### Commits
+- Branch: `main`
+
+---
+
 ## 2026-02-19 - UI Modernization: Dark/Light Theme, SVG Icons, Component Polish
 
 ### Summary

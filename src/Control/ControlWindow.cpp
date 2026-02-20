@@ -1,4 +1,5 @@
 #include "ControlWindow.h"
+#include "AppStyle.h"
 #include "SettingsDialog.h"
 #include "SlideEditorDialog.h"
 #include "ScriptureInsertDialog.h"
@@ -425,13 +426,13 @@ void ControlWindow::setupUI()
 
     // Icon-only compact buttons
     const QSize iconSz(14, 14);
-    m_addSlideButton->setIcon(QIcon(":/icons/add.svg"));
+    m_addSlideButton->setIcon(AppStyle::themedIcon(":/icons/add.svg"));
     m_addSlideButton->setIconSize(iconSz);
-    m_deleteSlideButton->setIcon(QIcon(":/icons/remove.svg"));
+    m_deleteSlideButton->setIcon(AppStyle::themedIcon(":/icons/remove.svg"));
     m_deleteSlideButton->setIconSize(iconSz);
-    m_moveUpButton->setIcon(QIcon(":/icons/arrow-up.svg"));
+    m_moveUpButton->setIcon(AppStyle::themedIcon(":/icons/arrow-up.svg"));
     m_moveUpButton->setIconSize(iconSz);
-    m_moveDownButton->setIcon(QIcon(":/icons/arrow-down.svg"));
+    m_moveDownButton->setIcon(AppStyle::themedIcon(":/icons/arrow-down.svg"));
     m_moveDownButton->setIconSize(iconSz);
 
     for (QPushButton* btn : {m_addSlideButton, m_deleteSlideButton, m_moveUpButton, m_moveDownButton}) {

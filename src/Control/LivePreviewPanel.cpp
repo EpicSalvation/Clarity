@@ -1,4 +1,5 @@
 #include "LivePreviewPanel.h"
+#include "AppStyle.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -88,11 +89,11 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     m_timerResetButton = new QPushButton(this);
 
     const QSize timerIconSz(14, 14);
-    m_timerPlayButton->setIcon(QIcon(":/icons/play.svg"));
+    m_timerPlayButton->setIcon(AppStyle::themedIcon(":/icons/play.svg"));
     m_timerPlayButton->setIconSize(timerIconSz);
-    m_timerPauseButton->setIcon(QIcon(":/icons/pause.svg"));
+    m_timerPauseButton->setIcon(AppStyle::themedIcon(":/icons/pause.svg"));
     m_timerPauseButton->setIconSize(timerIconSz);
-    m_timerResetButton->setIcon(QIcon(":/icons/stop.svg"));
+    m_timerResetButton->setIcon(AppStyle::themedIcon(":/icons/stop.svg"));
     m_timerResetButton->setIconSize(timerIconSz);
 
     for (QPushButton* btn : {m_timerPlayButton, m_timerPauseButton, m_timerResetButton}) {
