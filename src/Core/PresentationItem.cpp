@@ -168,6 +168,7 @@ QJsonObject PresentationItem::baseToJson() const
             styleJson["videoLoop"] = m_itemStyle.videoLoop;
         }
 
+        m_itemStyle.writeLegibilityJson(styleJson);
         json["style"] = styleJson;
     }
 
@@ -218,6 +219,7 @@ QJsonObject PresentationItem::baseToJson() const
                 ssJson["videoLoop"] = it.value().videoLoop;
             }
             ssJson["backgroundType"] = bgTypeStr;
+            it.value().writeLegibilityJson(ssJson);
 
             slideStylesJson[QString::number(it.key())] = ssJson;
         }
@@ -278,6 +280,7 @@ void PresentationItem::applyBaseJson(const QJsonObject& json)
             m_itemStyle.backgroundType = Slide::SolidColor;
         }
 
+        m_itemStyle.readLegibilityJson(styleJson);
         m_hasCustomStyle = true;
     }
 
@@ -338,6 +341,7 @@ void PresentationItem::applyBaseJson(const QJsonObject& json)
                 style.backgroundType = Slide::SolidColor;
             }
 
+            style.readLegibilityJson(ssJson);
             m_perSlideStyles[slideIndex] = style;
         }
     }

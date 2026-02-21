@@ -478,8 +478,10 @@ void Presentation::updateSlide(int flatIndex, const Slide& slide)
         }
         groupItem->updateSlide(pos.slideInItem, slide);
     } else {
-        // For SongItem/ScriptureItem, we can't directly edit slides
-        qWarning("Cannot update slide in SongItem or ScriptureItem - edit the source instead");
+        // For SongItem/ScriptureItem, apply style as a per-slide override
+        // (text edits are ignored since slides are generated from source data)
+        SlideStyle style = SlideStyle::fromSlide(slide);
+        item->setSlideStyleOverride(pos.slideInItem, style);
     }
 
     emit presentationModified();

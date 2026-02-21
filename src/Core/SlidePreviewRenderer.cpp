@@ -49,6 +49,23 @@ QPixmap SlidePreviewRenderer::render(const Slide& slide, const QSize& size,
     // Calculate scaled font size for preview
     // Original design is 1080p, so scale font proportionally
     int scaledFontSize = qMax(10, slide.fontSize() * size.height() / 1080);
+
+    // Calculate text rect for legibility layers
+    int margin = qMax(4, rect.width() / 20);
+    QRect textAreaRect = rect.adjusted(margin, margin, -margin, -margin);
+
+    // Measure actual text bounds for container/band sizing
+    QRect textBounds;
+    if (!slide.text().isEmpty()) {
+        QFont font(slide.fontFamily());
+        font.setPixelSize(scaledFontSize);
+        QFontMetrics fm(font);
+        textBounds = fm.boundingRect(textAreaRect, Qt::AlignCenter | Qt::TextWordWrap, slide.text());
+    }
+
+    // Draw legibility layers between background and text
+    drawLegibilityLayers(painter, slide, rect, textBounds);
+
     drawText(painter, slide, rect, scaledFontSize, options.redLetterColor);
 
     // Draw slide number if requested
@@ -182,6 +199,13 @@ void SlidePreviewRenderer::drawText(QPainter& painter, const Slide& slide, const
     int margin = qMax(4, rect.width() / 20);
     QRect textRect = rect.adjusted(margin, margin, -margin, -margin);
 
+    // Scale drop shadow offsets for preview size
+    int shadowOffsetX = 0, shadowOffsetY = 0;
+    if (slide.dropShadowEnabled()) {
+        shadowOffsetX = qMax(1, slide.dropShadowOffsetX() * rect.height() / 1080);
+        shadowOffsetY = qMax(1, slide.dropShadowOffsetY() * rect.height() / 1080);
+    }
+
     // If slide has rich text (red letter markup), use QTextDocument for rendering
     if (slide.hasRichText()) {
         QTextDocument doc;
@@ -207,6 +231,26 @@ void SlidePreviewRenderer::drawText(QPainter& painter, const Slide& slide, const
         int yOffset = textRect.top() + (textRect.height() - docHeight) / 2;
         yOffset = qMax(textRect.top(), yOffset);
 
+        // Draw drop shadow pass
+        if (slide.dropShadowEnabled()) {
+            QTextDocument shadowDoc;
+            shadowDoc.setTextWidth(textRect.width());
+            QString shadowCss = QString(
+                "<style>"
+                "body { color: %1; font-family: %2; font-size: %3px; text-align: center; }"
+                ".jesus { color: %1; }"
+                "</style>"
+            ).arg(slide.dropShadowColor().name())
+             .arg(slide.fontFamily())
+             .arg(scaledFontSize);
+            shadowDoc.setHtml(shadowCss + "<body><p style='text-align: center;'>" + slide.richText() + "</p></body>");
+
+            painter.save();
+            painter.translate(textRect.left() + shadowOffsetX, yOffset + shadowOffsetY);
+            shadowDoc.drawContents(&painter, QRectF(0, 0, textRect.width(), textRect.height()));
+            painter.restore();
+        }
+
         painter.save();
         painter.translate(textRect.left(), yOffset);
         doc.drawContents(&painter, QRectF(0, 0, textRect.width(), textRect.height()));
@@ -216,9 +260,47 @@ void SlidePreviewRenderer::drawText(QPainter& painter, const Slide& slide, const
         QFont font(slide.fontFamily());
         font.setPixelSize(scaledFontSize);
         painter.setFont(font);
-        painter.setPen(slide.textColor());
 
+        // Draw drop shadow pass
+        if (slide.dropShadowEnabled()) {
+            painter.setPen(slide.dropShadowColor());
+            painter.drawText(textRect.translated(shadowOffsetX, shadowOffsetY),
+                             Qt::AlignCenter | Qt::TextWordWrap, text);
+        }
+
+        painter.setPen(slide.textColor());
         painter.drawText(textRect, Qt::AlignCenter | Qt::TextWordWrap, text);
+    }
+}
+
+void SlidePreviewRenderer::drawLegibilityLayers(QPainter& painter, const Slide& slide,
+                                                  const QRect& rect, const QRect& textRect)
+{
+    // 1. Background overlay (full-screen darkening/tinting layer)
+    if (slide.overlayEnabled()) {
+        painter.fillRect(rect, slide.overlayColor());
+    }
+
+    // 2. Text band (horizontal strip across the full width)
+    if (slide.textBandEnabled() && textRect.isValid()) {
+        int padding = qMax(2, rect.height() / 20);
+        QRect bandRect(rect.left(), textRect.top() - padding,
+                       rect.width(), textRect.height() + padding * 2);
+        painter.fillRect(bandRect, slide.textBandColor());
+    }
+
+    // 3. Text container (box behind text)
+    if (slide.textContainerEnabled() && textRect.isValid()) {
+        int scaledPadding = qMax(2, slide.textContainerPadding() * rect.height() / 1080);
+        int scaledRadius = qMax(1, slide.textContainerRadius() * rect.height() / 1080);
+        QRect containerRect = textRect.adjusted(-scaledPadding, -scaledPadding,
+                                                 scaledPadding, scaledPadding);
+        painter.save();
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(slide.textContainerColor());
+        painter.drawRoundedRect(containerRect, scaledRadius, scaledRadius);
+        painter.restore();
     }
 }
 

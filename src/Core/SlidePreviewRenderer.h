@@ -88,6 +88,12 @@ private:
                          int scaledFontSize, const QString& redLetterColor = "#cc0000");
 
     /**
+     * @brief Draw text legibility layers (overlay, band, container)
+     */
+    static void drawLegibilityLayers(QPainter& painter, const Slide& slide,
+                                     const QRect& rect, const QRect& textRect);
+
+    /**
      * @brief Draw slide number indicator
      */
     static void drawSlideNumber(QPainter& painter, int slideNumber, const QRect& rect);

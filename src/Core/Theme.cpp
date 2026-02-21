@@ -103,6 +103,11 @@ SlideStyle Theme::toSlideStyle() const
     style.radialCenterX = m_radialCenterX;
     style.radialCenterY = m_radialCenterY;
     style.radialRadius = m_radialRadius;
+    style.dropShadowEnabled = m_dropShadowEnabled;
+    style.dropShadowColor = m_dropShadowColor;
+    style.dropShadowOffsetX = m_dropShadowOffsetX;
+    style.dropShadowOffsetY = m_dropShadowOffsetY;
+    style.dropShadowBlur = m_dropShadowBlur;
     return style;
 }
 

@@ -70,6 +70,24 @@ struct SlideStyle {
     QString backgroundVideoPath;
     bool videoLoop = true;
 
+    // Text legibility
+    bool dropShadowEnabled = true;
+    QColor dropShadowColor = QColor("#000000");
+    int dropShadowOffsetX = 2;
+    int dropShadowOffsetY = 2;
+    int dropShadowBlur = 0;
+    bool overlayEnabled = false;
+    QColor overlayColor = QColor("#80000000");
+    int overlayBlur = 0;
+    bool textContainerEnabled = false;
+    QColor textContainerColor = QColor("#80000000");
+    int textContainerPadding = 20;
+    int textContainerRadius = 8;
+    int textContainerBlur = 0;
+    bool textBandEnabled = false;
+    QColor textBandColor = QColor("#80000000");
+    int textBandBlur = 0;
+
     SlideStyle()
         : backgroundColor("#1e3a8a")
         , textColor("#ffffff")
@@ -118,6 +136,103 @@ struct SlideStyle {
             slide.setBackgroundVideoPath(backgroundVideoPath);
             slide.setVideoLoop(videoLoop);
         }
+        // Text legibility
+        slide.setDropShadowEnabled(dropShadowEnabled);
+        slide.setDropShadowColor(dropShadowColor);
+        slide.setDropShadowOffsetX(dropShadowOffsetX);
+        slide.setDropShadowOffsetY(dropShadowOffsetY);
+        slide.setDropShadowBlur(dropShadowBlur);
+        slide.setOverlayEnabled(overlayEnabled);
+        slide.setOverlayColor(overlayColor);
+        slide.setOverlayBlur(overlayBlur);
+        slide.setTextContainerEnabled(textContainerEnabled);
+        slide.setTextContainerColor(textContainerColor);
+        slide.setTextContainerPadding(textContainerPadding);
+        slide.setTextContainerRadius(textContainerRadius);
+        slide.setTextContainerBlur(textContainerBlur);
+        slide.setTextBandEnabled(textBandEnabled);
+        slide.setTextBandColor(textBandColor);
+        slide.setTextBandBlur(textBandBlur);
+    }
+
+    /**
+     * @brief Extract a SlideStyle from a Slide's current properties
+     */
+    static SlideStyle fromSlide(const Slide& slide) {
+        SlideStyle s;
+        s.backgroundColor = slide.backgroundColor();
+        s.textColor = slide.textColor();
+        s.fontFamily = slide.fontFamily();
+        s.fontSize = slide.fontSize();
+        s.backgroundType = slide.backgroundType();
+        s.gradientStops = slide.gradientStops();
+        s.gradientType = slide.gradientType();
+        s.gradientAngle = slide.gradientAngle();
+        s.radialCenterX = slide.radialCenterX();
+        s.radialCenterY = slide.radialCenterY();
+        s.radialRadius = slide.radialRadius();
+        s.backgroundImagePath = slide.backgroundImagePath();
+        s.backgroundImageData = slide.backgroundImageData();
+        s.backgroundVideoPath = slide.backgroundVideoPath();
+        s.videoLoop = slide.videoLoop();
+        // Text legibility
+        s.dropShadowEnabled = slide.dropShadowEnabled();
+        s.dropShadowColor = slide.dropShadowColor();
+        s.dropShadowOffsetX = slide.dropShadowOffsetX();
+        s.dropShadowOffsetY = slide.dropShadowOffsetY();
+        s.dropShadowBlur = slide.dropShadowBlur();
+        s.overlayEnabled = slide.overlayEnabled();
+        s.overlayColor = slide.overlayColor();
+        s.overlayBlur = slide.overlayBlur();
+        s.textContainerEnabled = slide.textContainerEnabled();
+        s.textContainerColor = slide.textContainerColor();
+        s.textContainerPadding = slide.textContainerPadding();
+        s.textContainerRadius = slide.textContainerRadius();
+        s.textContainerBlur = slide.textContainerBlur();
+        s.textBandEnabled = slide.textBandEnabled();
+        s.textBandColor = slide.textBandColor();
+        s.textBandBlur = slide.textBandBlur();
+        return s;
+    }
+
+    /** @brief Write legibility fields to a JSON object */
+    void writeLegibilityJson(QJsonObject& json) const {
+        json["dropShadowEnabled"] = dropShadowEnabled;
+        json["dropShadowColor"] = dropShadowColor.name(QColor::HexArgb);
+        json["dropShadowOffsetX"] = dropShadowOffsetX;
+        json["dropShadowOffsetY"] = dropShadowOffsetY;
+        json["dropShadowBlur"] = dropShadowBlur;
+        json["overlayEnabled"] = overlayEnabled;
+        json["overlayColor"] = overlayColor.name(QColor::HexArgb);
+        json["overlayBlur"] = overlayBlur;
+        json["textContainerEnabled"] = textContainerEnabled;
+        json["textContainerColor"] = textContainerColor.name(QColor::HexArgb);
+        json["textContainerPadding"] = textContainerPadding;
+        json["textContainerRadius"] = textContainerRadius;
+        json["textContainerBlur"] = textContainerBlur;
+        json["textBandEnabled"] = textBandEnabled;
+        json["textBandColor"] = textBandColor.name(QColor::HexArgb);
+        json["textBandBlur"] = textBandBlur;
+    }
+
+    /** @brief Read legibility fields from a JSON object */
+    void readLegibilityJson(const QJsonObject& json) {
+        dropShadowEnabled = json["dropShadowEnabled"].toBool(true);
+        dropShadowColor = QColor(json["dropShadowColor"].toString("#000000"));
+        dropShadowOffsetX = json["dropShadowOffsetX"].toInt(2);
+        dropShadowOffsetY = json["dropShadowOffsetY"].toInt(2);
+        dropShadowBlur = json["dropShadowBlur"].toInt(0);
+        overlayEnabled = json["overlayEnabled"].toBool(false);
+        overlayColor = QColor(json["overlayColor"].toString("#80000000"));
+        overlayBlur = json["overlayBlur"].toInt(0);
+        textContainerEnabled = json["textContainerEnabled"].toBool(false);
+        textContainerColor = QColor(json["textContainerColor"].toString("#80000000"));
+        textContainerPadding = json["textContainerPadding"].toInt(20);
+        textContainerRadius = json["textContainerRadius"].toInt(8);
+        textContainerBlur = json["textContainerBlur"].toInt(0);
+        textBandEnabled = json["textBandEnabled"].toBool(false);
+        textBandColor = QColor(json["textBandColor"].toString("#80000000"));
+        textBandBlur = json["textBandBlur"].toInt(0);
     }
 };
 

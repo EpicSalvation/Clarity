@@ -4,6 +4,54 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-20 - Website Screenshots, Fix Slide Editing for Songs/Scripture
+
+### Summary
+Added real screenshots to both the main page and features page of the website, replacing all placeholder boxes. Fixed a bug where the Edit Slide dialog silently discarded all changes for song and scripture slides. Extended `SlideStyle` to include text legibility properties (drop shadow, overlay, text container, text band) so these settings round-trip correctly through per-slide and per-item style overrides. Added legibility layer rendering to the slide grid preview thumbnails.
+
+### Work Completed
+
+**Website — Screenshots**
+- Replaced 6 placeholder boxes on `index.html` with actual screenshots using `<figure>`/`<img>`/`<figcaption>` elements
+- Replaced all 14 placeholder boxes on `features.html` with matching screenshots
+- Added `.screenshot-item` CSS with rounded corners, shadow, dark caption background, and `align-self: start` to prevent grid row stretching
+- Added `.screenshot-item-phone` class for portrait-oriented mobile remote screenshot (max-width: 300px, centered)
+- Updated Live Output section copy to describe display selection via settings
+
+**Bug Fix — Edit Slide Dialog for Song/Scripture Slides**
+- `Presentation::updateSlide()` previously rejected edits for SongItem/ScriptureItem with a `qWarning` and silently discarded all changes
+- Changed to use `item->setSlideStyleOverride(slideInItem, style)` which stores per-slide style overrides that `cachedSlides()` applies on top of generated slides
+- This respects the existing "apply to all slides" option for group-level styling while allowing individual slide edits
+
+**SlideStyle — Text Legibility Fields**
+- Added 16 text legibility fields to `SlideStyle`: drop shadow (enabled, color, offsetX/Y, blur), overlay (enabled, color, blur), text container (enabled, color, padding, radius, blur), text band (enabled, color, blur)
+- Updated `applyTo()` to apply all legibility fields to a Slide
+- Added `static fromSlide()` factory to extract all style properties from a Slide
+- Added `writeLegibilityJson()`/`readLegibilityJson()` helpers for JSON serialization
+- Updated `PresentationItem::baseToJson()`/`applyBaseJson()` to serialize/deserialize legibility fields for both item-level and per-slide style overrides
+- Updated `Theme::toSlideStyle()` to pass through drop shadow settings
+
+**SlidePreviewRenderer — Legibility Layer Rendering**
+- Added `drawLegibilityLayers()` method rendering overlay, text band, and text container between background and text
+- Updated `drawText()` to render drop shadow pass before main text for both plain and rich text paths
+- Shadow offsets, container padding, and corner radius scaled proportionally to preview size
+
+### Technical Decisions
+- Per-slide overrides (not item-level) for song/scripture edits — matches the existing "clone style to all" pattern and user expectation that editing one slide only changes that slide
+- Helper methods `writeLegibilityJson`/`readLegibilityJson` on `SlideStyle` avoid quadrupling serialization code across 4 spots in PresentationItem.cpp
+- Blur effects not rendered in grid preview (too expensive for QPainter thumbnails at small sizes) — overlay/container/band colors provide sufficient visual feedback
+
+### Issues/Blockers
+None.
+
+### Next Steps
+- Continue with any remaining UI polish or bug fixes
+
+### Commits
+- Branch: `main`
+
+---
+
 ## 2026-02-19 - Replace Demo Presentation with Startup Screen
 
 ### Summary
