@@ -40,10 +40,10 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     m_outputPreview = new LivePreviewWidget(tr("Output"), this);
     outputGroupLayout->addWidget(m_outputPreview);
 
-    // Blackout / Whiteout buttons
-    QHBoxLayout* screenButtonLayout = new QHBoxLayout();
-    screenButtonLayout->setContentsMargins(0, 0, 0, 0);
-    screenButtonLayout->setSpacing(4);
+    // Blackout / Whiteout buttons (row 1)
+    QHBoxLayout* screenButtonRow1 = new QHBoxLayout();
+    screenButtonRow1->setContentsMargins(0, 0, 0, 0);
+    screenButtonRow1->setSpacing(4);
 
     m_blackoutButton = new QPushButton(tr("Blackout"), this);
     m_blackoutButton->setCheckable(true);
@@ -53,7 +53,7 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
         "QPushButton:checked { background-color: #1a1a1a; color: #ffffff; border: 1px solid #555; }"
     );
     connect(m_blackoutButton, &QPushButton::clicked, this, &LivePreviewPanel::blackoutClicked);
-    screenButtonLayout->addWidget(m_blackoutButton);
+    screenButtonRow1->addWidget(m_blackoutButton);
 
     m_whiteoutButton = new QPushButton(tr("Whiteout"), this);
     m_whiteoutButton->setCheckable(true);
@@ -63,9 +63,36 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
         "QPushButton:checked { background-color: #ffffff; color: #000000; border: 2px solid #333; }"
     );
     connect(m_whiteoutButton, &QPushButton::clicked, this, &LivePreviewPanel::whiteoutClicked);
-    screenButtonLayout->addWidget(m_whiteoutButton);
+    screenButtonRow1->addWidget(m_whiteoutButton);
 
-    outputGroupLayout->addLayout(screenButtonLayout);
+    outputGroupLayout->addLayout(screenButtonRow1);
+
+    // Clear Text / Clear BG buttons (row 2)
+    QHBoxLayout* screenButtonRow2 = new QHBoxLayout();
+    screenButtonRow2->setContentsMargins(0, 0, 0, 0);
+    screenButtonRow2->setSpacing(4);
+
+    m_clearTextButton = new QPushButton(tr("Clear Text"), this);
+    m_clearTextButton->setCheckable(true);
+    m_clearTextButton->setToolTip(tr("Clear text, keep background (T)"));
+    m_clearTextButton->setStyleSheet(
+        "QPushButton { padding: 4px 8px; }"
+        "QPushButton:checked { background-color: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; }"
+    );
+    connect(m_clearTextButton, &QPushButton::clicked, this, &LivePreviewPanel::clearTextClicked);
+    screenButtonRow2->addWidget(m_clearTextButton);
+
+    m_clearBgButton = new QPushButton(tr("Clear BG"), this);
+    m_clearBgButton->setCheckable(true);
+    m_clearBgButton->setToolTip(tr("Clear background, keep text (R)"));
+    m_clearBgButton->setStyleSheet(
+        "QPushButton { padding: 4px 8px; }"
+        "QPushButton:checked { background-color: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; }"
+    );
+    connect(m_clearBgButton, &QPushButton::clicked, this, &LivePreviewPanel::clearBgClicked);
+    screenButtonRow2->addWidget(m_clearBgButton);
+
+    outputGroupLayout->addLayout(screenButtonRow2);
     layout->addWidget(outputGroup);
 
     // --- Confidence group: preview + timer buttons ---
@@ -260,6 +287,16 @@ void LivePreviewPanel::setBlackoutActive(bool active)
 void LivePreviewPanel::setWhiteoutActive(bool active)
 {
     m_whiteoutButton->setChecked(active);
+}
+
+void LivePreviewPanel::setClearTextActive(bool active)
+{
+    m_clearTextButton->setChecked(active);
+}
+
+void LivePreviewPanel::setClearBgActive(bool active)
+{
+    m_clearBgButton->setChecked(active);
 }
 
 void LivePreviewPanel::setAutoAdvanceCountdown(int seconds, int total)

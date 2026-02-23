@@ -37,7 +37,7 @@ Clarity now includes comprehensive presentation features suitable for worship se
   - Arrow keys, Page Up/Down, Space for navigation
   - Home/End for first/last slide
   - B for blackout, W for whiteout
-  - D for output disable toggle
+  - T to clear text (keep background), R to clear background (keep text)
   - F1 for shortcuts reference
 - **Slide transitions** with per-slide overrides
 - Output preview in control window

@@ -611,6 +611,8 @@ void ControlWindow::setupUI()
     // Connect blackout/whiteout buttons
     connect(m_livePreviewPanel, &LivePreviewPanel::blackoutClicked, this, &ControlWindow::blackScreen);
     connect(m_livePreviewPanel, &LivePreviewPanel::whiteoutClicked, this, &ControlWindow::whiteScreen);
+    connect(m_livePreviewPanel, &LivePreviewPanel::clearTextClicked, this, &ControlWindow::clearText);
+    connect(m_livePreviewPanel, &LivePreviewPanel::clearBgClicked, this, &ControlWindow::clearBackground);
 
     // Connect timer buttons
     connect(m_livePreviewPanel, &LivePreviewPanel::timerStartClicked, this, &ControlWindow::onStartTimer);
@@ -767,11 +769,15 @@ void ControlWindow::updateUI()
 
 void ControlWindow::broadcastCurrentSlide()
 {
-    // Clear blackout/whiteout state when broadcasting a slide
+    // Clear all screen override states when broadcasting a slide
     m_isBlackout = false;
     m_isWhiteout = false;
+    m_isTextCleared = false;
+    m_isBackgroundCleared = false;
     m_livePreviewPanel->setBlackoutActive(false);
     m_livePreviewPanel->setWhiteoutActive(false);
+    m_livePreviewPanel->setClearTextActive(false);
+    m_livePreviewPanel->setClearBgActive(false);
 
     Presentation* presentation = m_presentationModel->presentation();
     if (!presentation || presentation->slideCount() == 0) {
@@ -1534,7 +1540,7 @@ void ControlWindow::onSetSlideAutoAdvance()
 void ControlWindow::startAutoAdvanceForCurrentSlide()
 {
     // Don't start auto-advance if output is not actively displaying
-    if (!m_outputVisible || m_isBlackout || m_isWhiteout) {
+    if (!m_outputVisible || m_isBlackout || m_isWhiteout || m_isTextCleared || m_isBackgroundCleared) {
         m_autoAdvanceTimer->stop();
         return;
     }
@@ -2943,6 +2949,12 @@ void ControlWindow::setupShortcuts()
     // W = White screen
     new QShortcut(QKeySequence(Qt::Key_W), this, SLOT(whiteScreen()));
 
+    // T = Clear text (keep background)
+    new QShortcut(QKeySequence(Qt::Key_T), this, SLOT(clearText()));
+
+    // R = Clear background (keep text)
+    new QShortcut(QKeySequence(Qt::Key_R), this, SLOT(clearBackground()));
+
     // Escape = Clear output
     new QShortcut(QKeySequence(Qt::Key_Escape), this, SLOT(onClearOutput()));
 
@@ -3056,13 +3068,17 @@ void ControlWindow::blackScreen()
         return;
     }
 
-    // Clear any whiteout state
+    // Clear any other screen states
     m_isWhiteout = false;
+    m_isTextCleared = false;
+    m_isBackgroundCleared = false;
     m_isBlackout = true;
 
     // Update button states
     m_livePreviewPanel->setBlackoutActive(true);
     m_livePreviewPanel->setWhiteoutActive(false);
+    m_livePreviewPanel->setClearTextActive(false);
+    m_livePreviewPanel->setClearBgActive(false);
 
     // Clear output - shows black screen
     onClearOutput();
@@ -3079,13 +3095,17 @@ void ControlWindow::whiteScreen()
         return;
     }
 
-    // Clear any blackout state
+    // Clear any other screen states
     m_isBlackout = false;
+    m_isTextCleared = false;
+    m_isBackgroundCleared = false;
     m_isWhiteout = true;
 
     // Update button states
     m_livePreviewPanel->setBlackoutActive(false);
     m_livePreviewPanel->setWhiteoutActive(true);
+    m_livePreviewPanel->setClearTextActive(false);
+    m_livePreviewPanel->setClearBgActive(false);
 
     // Stop auto-advance timer when output is blanked (matches blackout behavior)
     m_autoAdvanceTimer->stop();
@@ -3116,6 +3136,103 @@ void ControlWindow::whiteScreen()
     whiteSlide.setBackgroundColor(QColor("#ffffff"));
     whiteSlide.setTextColor(QColor("#000000"));
     m_livePreviewPanel->setOutputSlide(whiteSlide);
+}
+
+void ControlWindow::clearText()
+{
+    if (!m_hasPresentation) return;
+
+    // Toggle clear text - if already cleared, restore slide
+    if (m_isTextCleared) {
+        m_isTextCleared = false;
+        broadcastCurrentSlide();
+        return;
+    }
+
+    // Clear any other screen states
+    m_isBlackout = false;
+    m_isWhiteout = false;
+    m_isBackgroundCleared = false;
+    m_isTextCleared = true;
+
+    // Update button states
+    m_livePreviewPanel->setBlackoutActive(false);
+    m_livePreviewPanel->setWhiteoutActive(false);
+    m_livePreviewPanel->setClearTextActive(true);
+    m_livePreviewPanel->setClearBgActive(false);
+
+    // Stop auto-advance timer
+    m_autoAdvanceTimer->stop();
+
+    // Send clear text command to displays
+    QJsonObject message;
+    message["type"] = "clearText";
+    m_ipcServer->sendToClientType("output", message);
+    m_ipcServer->sendToClientType("ndi", message);
+
+    // Update live preview to show slide without text
+    Presentation* presentation = m_presentationModel->presentation();
+    if (presentation && presentation->slideCount() > 0) {
+        Slide currentSlide = presentation->resolvedSlideAt(presentation->currentSlideIndex());
+        currentSlide.setText("");
+        m_livePreviewPanel->setOutputSlide(currentSlide);
+    }
+}
+
+void ControlWindow::clearBackground()
+{
+    if (!m_hasPresentation) return;
+
+    // Toggle clear background - if already cleared, restore slide
+    if (m_isBackgroundCleared) {
+        m_isBackgroundCleared = false;
+        broadcastCurrentSlide();
+        return;
+    }
+
+    // Clear any other screen states
+    m_isBlackout = false;
+    m_isWhiteout = false;
+    m_isTextCleared = false;
+    m_isBackgroundCleared = true;
+
+    // Update button states
+    m_livePreviewPanel->setBlackoutActive(false);
+    m_livePreviewPanel->setWhiteoutActive(false);
+    m_livePreviewPanel->setClearTextActive(false);
+    m_livePreviewPanel->setClearBgActive(true);
+
+    // Stop auto-advance timer
+    m_autoAdvanceTimer->stop();
+
+    // Determine background color based on text luminance:
+    // Light text → black background, dark text → white background
+    Presentation* presentation = m_presentationModel->presentation();
+    QColor bgColor("#000000");
+    if (presentation && presentation->slideCount() > 0) {
+        Slide currentSlide = presentation->resolvedSlideAt(presentation->currentSlideIndex());
+        QColor textColor = currentSlide.textColor();
+        // Relative luminance formula (ITU-R BT.709)
+        double luminance = 0.2126 * textColor.redF()
+                         + 0.7152 * textColor.greenF()
+                         + 0.0722 * textColor.blueF();
+        bgColor = (luminance > 0.5) ? QColor("#000000") : QColor("#ffffff");
+    }
+
+    // Send clear background command with computed color
+    QJsonObject message;
+    message["type"] = "clearBackground";
+    message["backgroundColor"] = bgColor.name();
+    m_ipcServer->sendToClientType("output", message);
+    m_ipcServer->sendToClientType("ndi", message);
+
+    // Update live preview
+    if (presentation && presentation->slideCount() > 0) {
+        Slide currentSlide = presentation->resolvedSlideAt(presentation->currentSlideIndex());
+        currentSlide.setBackgroundColor(bgColor);
+        currentSlide.setBackgroundType(Slide::SolidColor);
+        m_livePreviewPanel->setOutputSlide(currentSlide);
+    }
 }
 
 void ControlWindow::toggleOutputDisplay()
@@ -3208,6 +3325,8 @@ void ControlWindow::showKeyboardShortcuts()
 <table>
 <tr><td><b>B</b></td><td>Toggle black screen</td></tr>
 <tr><td><b>W</b></td><td>Toggle white screen</td></tr>
+<tr><td><b>T</b></td><td>Clear text (keep background)</td></tr>
+<tr><td><b>R</b></td><td>Clear background (keep text)</td></tr>
 <tr><td><b>Escape</b></td><td>Clear output</td></tr>
 <tr><td><b>O</b></td><td>Toggle output display</td></tr>
 <tr><td><b>F</b></td><td>Toggle output fullscreen</td></tr>
@@ -3271,6 +3390,10 @@ void ControlWindow::onRemoteNavigation(const QString& action)
         blackScreen();
     } else if (action == "white") {
         whiteScreen();
+    } else if (action == "cleartext") {
+        clearText();
+    } else if (action == "clearbg") {
+        clearBackground();
     } else if (action.startsWith("goto:")) {
         bool ok;
         int index = action.mid(5).toInt(&ok);

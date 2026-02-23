@@ -195,6 +195,35 @@ Clears the output display (black screen).
 
 **Usage**: Sent from ControlWindow clear button (ControlWindow.cpp:207-209)
 
+---
+
+#### 5. Clear Text (Server → Client)
+Clears text from the output display while preserving the current background.
+
+```json
+{ "type": "clearText" }
+```
+
+**Fields**:
+- `type` (string, required): Always `"clearText"`
+
+**Usage**: Sent from ControlWindow via `T` key or Clear Text button. Toggle behavior — pressing again restores the slide.
+
+---
+
+#### 6. Clear Background (Server → Client)
+Replaces the background with a contrasting solid color while preserving the text. The background color is chosen based on text luminance (light text → black, dark text → white).
+
+```json
+{ "type": "clearBackground", "backgroundColor": "#000000" }
+```
+
+**Fields**:
+- `type` (string, required): Always `"clearBackground"`
+- `backgroundColor` (string, required): Hex color for the replacement background
+
+**Usage**: Sent from ControlWindow via `R` key or Clear BG button. Toggle behavior — pressing again restores the slide.
+
 ## Data Models
 
 ### Slide (Phase 1 - Simplified)

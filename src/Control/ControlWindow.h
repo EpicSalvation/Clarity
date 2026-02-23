@@ -105,6 +105,8 @@ private slots:
     // Display control shortcuts
     void blackScreen();
     void whiteScreen();
+    void clearText();
+    void clearBackground();
     void toggleOutputDisplay();
     void toggleOutputFullscreen();
     void toggleConfidenceMonitor();
@@ -232,6 +234,8 @@ private:
     // Display state tracking for toggle shortcuts
     bool m_isBlackout = false;
     bool m_isWhiteout = false;
+    bool m_isTextCleared = false;
+    bool m_isBackgroundCleared = false;
     // Display visibility tracking for preview borders
     bool m_outputVisible = false;       ///< Whether output display is visible (not just connected)
     bool m_confidenceVisible = false;   ///< Whether confidence monitor is visible (not just connected)

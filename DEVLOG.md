@@ -4,6 +4,57 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-23 - Clear Text and Clear Background Display Controls
+
+### Summary
+Added two new display control features: "Clear Text" (removes text while keeping the background visible) and "Clear Background" (replaces the background with a contrasting solid color while keeping the text). These follow the same toggle pattern as blackout/whiteout and are accessible via keyboard shortcuts, buttons in the Live Preview panel, and remote control actions.
+
+### Work Completed
+
+**Clear Text Feature**
+- New `clearText()` slot in ControlWindow with toggle behavior (press again to restore)
+- New `"clearText"` IPC message type handled by OutputDisplay
+- `clearTextOnly()` method in OutputDisplay clears text properties while preserving all background state
+- Keyboard shortcut: `T`
+- "Clear Text" button in LivePreviewPanel
+- Remote control action: `"cleartext"`
+
+**Clear Background Feature**
+- New `clearBackground()` slot in ControlWindow with toggle behavior
+- Automatically picks black or white background based on text color luminance (ITU-R BT.709 formula)
+- New `"clearBackground"` IPC message type with `backgroundColor` field
+- `clearBackgroundOnly()` method in OutputDisplay replaces background and disables legibility effects (overlay, text container, text band) that depend on the original background
+- Keyboard shortcut: `R`
+- "Clear BG" button in LivePreviewPanel
+- Remote control action: `"clearbg"`
+
+**UI Layout**
+- Reorganized LivePreviewPanel output buttons into two rows: [Blackout | Whiteout] and [Clear Text | Clear BG]
+- All four states are mutually exclusive — activating one deactivates the others
+- Button checked styles match existing blackout/whiteout pattern
+
+**State Management**
+- Added `m_isTextCleared` and `m_isBackgroundCleared` flags to ControlWindow
+- All state flags cleared in `broadcastCurrentSlide()` (slide navigation restores normal display)
+- Auto-advance timer stops when either clear mode is active
+- Each clear function clears all other screen override states
+
+### Technical Decisions
+- Clear Text sends a lightweight `"clearText"` message rather than re-sending full slide data with empty text — the output already has the background state
+- Clear Background sends the computed background color in the IPC message so the output display doesn't need access to the text color for luminance calculation
+- Legibility effects (overlay, text container, text band) are disabled on clear background since they were designed for the original background context
+
+### Issues/Blockers
+None.
+
+### Next Steps
+- Continue with any remaining UI polish or bug fixes
+
+### Commits
+- Branch: `main`
+
+---
+
 ## 2026-02-20 - Website Screenshots, Fix Slide Editing for Songs/Scripture
 
 ### Summary

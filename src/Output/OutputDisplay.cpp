@@ -120,6 +120,11 @@ void OutputDisplay::onMessageReceived(const QJsonObject& message)
         }
     } else if (type == "clearOutput") {
         clearDisplay();
+    } else if (type == "clearText") {
+        clearTextOnly();
+    } else if (type == "clearBackground") {
+        QString bgColor = message["backgroundColor"].toString("#000000");
+        clearBackgroundOnly(QColor(bgColor));
     } else if (type == "toggleFullscreen") {
         emit toggleFullscreen();
     } else if (type == "toggleVisibility") {
@@ -451,6 +456,50 @@ void OutputDisplay::clearDisplay()
     emit isClearedChanged();
 
     qDebug() << "OutputDisplay: Display cleared";
+}
+
+void OutputDisplay::clearTextOnly()
+{
+    m_slideText.clear();
+    m_slideRichText.clear();
+    m_useRichText = false;
+
+    emit slideTextChanged();
+    emit slideRichTextChanged();
+    emit useRichTextChanged();
+
+    // Trigger immediate update in QML
+    emit cutTransition();
+
+    qDebug() << "OutputDisplay: Text cleared (background preserved)";
+}
+
+void OutputDisplay::clearBackgroundOnly(const QColor& bgColor)
+{
+    m_backgroundColor = bgColor;
+    m_backgroundType = "solidColor";
+    m_backgroundImageData.clear();
+    m_gradientStopsJson = "[]";
+    m_backgroundVideoSource.clear();
+
+    // Disable legibility effects that depend on the original background
+    m_overlayEnabled = false;
+    m_textContainerEnabled = false;
+    m_textBandEnabled = false;
+
+    emit backgroundColorChanged();
+    emit backgroundTypeChanged();
+    emit backgroundImageDataChanged();
+    emit gradientStopsJsonChanged();
+    emit backgroundVideoSourceChanged();
+    emit overlayEnabledChanged();
+    emit textContainerEnabledChanged();
+    emit textBandEnabledChanged();
+
+    // Trigger immediate update in QML
+    emit cutTransition();
+
+    qDebug() << "OutputDisplay: Background cleared to" << bgColor.name() << "(text preserved)";
 }
 
 void OutputDisplay::transitionComplete()

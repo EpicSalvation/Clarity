@@ -190,6 +190,8 @@ private slots:
 private:
     void updateSlide(const Slide& slide);
     void clearDisplay();
+    void clearTextOnly();
+    void clearBackgroundOnly(const QColor& bgColor);
     void initBlurLog();
     void logBlurConfig(const Slide& slide);
 

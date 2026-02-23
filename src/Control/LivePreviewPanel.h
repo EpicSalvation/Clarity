@@ -99,6 +99,16 @@ public:
     void setWhiteoutActive(bool active);
 
     /**
+     * @brief Set the clear text button active state
+     */
+    void setClearTextActive(bool active);
+
+    /**
+     * @brief Set the clear background button active state
+     */
+    void setClearBgActive(bool active);
+
+    /**
      * @brief Update the auto-advance countdown display
      * @param seconds Remaining seconds (0 = hide countdown)
      * @param total Total duration in seconds
@@ -137,6 +147,16 @@ signals:
     void whiteoutClicked();
 
     /**
+     * @brief Emitted when user clicks the Clear Text button
+     */
+    void clearTextClicked();
+
+    /**
+     * @brief Emitted when user clicks the Clear BG button
+     */
+    void clearBgClicked();
+
+    /**
      * @brief Emitted when user clicks the NDI indicator to toggle NDI output
      */
     void ndiClicked();
@@ -161,6 +181,8 @@ private:
     ConfidencePreviewWidget* m_confidencePreview;  ///< Confidence monitor preview
     QPushButton* m_blackoutButton;                 ///< Blackout toggle button
     QPushButton* m_whiteoutButton;                 ///< Whiteout toggle button
+    QPushButton* m_clearTextButton;                ///< Clear text toggle button
+    QPushButton* m_clearBgButton;                  ///< Clear background toggle button
     QPushButton* m_timerPlayButton;                ///< Timer play button
     QPushButton* m_timerPauseButton;               ///< Timer pause button
     QPushButton* m_timerResetButton;               ///< Timer reset button
