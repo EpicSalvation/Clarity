@@ -4,6 +4,53 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-02-26 - Inno Setup Installer
+
+### Summary
+Added a Windows installer infrastructure using Inno Setup. Created a packaging script (`installer/package.bat`) that stages a release build with all Qt dependencies via `windeployqt`, then compiles an installer using the Inno Setup script (`installer/clarity.iss`).
+
+### Work Completed
+
+**Inno Setup Script (`installer/clarity.iss`)**
+- Configurable version/name via `#define` directives at the top of the file
+- Installs to `{autopf}\Clarity` (Program Files) with `PrivilegesRequired=lowest` and dialog override so users can choose per-user or system-wide
+- `.cly` file association (optional, checked by default during install)
+- Optional desktop shortcut (unchecked by default)
+- Start Menu group with app shortcut and uninstaller
+- Language support matching the app's translations: English, Spanish, German, French
+- LZMA2 solid compression
+- Modern wizard style, 64-bit only
+- Single recursive `[Files]` entry from the staging directory — whatever `windeployqt` deploys gets packaged automatically
+- Post-install option to launch Clarity
+
+**Packaging Script (`installer/package.bat`)**
+- Accepts optional build directory argument (defaults to `..\build`)
+- Validates that `Clarity.exe` exists in the Release output
+- Validates that `windeployqt` is on PATH
+- Creates clean staging directory
+- Runs `windeployqt --release --no-translations --qmldir src` to gather Qt DLLs, platform plugins, QML modules
+- Copies app data: `data/bible.db`, `config/Clarity/songs.json`, `translations/*.qm`
+- Checks for `iscc.exe` on PATH and runs it if available; otherwise tells the user staging is ready for manual compilation
+
+### Technical Decisions
+- Chose Inno Setup over CPack/NSIS/WiX/QtIFW — simplest option for a single-exe Windows app, already installed on dev machine
+- Used a single recursive `[Files]` entry instead of enumerating each Qt plugin directory — simpler to maintain and automatically adapts if Qt adds new plugin directories in future versions
+- `--no-translations` flag on `windeployqt` since Clarity has its own translation files
+- `--qmldir src` so windeployqt scans QML imports from the source tree and only deploys needed QML modules
+- `PrivilegesRequired=lowest` with `PrivilegesRequiredOverridesAllowed=dialog` lets users install per-user by default but elevate to Program Files if they want
+
+### Issues/Blockers
+None.
+
+### Next Steps
+- Test the full build-to-installer pipeline on Windows
+- Consider adding a `LICENSE.txt` to the installer if one is created
+
+### Commits
+- Branch: `claude/evaluate-installer-options-GB0T1`
+
+---
+
 ## 2026-02-23 - Clear Text and Clear Background Display Controls
 
 ### Summary
