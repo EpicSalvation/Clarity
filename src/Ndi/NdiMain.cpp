@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Troy Dontigney
+
 #include "NdiMain.h"
 #include "NdiSender.h"
 #include "Output/OutputDisplay.h"
+#include "Core/Version.h"
 
 #include <QGuiApplication>
 #include <QCommandLineParser>
@@ -65,7 +69,7 @@ int NdiMain::run(int argc, char* argv[])
     QGuiApplication app(argc, argv);
     app.setOrganizationName("Clarity");
     app.setApplicationName("Clarity");
-    app.setApplicationVersion("1.0.0");
+    app.setApplicationVersion(CLARITY_VERSION);
 
     // Parse command line arguments
     QCommandLineParser parser;

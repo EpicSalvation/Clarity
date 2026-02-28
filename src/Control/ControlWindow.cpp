@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Troy Dontigney
+
 #include "ControlWindow.h"
 #include "AppStyle.h"
 #include "SettingsDialog.h"
@@ -13,6 +16,7 @@
 #include "Core/ApiBibleScriptureItem.h"
 #include "Core/CustomSlideItem.h"
 #include "Core/SlideGroupItem.h"
+#include "Core/Version.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QToolBar>
@@ -381,6 +385,8 @@ void ControlWindow::setupUI()
     // Help menu
     QMenu* helpMenu = menuBar->addMenu(tr("&Help"));
     helpMenu->addAction(tr("&Keyboard Shortcuts..."), QKeySequence("F1"), this, &ControlWindow::showKeyboardShortcuts);
+    helpMenu->addSeparator();
+    helpMenu->addAction(tr("&About Clarity..."), this, &ControlWindow::showAbout);
 
     // Debug menu — testing tools for development
     QMenu* debugMenu = menuBar->addMenu(tr("&Debug"));
@@ -3368,6 +3374,30 @@ void ControlWindow::showKeyboardShortcuts()
     msgBox.setWindowTitle(tr("Keyboard Shortcuts"));
     msgBox.setTextFormat(Qt::RichText);
     msgBox.setText(shortcuts);
+    msgBox.setIcon(QMessageBox::Information);
+    msgBox.exec();
+}
+
+void ControlWindow::showAbout()
+{
+    QString about = tr(
+        "<h2>Clarity</h2>"
+        "<p>Version %1</p>"
+        "<p>Church presentation software — worship lyrics, scripture, "
+        "and media display for small churches.</p>"
+        "<hr>"
+        "<p>Copyright &copy; 2026 Troy Dontigney</p>"
+        "<p>Licensed under the "
+        "<a href=\"https://www.gnu.org/licenses/gpl-3.0.en.html\">"
+        "GNU General Public License v3.0</a></p>"
+        "<hr>"
+        "<p><small>Built with Qt %2</small></p>"
+    ).arg(CLARITY_VERSION, QT_VERSION_STR);
+
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle(tr("About Clarity"));
+    msgBox.setTextFormat(Qt::RichText);
+    msgBox.setText(about);
     msgBox.setIcon(QMessageBox::Information);
     msgBox.exec();
 }

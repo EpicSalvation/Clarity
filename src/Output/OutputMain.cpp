@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Troy Dontigney
+
 #include "OutputMain.h"
 #include "OutputDisplay.h"
+#include "Core/Version.h"
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
@@ -18,7 +22,7 @@ int OutputMain::run(int argc, char* argv[])
     // Use same org/app name as Control app so QSettings reads the same file
     app.setOrganizationName("Clarity");
     app.setApplicationName("Clarity");
-    app.setApplicationVersion("1.0.0");
+    app.setApplicationVersion(CLARITY_VERSION);
     app.setWindowIcon(QIcon(":/icons/clarity.ico"));
 
     // Parse command line arguments

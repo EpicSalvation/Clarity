@@ -33,14 +33,16 @@ if "%BUILD_DIR%"=="" set "BUILD_DIR=..\build"
 set "SCRIPT_DIR=%~dp0"
 set "PROJECT_DIR=%SCRIPT_DIR%.."
 set "STAGING_DIR=%SCRIPT_DIR%staging"
-set "EXE_PATH=%BUILD_DIR%\Release\Clarity.exe"
+:: Ninja/MinGW puts the exe directly in the build dir; MSVC uses a Release\ subfolder.
+set "EXE_PATH=%BUILD_DIR%\Clarity.exe"
+if exist "%BUILD_DIR%\Release\Clarity.exe" set "EXE_PATH=%BUILD_DIR%\Release\Clarity.exe"
 
 :: --- Validate build exists ---
 if not exist "%EXE_PATH%" (
     echo ERROR: Clarity.exe not found at %EXE_PATH%
     echo.
-    echo Make sure you have built in Release mode:
-    echo   cmake --build "%BUILD_DIR%" --config Release
+    echo Make sure you have built Clarity:
+    echo   cmake --build "%BUILD_DIR%"
     echo.
     echo Or pass the build directory as an argument:
     echo   package.bat path\to\build
@@ -90,6 +92,7 @@ mkdir "%STAGING_DIR%\config\Clarity" 2>nul
 copy /y "%PROJECT_DIR%\samples\songs.json" "%STAGING_DIR%\config\Clarity\" >nul
 
 :: Translations (.qm files from build output)
+:: Translations may be in Release\ subfolder (MSVC) or directly in build dir (Ninja)
 set "QM_DIR=%BUILD_DIR%\Release\translations"
 if not exist "%QM_DIR%" set "QM_DIR=%BUILD_DIR%\translations"
 if exist "%QM_DIR%\*.qm" (
@@ -103,7 +106,7 @@ if exist "%QM_DIR%\*.qm" (
 :: --- Summary ---
 echo.
 echo Staging complete. Contents of %STAGING_DIR%:
-dir /s /b "%STAGING_DIR%" | find /c /v ""
+dir /s /b "%STAGING_DIR%" | %SystemRoot%\System32\find.exe /c /v ""
 echo files staged.
 echo.
 
@@ -127,4 +130,4 @@ if errorlevel 1 (
 )
 
 echo.
-echo Done! Installer written to: installer\output\ClaritySetup-1.0.0.exe
+echo Done! Installer written to: installer\output\ClaritySetup-0.1.0-beta.1.exe

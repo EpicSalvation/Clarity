@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Troy Dontigney
+
 #pragma once
 
 #include "Core/Presentation.h"
@@ -117,6 +120,7 @@ private slots:
 
     // Help
     void showKeyboardShortcuts();
+    void showAbout();
 
     // Media drag-and-drop
     void onMediaDroppedOnSlide(const QModelIndex& proxyIndex, const QString& path,

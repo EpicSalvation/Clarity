@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Troy Dontigney
+
 #include "EsvScriptureItem.h"
 #include "SettingsManager.h"
 #include <QJsonArray>

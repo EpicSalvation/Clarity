@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
-project(Clarity VERSION 1.0.0 LANGUAGES CXX)
+project(Clarity VERSION 0.1.0 LANGUAGES CXX)
+set(CLARITY_VERSION_SUFFIX "-beta.1")
+set(CLARITY_VERSION_FULL "${PROJECT_VERSION}${CLARITY_VERSION_SUFFIX}")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,6 +11,15 @@ set(CMAKE_AUTOUIC ON)
 
 # Find Qt6 packages
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Quick Network Sql Multimedia WebSockets LinguistTools OpenGL Svg)
+
+# Generate Version.h from template — single source of truth for version info.
+# The template lives in src/Core/Version.h.in; the generated header goes into
+# the build tree so it never pollutes the source directory.
+configure_file(
+    ${CMAKE_SOURCE_DIR}/src/Core/Version.h.in
+    ${CMAKE_BINARY_DIR}/generated/Core/Version.h
+    @ONLY
+)
 
 # Core library (shared between all modes)
 add_library(ClarityCore STATIC
@@ -92,6 +103,7 @@ target_link_libraries(ClarityCore
 target_include_directories(ClarityCore
     PUBLIC
         ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_BINARY_DIR}/generated
 )
 
 # Main executable

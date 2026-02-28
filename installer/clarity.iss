@@ -6,7 +6,7 @@
 
 ; ---- Configuration (update these for new releases) ----
 #define MyAppName "Clarity"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "0.1.0-beta.1"
 #define MyAppPublisher "Clarity"
 #define MyAppExeName "Clarity.exe"
 #define MyAppAssocName "Clarity Presentation"
@@ -47,7 +47,7 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "fileassoc"; Description: "Associate .cly files with {#MyAppName}"; GroupDescription: "File associations:"; Flags: checked
+Name: "fileassoc"; Description: "Associate .cly files with {#MyAppName}"; GroupDescription: "File associations:"
 
 [Files]
 ; Everything from the staging directory — windeployqt output, app data, translations.

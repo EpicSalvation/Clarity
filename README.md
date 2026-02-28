@@ -283,7 +283,9 @@ See [PHASE4_PLAN.md](PHASE4_PLAN.md) for detailed planning.
 
 ## License
 
-TBD
+This project is licensed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html). See the [LICENSE](LICENSE) file for details.
+
+This application uses the [Qt framework](https://www.qt.io/), which is licensed under the LGPL v3.0. Qt libraries are dynamically linked. See the [NOTICE](NOTICE) file for full attribution.
 
 ## Contributing
 

@@ -213,6 +213,19 @@ a:hover {
     margin-bottom: 16px;
 }
 
+.hero-badge {
+    display: inline-block;
+    background: rgba(251, 191, 36, 0.15);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    color: #fbbf24;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    padding: 4px 14px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+}
+
 .hero .subtitle {
     font-size: 1.15rem;
     color: #94a3b8;
@@ -547,6 +560,16 @@ a:hover {
 .footer-center {
     font-size: 0.9rem;
     text-align: center;
+}
+
+.footer-center a {
+    color: #94a3b8;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.footer-center a:hover {
+    color: var(--color-text-light);
 }
 
 .footer-links {

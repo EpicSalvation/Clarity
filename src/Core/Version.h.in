@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Troy Dontigney
+//
+// Generated from Version.h.in by CMake — do not edit directly.
+// Update the version in CMakeLists.txt instead.
+
+#pragma once
+
+#define CLARITY_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define CLARITY_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define CLARITY_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define CLARITY_VERSION_SUFFIX "@CLARITY_VERSION_SUFFIX@"
+#define CLARITY_VERSION "@CLARITY_VERSION_FULL@"

@@ -1,7 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Troy Dontigney
+
 #include "ControlMain.h"
 #include "ControlWindow.h"
 #include "AppStyle.h"
 #include "Core/SettingsManager.h"
+#include "Core/Version.h"
 #include <QApplication>
 #include <QIcon>
 #include <QStyleFactory>
@@ -16,7 +20,7 @@ int ControlMain::run(int argc, char* argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName("Clarity");
-    app.setApplicationVersion("1.0.0");
+    app.setApplicationVersion(CLARITY_VERSION);
     app.setOrganizationName("Clarity");
     app.setWindowIcon(QIcon(":/icons/clarity.ico"));
 
