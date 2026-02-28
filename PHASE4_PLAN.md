@@ -24,13 +24,6 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
 
 ### Medium Priority
 
-- [ ] **Audio Playback Support**
-  - [ ] Background music for slides
-  - [ ] Audio cues/sound effects
-  - [ ] Volume control
-  - [ ] Fade in/out options
-  - [ ] Continue across slides option
-
 - [x] **Slide Auto-Advance Timer**
   - [x] Per-slide timer duration setting (seconds) to auto-advance to next slide
   - [x] Group-level default timer that applies to all slides in a SlideGroupItem
@@ -39,12 +32,6 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [x] Pause/resume auto-advance during presentation
   - [x] Timer resets when manually navigating away from a timed slide
   - [x] Works across item boundaries (last slide in group advances to first slide of next item)
-
-- [ ] **Video Playback Controls**
-  - [ ] Start time / end time trimming
-  - [ ] Playback speed control
-  - [ ] Audio track enable/disable per slide
-  - [ ] Loop point configuration
 
 - [x] **Scripture Lookup Integration**
   - [x] Quick lookup by reference
@@ -81,7 +68,17 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [x] Quick filters (used this month/year, never used, has CCLI#)
   - [x] Copyright compliance: CCLI info on song title slides, auto-generated copyright slide
   - [x] Dedicated Copyright settings page with CCLI report access
-  - [ ] Direct API integration (requires CCLI developer account - future)
+
+### Slide Templates
+
+- [ ] **Slide Template System**
+  - [ ] Template engine supporting multiple text zones with independent font, size, and color
+  - [ ] Title slide template (large title + subtitle)
+  - [ ] Title & body template (heading + paragraph text)
+  - [ ] Scripture template (reference heading + verse body)
+  - [ ] Blank template (single text zone, current default behavior)
+  - [ ] Template selection in slide editor
+  - [ ] Templates work with existing theme system (colors, backgrounds)
 
 ### Low Priority
 
@@ -105,27 +102,6 @@ Phase 4 focuses on polish, performance improvements, and advanced media features
   - [x] Multi-stop gradients
   - [x] Drag-and-drop slide reordering (item-level and slide-level)
   - [x] Undo/redo for edits
-  - [ ] Cloud sync for presentations
-  - [ ] Presentation templates marketplace
-
-## User-Requested Features
-
-These features will only be implemented if specifically requested by users:
-
-- [ ] **Ken Burns Effect**
-  - [ ] Configurable start and end positions
-  - [ ] Adjustable duration
-  - [ ] Direction presets (zoom in, zoom out, pan left, etc.)
-
-- [ ] **Lower-Third Animations**
-  - [ ] Slide in from side
-  - [ ] Fade in/out
-  - [ ] Typewriter effect
-  - [ ] Configurable timing
-
-- [ ] **SongSelect Direct API Integration**
-  - [ ] Requires CCLI developer account
-  - [ ] Direct song search and download from within the app
 
 ## Technical Considerations
 
@@ -138,11 +114,6 @@ The transition interruption feature requires careful handling:
    - Option C: Queue the new target and transition after current completes
 3. Recommended: Option A for simplicity and predictable behavior
 
-### Audio Architecture
-- Consider using Qt Multimedia for audio playback
-- Separate audio player from video player for background music
-- Audio state should persist across slide changes when configured
-
 ### Blur Architecture
 - Uses ShaderEffectSource with reduced textureSize for background blur (no external Qt modules needed)
 - Bilinear filtering when displaying the downsampled texture at full size creates the blur appearance
@@ -154,8 +125,8 @@ The transition interruption feature requires careful handling:
 ## Success Criteria
 
 - Transitions feel responsive even during rapid navigation
-- Audio playback is reliable and doesn't affect slide performance
 - Blur effects render correctly for overlay, text container, text band, and drop shadow
+- Slide templates render correctly with multiple text zones
 - Advanced effects don't impact presentation stability
 - All features maintain the "reliability first" philosophy
 
