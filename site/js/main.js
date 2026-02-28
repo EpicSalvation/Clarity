@@ -48,12 +48,4 @@
         });
     }
 
-    // --- Download button placeholder ---
-    var downloadBtns = document.querySelectorAll('[data-download]');
-    downloadBtns.forEach(function (btn) {
-        btn.addEventListener('click', function (e) {
-            e.preventDefault();
-            alert('Download coming soon! Clarity is currently in active development.');
-        });
-    });
 })();
