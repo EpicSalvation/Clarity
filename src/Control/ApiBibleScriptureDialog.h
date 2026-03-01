@@ -65,6 +65,11 @@ public:
     bool includeVerseNumbers() const;
 
     /**
+     * @brief Get whether to include verse references on slides
+     */
+    bool includeVerseReferences() const;
+
+    /**
      * @brief Get the slide style settings
      */
     SlideStyle slideStyle() const;
@@ -121,6 +126,7 @@ private:
 
     // Options
     QCheckBox* m_includeVerseNumbersCheck;
+    QCheckBox* m_includeReferenceCheck;
     QCheckBox* m_onePerSlideCheck;
     QSpinBox* m_fontSizeSpinBox;
 

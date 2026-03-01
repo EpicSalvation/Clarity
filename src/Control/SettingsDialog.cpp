@@ -577,6 +577,25 @@ void SettingsDialog::createBiblePage()
 
     pageLayout->addWidget(defaultGroup);
 
+    // Scripture Formatting group
+    QGroupBox* scriptureFormatGroup = new QGroupBox(tr("Scripture Formatting"), biblePage);
+    QFormLayout* scriptureFormatLayout = new QFormLayout(scriptureFormatGroup);
+
+    m_scriptureRefPositionCombo = new QComboBox(scriptureFormatGroup);
+    m_scriptureRefPositionCombo->addItem(tr("Top"), "top");
+    m_scriptureRefPositionCombo->addItem(tr("Bottom"), "bottom");
+    scriptureFormatLayout->addRow(tr("Reference Position:"), m_scriptureRefPositionCombo);
+
+    QLabel* refPosHelpLabel = new QLabel(
+        tr("Controls where the scripture reference (e.g., \"John 3:16\") appears on new scripture slides. "
+           "Existing slides are not affected."),
+        scriptureFormatGroup);
+    refPosHelpLabel->setWordWrap(true);
+    refPosHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    scriptureFormatLayout->addRow(refPosHelpLabel);
+
+    pageLayout->addWidget(scriptureFormatGroup);
+
     // Red Letter Edition group
     QGroupBox* redLetterGroup = new QGroupBox(tr("Red Letter Edition"), biblePage);
     QFormLayout* redLetterLayout = new QFormLayout(redLetterGroup);
@@ -993,6 +1012,10 @@ void SettingsDialog::loadSettings()
     m_remoteControlPinEdit->setText(m_settingsManager->remoteControlPin());
     m_remoteControlPinEdit->setEnabled(m_settingsManager->remoteControlPinEnabled());
 
+    // Load scripture formatting settings
+    int refPosIndex = m_scriptureRefPositionCombo->findData(m_settingsManager->scriptureReferencePosition());
+    if (refPosIndex >= 0) m_scriptureRefPositionCombo->setCurrentIndex(refPosIndex);
+
     // Load red letter settings
     m_redLettersEnabledCheckBox->setChecked(m_settingsManager->redLettersEnabled());
     m_redLetterColor = QColor(m_settingsManager->redLetterColor());
@@ -1076,6 +1099,10 @@ void SettingsDialog::saveSettings()
         m_settingsManager->setPreferredBibleTranslation(preferredTranslation);
     }
     m_settingsManager->setRememberLastBibleTranslation(m_rememberLastTranslationCheckBox->isChecked());
+
+    // Save scripture formatting settings
+    m_settingsManager->setScriptureReferencePosition(
+        m_scriptureRefPositionCombo->currentData().toString());
 
     // Save red letter settings
     m_settingsManager->setRedLettersEnabled(m_redLettersEnabledCheckBox->isChecked());

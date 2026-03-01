@@ -172,6 +172,13 @@ void ApiBibleScriptureDialog::setupUI()
     });
     optionsRow1->addWidget(m_includeVerseNumbersCheck);
 
+    m_includeReferenceCheck = new QCheckBox(tr("Include reference on slide"), this);
+    m_includeReferenceCheck->setChecked(true);
+    connect(m_includeReferenceCheck, &QCheckBox::checkStateChanged, this, [this](Qt::CheckState) {
+        updatePreview();
+    });
+    optionsRow1->addWidget(m_includeReferenceCheck);
+
     m_onePerSlideCheck = new QCheckBox(tr("One verse per slide"), this);
     m_onePerSlideCheck->setChecked(m_settings ? m_settings->scriptureOneVersePerSlide() : false);
     optionsRow1->addWidget(m_onePerSlideCheck);
@@ -632,6 +639,11 @@ bool ApiBibleScriptureDialog::oneVersePerSlide() const
 bool ApiBibleScriptureDialog::includeVerseNumbers() const
 {
     return m_includeVerseNumbersCheck->isChecked();
+}
+
+bool ApiBibleScriptureDialog::includeVerseReferences() const
+{
+    return m_includeReferenceCheck->isChecked();
 }
 
 SlideStyle ApiBibleScriptureDialog::slideStyle() const

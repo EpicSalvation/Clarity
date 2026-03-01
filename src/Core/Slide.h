@@ -31,6 +31,82 @@ struct GradientStop {
 enum GradientType { LinearGradient, RadialGradient };
 
 /**
+ * @brief Slide template type — defines the text zone layout
+ */
+enum class SlideTemplate {
+    Blank,      ///< Single centered text zone (current default behavior)
+    Title,      ///< Large title (upper) + subtitle (lower)
+    TitleBody,  ///< Heading (top) + body paragraph (below)
+    Scripture   ///< Reference heading (top) + verse body (below)
+};
+
+/**
+ * @brief A single text zone within a template slide
+ *
+ * Each zone has its own text content, font, and color settings.
+ * Layout coordinates are fractional (0.0–1.0) so they scale to any resolution.
+ */
+struct TextZone {
+    QString id;            ///< Zone identifier for labeling (e.g., "title", "subtitle", "body")
+    QString text;          ///< Plain text content
+    QString richText;      ///< Optional HTML markup (e.g., red-letter scripture)
+    QColor textColor = QColor("#ffffff");
+    QString fontFamily = "Arial";
+    int fontSize = 48;
+
+    // Layout rect as fractions of the slide area (0.0–1.0)
+    double x = 0.1;
+    double y = 0.0;
+    double width = 0.8;
+    double height = 1.0;
+
+    // Alignment within the zone: 0 = Left/Top, 1 = Center, 2 = Right/Bottom
+    int horizontalAlignment = 1;
+    int verticalAlignment = 1;
+
+    // Per-zone legibility: Drop shadow
+    bool dropShadowEnabled = true;
+    QColor dropShadowColor = QColor(0, 0, 0, 128);
+    int dropShadowOffsetX = 2;
+    int dropShadowOffsetY = 2;
+    int dropShadowBlur = 4;
+
+    // Per-zone legibility: Text container (box behind text)
+    bool textContainerEnabled = false;
+    QColor textContainerColor = QColor(0, 0, 0, 128);
+    int textContainerPadding = 20;
+    int textContainerRadius = 8;
+
+    // Per-zone legibility: Text band (horizontal strip)
+    bool textBandEnabled = false;
+    QColor textBandColor = QColor(0, 0, 0, 128);
+
+    QJsonObject toJson() const;
+    static TextZone fromJson(const QJsonObject& json);
+
+    bool operator==(const TextZone& other) const {
+        return id == other.id && text == other.text && richText == other.richText
+            && textColor == other.textColor && fontFamily == other.fontFamily
+            && fontSize == other.fontSize
+            && qFuzzyCompare(x, other.x) && qFuzzyCompare(y, other.y)
+            && qFuzzyCompare(width, other.width) && qFuzzyCompare(height, other.height)
+            && horizontalAlignment == other.horizontalAlignment
+            && verticalAlignment == other.verticalAlignment
+            && dropShadowEnabled == other.dropShadowEnabled
+            && dropShadowColor == other.dropShadowColor
+            && dropShadowOffsetX == other.dropShadowOffsetX
+            && dropShadowOffsetY == other.dropShadowOffsetY
+            && dropShadowBlur == other.dropShadowBlur
+            && textContainerEnabled == other.textContainerEnabled
+            && textContainerColor == other.textContainerColor
+            && textContainerPadding == other.textContainerPadding
+            && textContainerRadius == other.textContainerRadius
+            && textBandEnabled == other.textBandEnabled
+            && textBandColor == other.textBandColor;
+    }
+};
+
+/**
  * @brief Represents a single slide in a presentation
  *
  * Phase 1: Simple text on solid color background
@@ -111,6 +187,15 @@ public:
     // Auto-advance timer (0 = disabled, positive = seconds until auto-advance)
     int autoAdvanceDuration() const { return m_autoAdvanceDuration; }
     bool hasAutoAdvance() const { return m_autoAdvanceDuration > 0; }
+
+    // Slide templates and text zones
+    SlideTemplate slideTemplate() const { return m_slideTemplate; }
+    void setSlideTemplate(SlideTemplate tmpl) { m_slideTemplate = tmpl; }
+    QList<TextZone> textZones() const { return m_textZones; }
+    void setTextZones(const QList<TextZone>& zones) { m_textZones = zones; }
+    bool hasTextZones() const { return !m_textZones.isEmpty(); }
+    QString textZonesJson() const;
+    static QList<TextZone> createTemplateZones(SlideTemplate tmpl, bool referenceAtBottom = false);
 
     // Presenter notes (shown on confidence monitor, not on output)
     QString notes() const { return m_notes; }
@@ -257,6 +342,10 @@ private:
 
     // Cascading background: if false, background is inherited from previous explicit slide
     bool m_hasExplicitBackground;
+
+    // Phase 4: Slide templates
+    SlideTemplate m_slideTemplate;
+    QList<TextZone> m_textZones;
 };
 
 } // namespace Clarity

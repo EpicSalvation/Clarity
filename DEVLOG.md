@@ -4,6 +4,103 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-03-01 - Scripture Reference Position Setting & Template Integration
+
+### Summary
+Added a global setting to control where the scripture reference (e.g., "John 3:16") appears on slides — top or bottom. Integrated the Scripture template with text zones into all three scripture importers (Local Bible, ESV API, API.bible) so references appear in a dedicated zone with distinct formatting. Updated built-in scripture themes to style the reference zone with accent colors and appropriate font sizing.
+
+### Work Completed
+
+**Scripture Reference Position Setting (SettingsManager)**
+- Added `scriptureReferencePosition()` getter/setter with key `Bible/ScriptureReferencePosition` (values: "top" or "bottom", default "top")
+- Added "Scripture Formatting" group with Reference Position combo box to Settings > Bible page
+- Load/save wired in SettingsDialog
+
+**Template Zone Layout (Slide.h/Slide.cpp)**
+- Added `bool referenceAtBottom` parameter to `Slide::createTemplateZones()`
+- When bottom: body zone at y=0.05/h=0.65, reference at y=0.80/h=0.15
+- Body text vertically centered in its available space (both top and bottom layouts)
+- SlideEditorDialog passes setting to both `onTemplateChanged()` and `collectSlideData()`
+
+**Theme Integration (Theme.cpp, ThemeManager.cpp)**
+- `Theme::applyToSlide()` now applies `accentColor` to "reference" zones on Scripture template slides, with font size `bodyFontSize - 4` for visual differentiation
+- Non-scripture "title" zones continue using `textColor` and `titleFontSize`
+- Updated "Scripture Classic" theme: black background, warm off-white text (#e8e4de), muted tan accent (#a89070), drop shadow disabled
+
+**Scripture Importer Integration — Local Bible (ScriptureItem.cpp)**
+- When `includeVerseReferences` is enabled, generates slides with Scripture template and text zones
+- Reference zone contains the full reference (e.g., "John 3:16 (KJV)")
+- Body zone contains verse text with verse number prefixes and rich text (red letters)
+- All-on-one-slide mode builds a range reference string for the zone
+- When references are disabled, falls back to plain text (no template)
+
+**Scripture Importer Integration — ESV API & API.bible**
+- Added `m_includeVerseReferences` field, getter/setter, and JSON serialization to both `EsvScriptureItem` and `ApiBibleScriptureItem`
+- Added "Include reference on slide" checkbox to both `EsvScriptureDialog` and `ApiBibleScriptureDialog`
+- Both importers now generate Scripture template slides with reference zones when enabled
+- API.bible version passes rich text (red letters) through to the body zone
+- ControlWindow passes the new option from dialogs to items on insertion
+
+### Technical Decisions
+- Reference position defaults to "top" for backward compatibility
+- ESV and API.bible default `includeVerseReferences` to `false` (preserving existing behavior for saved files) while the dialog checkbox defaults to checked for new imports
+- Per-verse reference format for ESV/API.bible: `"Reference:verseNum (Translation)"` since these APIs don't store per-verse book/chapter info the same way local BibleVerse does
+- `SlideStyle::applyTo()` intentionally not changed to handle zones — the global scripture theme override (`Theme::applyToSlide()`) handles zone-level accent color application
+
+### Testing
+- Clean build, all compilation units successful
+- Existing saved presentations unaffected (zone positions stored in JSON, new fields default safely)
+
+### Next Steps
+- Manual verification of reference position in all three importers
+- Verify theme accent colors render correctly on output display and preview grid
+
+---
+
+## 2026-02-28 - Per-Zone Legibility & Display Name Fix
+
+### Summary
+Made text legibility settings (drop shadow, text container, text band) independent per text zone in template slides, and fixed the "Empty Slide" display name for template slides that store text in zones rather than the legacy `m_text` field.
+
+### Work Completed
+
+**Per-Zone Legibility Fields (Slide.h/Slide.cpp)**
+- Added drop shadow (enabled, color, offsetX, offsetY, blur), text container (enabled, color, padding, radius), and text band (enabled, color) fields to `TextZone` struct
+- Updated `operator==` to include all new fields
+- Updated `TextZone::toJson()`/`fromJson()` for persistence serialization
+- Updated `Slide::textZonesJson()` to pass per-zone legibility to QML via short keys (`dsEnabled`, `dsColor`, `dsOffX`, `dsOffY`, `dsBlur`, `tcEnabled`, `tcColor`, `tcPad`, `tcRad`, `tbEnabled`, `tbColor`)
+
+**QML Output Display (OutputDisplayContent.qml)**
+- Both zone Repeaters (A and B) now read band, container, and drop shadow settings from `modelData` per-zone properties instead of slide-level `root.*` properties
+
+**QPainter Preview Renderer (SlidePreviewRenderer.cpp)**
+- `drawTextZoneLegibility()` reads band/container settings from each zone struct
+- `drawTextZones()` reads drop shadow settings from each zone struct
+
+**Slide Editor Dialog (SlideEditorDialog.h/cpp)**
+- Extended `ZoneTab` struct with legibility widgets (checkboxes, color buttons, spin boxes)
+- Added collapsible "Legibility" group box in each zone tab with Drop Shadow, Text Container, and Text Band sub-groups
+- Added `onChooseZoneDropShadowColor()`, `onChooseZoneTextContainerColor()`, `onChooseZoneTextBandColor()` slot methods
+- Updated `slide()` to collect per-zone legibility settings from zone tabs
+
+**Display Name Fix (CustomSlideItem.cpp, PresentationModel.cpp)**
+- `CustomSlideItem::displayName()` now checks `m_slide.hasTextZones()` when `m_text` is empty, preferring zone with id "title" for the display name
+- `PresentationModel::data()` for `TextRole` and `Qt::DisplayRole` uses first non-empty zone text as fallback
+
+### Technical Decisions
+- Overlay stays slide-level only (it's a full-background effect, not zone-specific)
+- Text container blur and text band blur omitted from per-zone — they require ShaderEffect chains that are complex per-zone and low value; simple opacity-based band/container is sufficient
+- Default zone legibility: drop shadow enabled (matching slide-level defaults), container and band disabled
+
+### Testing
+- Clean build with all 52 targets compiled successfully
+
+### Next Steps
+- Manual verification of per-zone legibility in output display and preview grid
+- Verify save/reload round-trip of per-zone legibility settings
+
+---
+
 ## 2026-02-26 - Inno Setup Installer
 
 ### Summary

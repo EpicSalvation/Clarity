@@ -72,6 +72,9 @@ public:
     bool includeVerseNumbers() const { return m_includeVerseNumbers; }
     void setIncludeVerseNumbers(bool include);
 
+    bool includeVerseReferences() const { return m_includeVerseReferences; }
+    void setIncludeVerseReferences(bool include);
+
     bool includeHeaderSlide() const { return m_includeHeaderSlide; }
     void setIncludeHeaderSlide(bool include);
 
@@ -92,6 +95,7 @@ private:
     // Generation options
     bool m_oneVersePerSlide;
     bool m_includeVerseNumbers;
+    bool m_includeVerseReferences;
     bool m_includeHeaderSlide;
 
     SettingsManager* m_settingsManager;

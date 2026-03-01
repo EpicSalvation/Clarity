@@ -12,6 +12,7 @@ EsvScriptureItem::EsvScriptureItem(QObject* parent)
     , m_settingsManager(nullptr)
     , m_oneVersePerSlide(true)
     , m_includeVerseNumbers(true)
+    , m_includeVerseReferences(false)
     , m_includeHeaderSlide(true)
     , m_isPurged(false)
 {
@@ -25,6 +26,7 @@ EsvScriptureItem::EsvScriptureItem(const EsvPassage& passage, QObject* parent)
     , m_settingsManager(nullptr)
     , m_oneVersePerSlide(true)
     , m_includeVerseNumbers(true)
+    , m_includeVerseReferences(false)
     , m_includeHeaderSlide(true)
     , m_isPurged(false)
 {
@@ -68,12 +70,40 @@ QList<Slide> EsvScriptureItem::generateSlides() const
         return slides;
     }
 
+    // Check scripture reference position setting
+    bool refAtBottom = m_settingsManager
+        && m_settingsManager->scriptureReferencePosition() == "bottom";
+
     // Helper to create and style a slide
     auto createSlide = [this](const QString& text) -> Slide {
         Slide slide(text);
         if (m_hasCustomStyle) {
             m_itemStyle.applyTo(slide);
         }
+        return slide;
+    };
+
+    // Helper to create a scripture template slide with reference in its own zone
+    auto createScriptureSlide = [&](const QString& refText, const QString& bodyText) -> Slide {
+        Slide slide;
+        if (m_hasCustomStyle) {
+            m_itemStyle.applyTo(slide);
+        }
+        slide.setSlideTemplate(SlideTemplate::Scripture);
+        auto zones = Slide::createTemplateZones(SlideTemplate::Scripture, refAtBottom);
+        for (auto& zone : zones) {
+            if (zone.id == "reference") {
+                zone.text = refText;
+                zone.textColor = slide.textColor();
+                zone.fontFamily = slide.fontFamily();
+            } else if (zone.id == "body") {
+                zone.text = bodyText;
+                zone.textColor = slide.textColor();
+                zone.fontFamily = slide.fontFamily();
+                zone.fontSize = slide.fontSize();
+            }
+        }
+        slide.setTextZones(zones);
         return slide;
     };
 
@@ -86,13 +116,19 @@ QList<Slide> EsvScriptureItem::generateSlides() const
     if (m_oneVersePerSlide) {
         // Each verse gets its own slide
         for (const EsvVerse& verse : m_verses) {
-            QString slideText;
+            QString bodyText;
             if (m_includeVerseNumbers) {
-                slideText = QStringLiteral("%1 %2").arg(verse.number).arg(verse.text);
+                bodyText = QStringLiteral("%1 %2").arg(verse.number).arg(verse.text);
             } else {
-                slideText = verse.text;
+                bodyText = verse.text;
             }
-            slides.append(createSlide(slideText));
+
+            if (m_includeVerseReferences) {
+                QString refText = QStringLiteral("%1:%2 (ESV)").arg(m_reference, QString::number(verse.number));
+                slides.append(createScriptureSlide(refText, bodyText));
+            } else {
+                slides.append(createSlide(bodyText));
+            }
         }
     } else {
         // All verses on one slide
@@ -104,7 +140,14 @@ QList<Slide> EsvScriptureItem::generateSlides() const
                 parts.append(verse.text);
             }
         }
-        slides.append(createSlide(parts.join(" ")));
+        QString combinedText = parts.join(" ");
+
+        if (m_includeVerseReferences) {
+            QString refText = QStringLiteral("%1 (ESV)").arg(m_reference);
+            slides.append(createScriptureSlide(refText, combinedText));
+        } else {
+            slides.append(createSlide(combinedText));
+        }
     }
 
     // Cascading backgrounds: ESV slides don't have explicit backgrounds by default.
@@ -156,6 +199,15 @@ void EsvScriptureItem::setIncludeVerseNumbers(bool include)
     }
 }
 
+void EsvScriptureItem::setIncludeVerseReferences(bool include)
+{
+    if (m_includeVerseReferences != include) {
+        m_includeVerseReferences = include;
+        invalidateSlideCache();
+        emit itemChanged();
+    }
+}
+
 void EsvScriptureItem::setIncludeHeaderSlide(bool include)
 {
     if (m_includeHeaderSlide != include) {
@@ -181,6 +233,7 @@ QJsonObject EsvScriptureItem::toJson() const
     json["copyright"] = m_copyright;
     json["oneVersePerSlide"] = m_oneVersePerSlide;
     json["includeVerseNumbers"] = m_includeVerseNumbers;
+    json["includeVerseReferences"] = m_includeVerseReferences;
     json["includeHeaderSlide"] = m_includeHeaderSlide;
     json["isPurged"] = m_isPurged;
 
@@ -213,6 +266,7 @@ EsvScriptureItem* EsvScriptureItem::fromJson(const QJsonObject& json, SettingsMa
     item->m_copyright = json["copyright"].toString();
     item->m_oneVersePerSlide = json["oneVersePerSlide"].toBool(true);
     item->m_includeVerseNumbers = json["includeVerseNumbers"].toBool(true);
+    item->m_includeVerseReferences = json["includeVerseReferences"].toBool(false);
     item->m_includeHeaderSlide = json["includeHeaderSlide"].toBool(true);
     item->m_isPurged = json["isPurged"].toBool(false);
 

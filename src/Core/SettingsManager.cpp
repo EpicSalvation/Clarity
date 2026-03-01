@@ -382,6 +382,24 @@ void SettingsManager::setScriptureOneVersePerSlide(bool onePerSlide)
     }
 }
 
+QString SettingsManager::scriptureReferencePosition() const
+{
+    return m_settings->value("Bible/ScriptureReferencePosition", "top").toString();
+}
+
+void SettingsManager::setScriptureReferencePosition(const QString& position)
+{
+    if (position != "top" && position != "bottom") {
+        qWarning() << "SettingsManager: Invalid scripture reference position:" << position;
+        return;
+    }
+
+    if (scriptureReferencePosition() != position) {
+        m_settings->setValue("Bible/ScriptureReferencePosition", position);
+        m_settings->sync();
+    }
+}
+
 bool SettingsManager::redLettersEnabled() const
 {
     return m_settings->value("Bible/RedLettersEnabled", true).toBool();

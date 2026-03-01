@@ -40,6 +40,7 @@ Slide::Slide()
     , m_autoAdvanceDuration(0)
     , m_groupIndex(-1)
     , m_hasExplicitBackground(true)
+    , m_slideTemplate(SlideTemplate::Blank)
 {
 }
 
@@ -77,6 +78,7 @@ Slide::Slide(const QString& text, const QColor& backgroundColor, const QColor& t
     , m_autoAdvanceDuration(0)
     , m_groupIndex(-1)
     , m_hasExplicitBackground(true)
+    , m_slideTemplate(SlideTemplate::Blank)
 {
 }
 
@@ -214,6 +216,25 @@ QJsonObject Slide::toJson() const
         json["textBandBlur"] = m_textBandBlur;
     }
 
+    // Phase 4: Slide template and text zones (only serialize when non-default)
+    if (m_slideTemplate != SlideTemplate::Blank) {
+        QString tmplStr;
+        switch (m_slideTemplate) {
+            case SlideTemplate::Title:     tmplStr = "title"; break;
+            case SlideTemplate::TitleBody: tmplStr = "titleBody"; break;
+            case SlideTemplate::Scripture: tmplStr = "scripture"; break;
+            default: break;
+        }
+        if (!tmplStr.isEmpty())
+            json["slideTemplate"] = tmplStr;
+    }
+    if (!m_textZones.isEmpty()) {
+        QJsonArray zonesArray;
+        for (const auto& zone : m_textZones)
+            zonesArray.append(zone.toJson());
+        json["textZones"] = zonesArray;
+    }
+
     return json;
 }
 
@@ -335,6 +356,19 @@ Slide Slide::fromJson(const QJsonObject& json)
     }
     slide.m_textBandBlur = json["textBandBlur"].toInt(0);
 
+    // Phase 4: Slide template and text zones
+    QString tmplStr = json["slideTemplate"].toString("blank");
+    if (tmplStr == "title")          slide.m_slideTemplate = SlideTemplate::Title;
+    else if (tmplStr == "titleBody") slide.m_slideTemplate = SlideTemplate::TitleBody;
+    else if (tmplStr == "scripture") slide.m_slideTemplate = SlideTemplate::Scripture;
+    else                             slide.m_slideTemplate = SlideTemplate::Blank;
+
+    if (json.contains("textZones")) {
+        QJsonArray zonesArray = json["textZones"].toArray();
+        for (const auto& val : zonesArray)
+            slide.m_textZones.append(TextZone::fromJson(val.toObject()));
+    }
+
     return slide;
 }
 
@@ -359,6 +393,212 @@ QString Slide::gradientStopsJson() const
         arr.append(obj);
     }
     return QString::fromUtf8(QJsonDocument(arr).toJson(QJsonDocument::Compact));
+}
+
+QJsonObject TextZone::toJson() const
+{
+    QJsonObject json;
+    json["id"] = id;
+    json["text"] = text;
+    if (!richText.isEmpty())
+        json["richText"] = richText;
+    json["textColor"] = textColor.name();
+    json["fontFamily"] = fontFamily;
+    json["fontSize"] = fontSize;
+    json["x"] = x;
+    json["y"] = y;
+    json["width"] = width;
+    json["height"] = height;
+    json["horizontalAlignment"] = horizontalAlignment;
+    json["verticalAlignment"] = verticalAlignment;
+
+    // Per-zone legibility: Drop shadow
+    json["dropShadowEnabled"] = dropShadowEnabled;
+    if (dropShadowEnabled) {
+        json["dropShadowColor"] = dropShadowColor.name(QColor::HexArgb);
+        json["dropShadowOffsetX"] = dropShadowOffsetX;
+        json["dropShadowOffsetY"] = dropShadowOffsetY;
+        json["dropShadowBlur"] = dropShadowBlur;
+    }
+
+    // Per-zone legibility: Text container
+    json["textContainerEnabled"] = textContainerEnabled;
+    if (textContainerEnabled) {
+        json["textContainerColor"] = textContainerColor.name(QColor::HexArgb);
+        json["textContainerPadding"] = textContainerPadding;
+        json["textContainerRadius"] = textContainerRadius;
+    }
+
+    // Per-zone legibility: Text band
+    json["textBandEnabled"] = textBandEnabled;
+    if (textBandEnabled) {
+        json["textBandColor"] = textBandColor.name(QColor::HexArgb);
+    }
+
+    return json;
+}
+
+TextZone TextZone::fromJson(const QJsonObject& json)
+{
+    TextZone zone;
+    zone.id = json["id"].toString();
+    zone.text = json["text"].toString();
+    zone.richText = json["richText"].toString();
+    zone.textColor = QColor(json["textColor"].toString("#ffffff"));
+    zone.fontFamily = json["fontFamily"].toString("Arial");
+    zone.fontSize = json["fontSize"].toInt(48);
+    zone.x = json["x"].toDouble(0.1);
+    zone.y = json["y"].toDouble(0.0);
+    zone.width = json["width"].toDouble(0.8);
+    zone.height = json["height"].toDouble(1.0);
+    zone.horizontalAlignment = json["horizontalAlignment"].toInt(1);
+    zone.verticalAlignment = json["verticalAlignment"].toInt(1);
+
+    // Per-zone legibility: Drop shadow
+    zone.dropShadowEnabled = json["dropShadowEnabled"].toBool(true);
+    if (json.contains("dropShadowColor"))
+        zone.dropShadowColor = QColor(json["dropShadowColor"].toString("#80000000"));
+    zone.dropShadowOffsetX = json["dropShadowOffsetX"].toInt(2);
+    zone.dropShadowOffsetY = json["dropShadowOffsetY"].toInt(2);
+    zone.dropShadowBlur = json["dropShadowBlur"].toInt(4);
+
+    // Per-zone legibility: Text container
+    zone.textContainerEnabled = json["textContainerEnabled"].toBool(false);
+    if (json.contains("textContainerColor"))
+        zone.textContainerColor = QColor(json["textContainerColor"].toString("#80000000"));
+    zone.textContainerPadding = json["textContainerPadding"].toInt(20);
+    zone.textContainerRadius = json["textContainerRadius"].toInt(8);
+
+    // Per-zone legibility: Text band
+    zone.textBandEnabled = json["textBandEnabled"].toBool(false);
+    if (json.contains("textBandColor"))
+        zone.textBandColor = QColor(json["textBandColor"].toString("#80000000"));
+
+    return zone;
+}
+
+QString Slide::textZonesJson() const
+{
+    QJsonArray arr;
+    for (const auto& zone : m_textZones) {
+        QJsonObject obj;
+        obj["id"] = zone.id;
+        obj["text"] = zone.text;
+        if (!zone.richText.isEmpty())
+            obj["richText"] = zone.richText;
+        obj["textColor"] = zone.textColor.name();
+        obj["fontFamily"] = zone.fontFamily;
+        obj["fontSize"] = zone.fontSize;
+        obj["x"] = zone.x;
+        obj["y"] = zone.y;
+        obj["w"] = zone.width;
+        obj["h"] = zone.height;
+        obj["hAlign"] = zone.horizontalAlignment;
+        obj["vAlign"] = zone.verticalAlignment;
+
+        // Per-zone legibility (short keys for QML bridge)
+        // QML color properties accept #AARRGGBB natively (same as Qt's HexArgb)
+        obj["dsEnabled"] = zone.dropShadowEnabled;
+        obj["dsColor"] = zone.dropShadowColor.name(QColor::HexArgb);
+        obj["dsOffX"] = zone.dropShadowOffsetX;
+        obj["dsOffY"] = zone.dropShadowOffsetY;
+        obj["dsBlur"] = zone.dropShadowBlur;
+        obj["tcEnabled"] = zone.textContainerEnabled;
+        obj["tcColor"] = zone.textContainerColor.name(QColor::HexArgb);
+        obj["tcPad"] = zone.textContainerPadding;
+        obj["tcRad"] = zone.textContainerRadius;
+        obj["tbEnabled"] = zone.textBandEnabled;
+        obj["tbColor"] = zone.textBandColor.name(QColor::HexArgb);
+
+        arr.append(obj);
+    }
+    return QString::fromUtf8(QJsonDocument(arr).toJson(QJsonDocument::Compact));
+}
+
+QList<TextZone> Slide::createTemplateZones(SlideTemplate tmpl, bool referenceAtBottom)
+{
+    QList<TextZone> zones;
+    switch (tmpl) {
+        case SlideTemplate::Title: {
+            TextZone title;
+            title.id = "title";
+            title.fontSize = 64;
+            title.x = 0.1;  title.y = 0.15;
+            title.width = 0.8;  title.height = 0.4;
+            title.verticalAlignment = 2;  // bottom
+            zones.append(title);
+
+            TextZone subtitle;
+            subtitle.id = "subtitle";
+            subtitle.fontSize = 36;
+            subtitle.x = 0.1;  subtitle.y = 0.6;
+            subtitle.width = 0.8;  subtitle.height = 0.25;
+            subtitle.verticalAlignment = 0;  // top
+            zones.append(subtitle);
+            break;
+        }
+        case SlideTemplate::TitleBody: {
+            TextZone heading;
+            heading.id = "title";
+            heading.fontSize = 48;
+            heading.x = 0.1;  heading.y = 0.05;
+            heading.width = 0.8;  heading.height = 0.2;
+            heading.verticalAlignment = 2;  // bottom
+            zones.append(heading);
+
+            TextZone body;
+            body.id = "body";
+            body.fontSize = 32;
+            body.x = 0.1;  body.y = 0.3;
+            body.width = 0.8;  body.height = 0.6;
+            body.verticalAlignment = 0;  // top
+            body.horizontalAlignment = 0;  // left
+            zones.append(body);
+            break;
+        }
+        case SlideTemplate::Scripture: {
+            TextZone reference;
+            reference.id = "reference";
+            reference.fontSize = 36;
+            reference.x = 0.1;
+            reference.width = 0.8;
+
+            TextZone verse;
+            verse.id = "body";
+            verse.fontSize = 40;
+            verse.x = 0.1;
+            verse.width = 0.8;
+
+            if (referenceAtBottom) {
+                // Body at top, reference at bottom
+                verse.y = 0.05;
+                verse.height = 0.65;
+                verse.verticalAlignment = 1;  // center in available space
+
+                reference.y = 0.80;
+                reference.height = 0.15;
+                reference.verticalAlignment = 0;  // top
+            } else {
+                // Reference at top (default), body below
+                reference.y = 0.05;
+                reference.height = 0.15;
+                reference.verticalAlignment = 2;  // bottom
+
+                verse.y = 0.25;
+                verse.height = 0.65;
+                verse.verticalAlignment = 1;  // center in available space
+            }
+
+            zones.append(reference);
+            zones.append(verse);
+            break;
+        }
+        case SlideTemplate::Blank:
+        default:
+            // No zones — uses legacy single-text path
+            break;
+    }
+    return zones;
 }
 
 } // namespace Clarity

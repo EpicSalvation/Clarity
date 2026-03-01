@@ -90,6 +90,10 @@ QList<Slide> ScriptureItem::generateSlides() const
     // Check if red letters are enabled
     bool useRedLetters = m_settingsManager ? m_settingsManager->redLettersEnabled() : false;
 
+    // Check scripture reference position setting
+    bool refAtBottom = m_settingsManager
+        && m_settingsManager->scriptureReferencePosition() == "bottom";
+
     // Helper to create and style a slide
     auto createSlide = [this](const QString& text, const QString& richText = QString()) -> Slide {
         Slide slide(text);
@@ -99,6 +103,36 @@ QList<Slide> ScriptureItem::generateSlides() const
         if (m_hasCustomStyle) {
             m_itemStyle.applyTo(slide);
         }
+        return slide;
+    };
+
+    // Helper to create a scripture template slide with reference in its own zone
+    auto createScriptureSlide = [&](const QString& refText, const QString& bodyText,
+                                    const QString& bodyRichText = QString()) -> Slide {
+        Slide slide;
+        if (m_hasCustomStyle) {
+            m_itemStyle.applyTo(slide);
+        }
+        slide.setSlideTemplate(SlideTemplate::Scripture);
+        auto zones = Slide::createTemplateZones(SlideTemplate::Scripture, refAtBottom);
+        // Populate zones: reference zone first, then body zone
+        for (auto& zone : zones) {
+            if (zone.id == "reference") {
+                zone.text = refText;
+                // Inherit slide-level styling for the zone
+                zone.textColor = slide.textColor();
+                zone.fontFamily = slide.fontFamily();
+            } else if (zone.id == "body") {
+                zone.text = bodyText;
+                if (!bodyRichText.isEmpty()) {
+                    zone.richText = bodyRichText;
+                }
+                zone.textColor = slide.textColor();
+                zone.fontFamily = slide.fontFamily();
+                zone.fontSize = slide.fontSize();
+            }
+        }
+        slide.setTextZones(zones);
         return slide;
     };
 
@@ -114,23 +148,25 @@ QList<Slide> ScriptureItem::generateSlides() const
     if (m_oneVersePerSlide) {
         // Each verse gets its own slide
         for (const BibleVerse& verse : verses) {
-            QString slideText;
-            QString slideRichText;
+            QString bodyText;
+            QString bodyRichText;
 
             if (m_includeVerseReferences) {
-                // Format: "16 For God so loved the world..."
-                slideText = QString("%1 %2").arg(verse.verse).arg(verse.text);
-                // For rich text, prepend verse number outside the red letter markup
+                // Verse number prefix on body text
+                bodyText = QString("%1 %2").arg(verse.verse).arg(verse.text);
                 if (useRedLetters && !verse.richText.isEmpty()) {
-                    slideRichText = QString("%1 %2").arg(verse.verse).arg(verse.richText);
+                    bodyRichText = QString("%1 %2").arg(verse.verse).arg(verse.richText);
                 }
+                // Reference in its own zone
+                QString refText = verse.fullReference();
+                slides.append(createScriptureSlide(refText, bodyText, bodyRichText));
             } else {
-                slideText = verse.text;
+                bodyText = verse.text;
                 if (useRedLetters && !verse.richText.isEmpty()) {
-                    slideRichText = verse.richText;
+                    bodyRichText = verse.richText;
                 }
+                slides.append(createSlide(bodyText, bodyRichText));
             }
-            slides.append(createSlide(slideText, slideRichText));
         }
     } else {
         // All verses on one slide
@@ -161,8 +197,31 @@ QList<Slide> ScriptureItem::generateSlides() const
                 }
             }
         }
-        // Only use rich text if red letters are enabled and at least one verse has markup
-        slides.append(createSlide(combinedText, (useRedLetters && hasAnyRichText) ? combinedRichText : QString()));
+
+        QString richTextStr = (useRedLetters && hasAnyRichText) ? combinedRichText : QString();
+
+        if (m_includeVerseReferences && !verses.isEmpty()) {
+            // Build reference string for the range
+            const BibleVerse& first = verses.first();
+            const BibleVerse& last = verses.last();
+            QString refStr;
+            if (verses.count() == 1) {
+                refStr = first.fullReference();
+            } else if (first.book == last.book && first.chapter == last.chapter) {
+                refStr = QString("%1 %2:%3-%4 (%5)")
+                    .arg(first.book).arg(first.chapter).arg(first.verse)
+                    .arg(last.verse).arg(first.translation);
+            } else if (first.book == last.book) {
+                refStr = QString("%1 %2:%3-%4:%5 (%6)")
+                    .arg(first.book).arg(first.chapter).arg(first.verse)
+                    .arg(last.chapter).arg(last.verse).arg(first.translation);
+            } else {
+                refStr = QString("%1 - %2").arg(first.fullReference(), last.fullReference());
+            }
+            slides.append(createScriptureSlide(refStr, combinedText, richTextStr));
+        } else {
+            slides.append(createSlide(combinedText, richTextStr));
+        }
     }
 
     // Cascading backgrounds: scripture slides don't have explicit backgrounds by default.

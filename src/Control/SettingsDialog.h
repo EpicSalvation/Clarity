@@ -128,6 +128,9 @@ private:
     // Library settings
     QCheckBox* m_autoSyncLibraryGroupsCheckBox;
 
+    // Scripture formatting settings
+    QComboBox* m_scriptureRefPositionCombo;
+
     // Red Letter Edition settings
     QCheckBox* m_redLettersEnabledCheckBox;
     QPushButton* m_redLetterColorButton;

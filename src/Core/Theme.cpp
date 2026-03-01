@@ -54,6 +54,28 @@ void Theme::applyToSlide(Slide& slide) const
     slide.setFontFamily(m_fontFamily);
     slide.setFontSize(m_bodyFontSize);
 
+    // Apply theme to text zones if present
+    if (slide.hasTextZones()) {
+        bool isScripture = (slide.slideTemplate() == SlideTemplate::Scripture);
+        auto zones = slide.textZones();
+        for (auto& zone : zones) {
+            zone.fontFamily = m_fontFamily;
+
+            if (zone.id == "reference" && isScripture) {
+                // Scripture reference gets accent color and a smaller font than body
+                zone.textColor = m_accentColor;
+                zone.fontSize = qMax(20, m_bodyFontSize - 4);
+            } else if (zone.id == "title") {
+                zone.textColor = m_textColor;
+                zone.fontSize = m_titleFontSize;
+            } else {
+                zone.textColor = m_textColor;
+                zone.fontSize = m_bodyFontSize;
+            }
+        }
+        slide.setTextZones(zones);
+    }
+
     // Apply background based on type
     slide.setBackgroundType(m_backgroundType);
 

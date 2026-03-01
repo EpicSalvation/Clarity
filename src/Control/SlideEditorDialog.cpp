@@ -72,19 +72,38 @@ void SlideEditorDialog::setupUI()
 
     // === LEFT COLUMN ===
 
-    // Text content section
-    QGroupBox* textGroup = new QGroupBox(tr("Slide Content"), leftColumn);
+    // Template selector
+    QHBoxLayout* templateLayout = new QHBoxLayout();
+    templateLayout->addWidget(new QLabel(tr("Template:"), leftColumn));
+    m_templateCombo = new QComboBox(this);
+    m_templateCombo->addItem(tr("Blank"), static_cast<int>(SlideTemplate::Blank));
+    m_templateCombo->addItem(tr("Title"), static_cast<int>(SlideTemplate::Title));
+    m_templateCombo->addItem(tr("Title & Body"), static_cast<int>(SlideTemplate::TitleBody));
+    m_templateCombo->addItem(tr("Scripture"), static_cast<int>(SlideTemplate::Scripture));
+    installWheelFilter(m_templateCombo);
+    connect(m_templateCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &SlideEditorDialog::onTemplateChanged);
+    templateLayout->addWidget(m_templateCombo, 1);
+    leftLayout->addLayout(templateLayout);
+
+    // Stacked widget: page 0 = single text + style, page 1 = zone tabs
+    m_textStack = new QStackedWidget(leftColumn);
+
+    // Page 0: Blank template — single text content + text style
+    QWidget* blankPage = new QWidget();
+    QVBoxLayout* blankLayout = new QVBoxLayout(blankPage);
+    blankLayout->setContentsMargins(0, 0, 0, 0);
+
+    QGroupBox* textGroup = new QGroupBox(tr("Slide Content"), blankPage);
     QVBoxLayout* textLayout = new QVBoxLayout(textGroup);
 
     m_textEdit = new QTextEdit(this);
     m_textEdit->setPlaceholderText(tr("Enter slide text here..."));
     m_textEdit->setMinimumHeight(120);
     textLayout->addWidget(m_textEdit);
+    blankLayout->addWidget(textGroup);
 
-    leftLayout->addWidget(textGroup);
-
-    // Text styling section
-    QGroupBox* textStyleGroup = new QGroupBox(tr("Text Style"), leftColumn);
+    QGroupBox* textStyleGroup = new QGroupBox(tr("Text Style"), blankPage);
     QFormLayout* textStyleLayout = new QFormLayout(textStyleGroup);
 
     m_textColorButton = new QPushButton(tr("Choose Color"), this);
@@ -103,7 +122,14 @@ void SlideEditorDialog::setupUI()
     installWheelFilter(m_fontSizeSpinBox);
     textStyleLayout->addRow(tr("Font Size:"), m_fontSizeSpinBox);
 
-    leftLayout->addWidget(textStyleGroup);
+    blankLayout->addWidget(textStyleGroup);
+    m_textStack->addWidget(blankPage);
+
+    // Page 1: Multi-zone templates — tab widget with per-zone controls
+    m_zoneTabWidget = new QTabWidget(this);
+    m_textStack->addWidget(m_zoneTabWidget);
+
+    leftLayout->addWidget(m_textStack);
 
     // Background section
     m_backgroundGroup = new QGroupBox(tr("Background"), leftColumn);
@@ -239,8 +265,9 @@ void SlideEditorDialog::setupUI()
     QGroupBox* legibilityGroup = new QGroupBox("Text Legibility", rightColumn);
     QVBoxLayout* legibilityLayout = new QVBoxLayout(legibilityGroup);
 
-    // Drop Shadow subsection
-    QGroupBox* shadowGroup = new QGroupBox("Drop Shadow", this);
+    // Drop Shadow subsection (hidden for template slides — per-zone controls used instead)
+    m_shadowGroup = new QGroupBox("Drop Shadow", this);
+    QGroupBox* shadowGroup = m_shadowGroup;
     QFormLayout* shadowLayout = new QFormLayout(shadowGroup);
 
     m_dropShadowEnabledCheck = new QCheckBox("Enable drop shadow", this);
@@ -291,8 +318,9 @@ void SlideEditorDialog::setupUI()
 
     legibilityLayout->addWidget(overlayGroup);
 
-    // Text Container subsection
-    QGroupBox* containerGroup = new QGroupBox("Text Container", this);
+    // Text Container subsection (hidden for template slides — per-zone controls used instead)
+    m_containerGroup = new QGroupBox("Text Container", this);
+    QGroupBox* containerGroup = m_containerGroup;
     QFormLayout* containerLayout = new QFormLayout(containerGroup);
 
     m_textContainerEnabledCheck = new QCheckBox("Enable text container box", this);
@@ -326,8 +354,9 @@ void SlideEditorDialog::setupUI()
 
     legibilityLayout->addWidget(containerGroup);
 
-    // Text Band subsection
-    QGroupBox* bandGroup = new QGroupBox("Text Band", this);
+    // Text Band subsection (hidden for template slides — per-zone controls used instead)
+    m_bandGroup = new QGroupBox("Text Band", this);
+    QGroupBox* bandGroup = m_bandGroup;
     QFormLayout* bandLayout = new QFormLayout(bandGroup);
 
     m_textBandEnabledCheck = new QCheckBox("Enable horizontal text band", this);
@@ -433,7 +462,28 @@ void SlideEditorDialog::setSlide(const Slide& slide)
 {
     m_slide = slide;
 
-    // Update UI with slide data
+    // Set template combo (block signal to avoid triggering onTemplateChanged)
+    m_templateCombo->blockSignals(true);
+    int tmplIndex = m_templateCombo->findData(static_cast<int>(slide.slideTemplate()));
+    m_templateCombo->setCurrentIndex(tmplIndex >= 0 ? tmplIndex : 0);
+    m_templateCombo->blockSignals(false);
+
+    bool isTemplate = slide.hasTextZones();
+    if (isTemplate) {
+        // Multi-zone template: populate zone tabs
+        rebuildZoneTabs(slide.textZones());
+        m_textStack->setCurrentIndex(1);
+    } else {
+        // Blank template: single text path
+        m_textStack->setCurrentIndex(0);
+    }
+
+    // Hide slide-level legibility groups for template slides (per-zone controls used instead)
+    m_shadowGroup->setVisible(!isTemplate);
+    m_containerGroup->setVisible(!isTemplate);
+    m_bandGroup->setVisible(!isTemplate);
+
+    // Update UI with slide data (single-text controls, used for Blank template)
     m_textEdit->setPlainText(slide.text());
     m_fontFamilyCombo->setCurrentText(slide.fontFamily());
     m_fontSizeSpinBox->setValue(slide.fontSize());
@@ -540,8 +590,45 @@ Slide SlideEditorDialog::slide() const
 {
     Slide slide = m_slide;
 
-    // Update slide with current UI values
-    slide.setText(m_textEdit->toPlainText());
+    // Template type
+    auto tmpl = static_cast<SlideTemplate>(m_templateCombo->currentData().toInt());
+    slide.setSlideTemplate(tmpl);
+
+    if (tmpl != SlideTemplate::Blank && !m_zoneTabs.isEmpty()) {
+        // Collect zone data from tabs
+        bool refAtBottom = (tmpl == SlideTemplate::Scripture && m_settings
+                            && m_settings->scriptureReferencePosition() == "bottom");
+        auto zones = Slide::createTemplateZones(tmpl, refAtBottom);
+        for (int i = 0; i < zones.size() && i < m_zoneTabs.size(); ++i) {
+            zones[i].text = m_zoneTabs[i].textEdit->toPlainText();
+            zones[i].fontFamily = m_zoneTabs[i].fontFamilyCombo->currentText();
+            zones[i].fontSize = m_zoneTabs[i].fontSizeSpinBox->value();
+            zones[i].textColor = m_zoneTabs[i].textColor;
+            // Per-zone legibility
+            zones[i].dropShadowEnabled = m_zoneTabs[i].dropShadowEnabledCheck->isChecked();
+            zones[i].dropShadowColor = m_zoneTabs[i].dropShadowColor;
+            zones[i].dropShadowOffsetX = m_zoneTabs[i].dropShadowOffsetXSpinBox->value();
+            zones[i].dropShadowOffsetY = m_zoneTabs[i].dropShadowOffsetYSpinBox->value();
+            zones[i].dropShadowBlur = m_zoneTabs[i].dropShadowBlurSpinBox->value();
+            zones[i].textContainerEnabled = m_zoneTabs[i].textContainerEnabledCheck->isChecked();
+            zones[i].textContainerColor = m_zoneTabs[i].textContainerColor;
+            zones[i].textContainerPadding = m_zoneTabs[i].textContainerPaddingSpinBox->value();
+            zones[i].textContainerRadius = m_zoneTabs[i].textContainerRadiusSpinBox->value();
+            zones[i].textBandEnabled = m_zoneTabs[i].textBandEnabledCheck->isChecked();
+            zones[i].textBandColor = m_zoneTabs[i].textBandColor;
+        }
+        slide.setTextZones(zones);
+        // Clear legacy single-text field for cleanliness
+        slide.setText(QString());
+    } else {
+        // Blank template: use single-text path
+        slide.setTextZones({});
+    }
+
+    // Update slide with current UI values (single-text controls)
+    if (tmpl == SlideTemplate::Blank) {
+        slide.setText(m_textEdit->toPlainText());
+    }
     slide.setFontFamily(m_fontFamilyCombo->currentText());
     slide.setFontSize(m_fontSizeSpinBox->value());
 
@@ -606,6 +693,223 @@ Slide SlideEditorDialog::slide() const
     slide.setTextBandBlur(m_textBandBlurSpinBox->value());
 
     return slide;
+}
+
+void SlideEditorDialog::onTemplateChanged(int index)
+{
+    auto tmpl = static_cast<SlideTemplate>(m_templateCombo->itemData(index).toInt());
+    bool isTemplate = (tmpl != SlideTemplate::Blank);
+
+    if (!isTemplate) {
+        m_textStack->setCurrentIndex(0);
+    } else {
+        // Create default zones for the selected template
+        bool refAtBottom = (tmpl == SlideTemplate::Scripture && m_settings
+                            && m_settings->scriptureReferencePosition() == "bottom");
+        auto zones = Slide::createTemplateZones(tmpl, refAtBottom);
+        rebuildZoneTabs(zones);
+        m_textStack->setCurrentIndex(1);
+    }
+
+    // Hide slide-level legibility groups for template slides (per-zone controls used instead)
+    m_shadowGroup->setVisible(!isTemplate);
+    m_containerGroup->setVisible(!isTemplate);
+    m_bandGroup->setVisible(!isTemplate);
+}
+
+void SlideEditorDialog::rebuildZoneTabs(const QList<TextZone>& zones)
+{
+    // Clear existing tabs
+    m_zoneTabWidget->clear();
+    m_zoneTabs.clear();
+
+    for (int i = 0; i < zones.size(); ++i) {
+        const auto& zone = zones[i];
+
+        QWidget* tab = new QWidget();
+        QVBoxLayout* tabLayout = new QVBoxLayout(tab);
+
+        QTextEdit* textEdit = new QTextEdit(tab);
+        textEdit->setPlaceholderText(tr("Enter %1 text...").arg(zone.id));
+        textEdit->setPlainText(zone.text);
+        textEdit->setMinimumHeight(80);
+        tabLayout->addWidget(textEdit);
+
+        QFormLayout* styleLayout = new QFormLayout();
+
+        QPushButton* colorButton = new QPushButton(tr("Choose Color"), tab);
+        updateColorButton(colorButton, zone.textColor);
+        int capturedIndex = i;
+        connect(colorButton, &QPushButton::clicked, this, [this, capturedIndex]() {
+            onChooseZoneTextColor(capturedIndex);
+        });
+        styleLayout->addRow(tr("Text Color:"), colorButton);
+
+        QComboBox* fontCombo = new QComboBox(tab);
+        fontCombo->addItems({"Arial", "Helvetica", "Georgia", "Verdana", "Times New Roman"});
+        fontCombo->setCurrentText(zone.fontFamily);
+        installWheelFilter(fontCombo);
+        styleLayout->addRow(tr("Font:"), fontCombo);
+
+        QSpinBox* sizeSpin = new QSpinBox(tab);
+        sizeSpin->setRange(12, 144);
+        sizeSpin->setValue(zone.fontSize);
+        sizeSpin->setSuffix(tr(" pt"));
+        installWheelFilter(sizeSpin);
+        styleLayout->addRow(tr("Size:"), sizeSpin);
+
+        tabLayout->addLayout(styleLayout);
+
+        // Per-zone legibility controls (collapsible group box)
+        QGroupBox* legGroup = new QGroupBox(tr("Legibility"), tab);
+        legGroup->setCheckable(false);
+        QVBoxLayout* legLayout = new QVBoxLayout(legGroup);
+
+        // Drop shadow
+        QGroupBox* dsSub = new QGroupBox(tr("Drop Shadow"), legGroup);
+        QFormLayout* dsLayout = new QFormLayout(dsSub);
+        QCheckBox* dsCheck = new QCheckBox(tr("Enable"), dsSub);
+        dsCheck->setChecked(zone.dropShadowEnabled);
+        dsLayout->addRow(dsCheck);
+        QPushButton* dsColorBtn = new QPushButton(tr("Choose Color"), dsSub);
+        updateColorButton(dsColorBtn, zone.dropShadowColor);
+        int ci = i;
+        connect(dsColorBtn, &QPushButton::clicked, this, [this, ci]() { onChooseZoneDropShadowColor(ci); });
+        dsLayout->addRow(tr("Color:"), dsColorBtn);
+        QHBoxLayout* dsOffLayout = new QHBoxLayout();
+        QSpinBox* dsOffX = new QSpinBox(dsSub);
+        dsOffX->setRange(-20, 20); dsOffX->setValue(zone.dropShadowOffsetX); dsOffX->setSuffix(tr(" px"));
+        installWheelFilter(dsOffX);
+        dsOffLayout->addWidget(new QLabel(tr("X:"), dsSub)); dsOffLayout->addWidget(dsOffX);
+        QSpinBox* dsOffY = new QSpinBox(dsSub);
+        dsOffY->setRange(-20, 20); dsOffY->setValue(zone.dropShadowOffsetY); dsOffY->setSuffix(tr(" px"));
+        installWheelFilter(dsOffY);
+        dsOffLayout->addWidget(new QLabel(tr("Y:"), dsSub)); dsOffLayout->addWidget(dsOffY);
+        dsLayout->addRow(tr("Offset:"), dsOffLayout);
+        QSpinBox* dsBlur = new QSpinBox(dsSub);
+        dsBlur->setRange(0, 50); dsBlur->setValue(zone.dropShadowBlur); dsBlur->setSuffix(tr(" px"));
+        installWheelFilter(dsBlur);
+        dsLayout->addRow(tr("Blur:"), dsBlur);
+        legLayout->addWidget(dsSub);
+
+        // Text container
+        QGroupBox* tcSub = new QGroupBox(tr("Text Container"), legGroup);
+        QFormLayout* tcLayout = new QFormLayout(tcSub);
+        QCheckBox* tcCheck = new QCheckBox(tr("Enable"), tcSub);
+        tcCheck->setChecked(zone.textContainerEnabled);
+        tcLayout->addRow(tcCheck);
+        QPushButton* tcColorBtn = new QPushButton(tr("Choose Color"), tcSub);
+        updateColorButton(tcColorBtn, zone.textContainerColor);
+        connect(tcColorBtn, &QPushButton::clicked, this, [this, ci]() { onChooseZoneTextContainerColor(ci); });
+        tcLayout->addRow(tr("Color:"), tcColorBtn);
+        QSpinBox* tcPad = new QSpinBox(tcSub);
+        tcPad->setRange(0, 100); tcPad->setValue(zone.textContainerPadding); tcPad->setSuffix(tr(" px"));
+        installWheelFilter(tcPad);
+        tcLayout->addRow(tr("Padding:"), tcPad);
+        QSpinBox* tcRad = new QSpinBox(tcSub);
+        tcRad->setRange(0, 50); tcRad->setValue(zone.textContainerRadius); tcRad->setSuffix(tr(" px"));
+        installWheelFilter(tcRad);
+        tcLayout->addRow(tr("Radius:"), tcRad);
+        legLayout->addWidget(tcSub);
+
+        // Text band
+        QGroupBox* tbSub = new QGroupBox(tr("Text Band"), legGroup);
+        QFormLayout* tbLayout = new QFormLayout(tbSub);
+        QCheckBox* tbCheck = new QCheckBox(tr("Enable"), tbSub);
+        tbCheck->setChecked(zone.textBandEnabled);
+        tbLayout->addRow(tbCheck);
+        QPushButton* tbColorBtn = new QPushButton(tr("Choose Color"), tbSub);
+        updateColorButton(tbColorBtn, zone.textBandColor);
+        connect(tbColorBtn, &QPushButton::clicked, this, [this, ci]() { onChooseZoneTextBandColor(ci); });
+        tbLayout->addRow(tr("Color:"), tbColorBtn);
+        legLayout->addWidget(tbSub);
+
+        tabLayout->addWidget(legGroup);
+        tabLayout->addStretch();
+
+        // Capitalize first letter for tab label
+        QString label = zone.id;
+        if (!label.isEmpty())
+            label[0] = label[0].toUpper();
+        m_zoneTabWidget->addTab(tab, label);
+
+        ZoneTab zt;
+        zt.textEdit = textEdit;
+        zt.fontFamilyCombo = fontCombo;
+        zt.fontSizeSpinBox = sizeSpin;
+        zt.textColorButton = colorButton;
+        zt.textColor = zone.textColor;
+        zt.dropShadowEnabledCheck = dsCheck;
+        zt.dropShadowColorButton = dsColorBtn;
+        zt.dropShadowColor = zone.dropShadowColor;
+        zt.dropShadowOffsetXSpinBox = dsOffX;
+        zt.dropShadowOffsetYSpinBox = dsOffY;
+        zt.dropShadowBlurSpinBox = dsBlur;
+        zt.textContainerEnabledCheck = tcCheck;
+        zt.textContainerColorButton = tcColorBtn;
+        zt.textContainerColor = zone.textContainerColor;
+        zt.textContainerPaddingSpinBox = tcPad;
+        zt.textContainerRadiusSpinBox = tcRad;
+        zt.textBandEnabledCheck = tbCheck;
+        zt.textBandColorButton = tbColorBtn;
+        zt.textBandColor = zone.textBandColor;
+        m_zoneTabs.append(zt);
+    }
+}
+
+void SlideEditorDialog::onChooseZoneTextColor(int zoneIndex)
+{
+    if (zoneIndex < 0 || zoneIndex >= m_zoneTabs.size())
+        return;
+
+    QColor current = m_zoneTabs[zoneIndex].textColor;
+    QColor color = QColorDialog::getColor(current, this, tr("Choose Text Color"));
+    if (color.isValid()) {
+        m_zoneTabs[zoneIndex].textColor = color;
+        updateColorButton(m_zoneTabs[zoneIndex].textColorButton, color);
+    }
+}
+
+void SlideEditorDialog::onChooseZoneDropShadowColor(int zoneIndex)
+{
+    if (zoneIndex < 0 || zoneIndex >= m_zoneTabs.size())
+        return;
+
+    QColor current = m_zoneTabs[zoneIndex].dropShadowColor;
+    QColor color = QColorDialog::getColor(current, this, tr("Choose Drop Shadow Color"),
+                                          QColorDialog::ShowAlphaChannel);
+    if (color.isValid()) {
+        m_zoneTabs[zoneIndex].dropShadowColor = color;
+        updateColorButton(m_zoneTabs[zoneIndex].dropShadowColorButton, color);
+    }
+}
+
+void SlideEditorDialog::onChooseZoneTextContainerColor(int zoneIndex)
+{
+    if (zoneIndex < 0 || zoneIndex >= m_zoneTabs.size())
+        return;
+
+    QColor current = m_zoneTabs[zoneIndex].textContainerColor;
+    QColor color = QColorDialog::getColor(current, this, tr("Choose Container Color"),
+                                          QColorDialog::ShowAlphaChannel);
+    if (color.isValid()) {
+        m_zoneTabs[zoneIndex].textContainerColor = color;
+        updateColorButton(m_zoneTabs[zoneIndex].textContainerColorButton, color);
+    }
+}
+
+void SlideEditorDialog::onChooseZoneTextBandColor(int zoneIndex)
+{
+    if (zoneIndex < 0 || zoneIndex >= m_zoneTabs.size())
+        return;
+
+    QColor current = m_zoneTabs[zoneIndex].textBandColor;
+    QColor color = QColorDialog::getColor(current, this, tr("Choose Band Color"),
+                                          QColorDialog::ShowAlphaChannel);
+    if (color.isValid()) {
+        m_zoneTabs[zoneIndex].textBandColor = color;
+        updateColorButton(m_zoneTabs[zoneIndex].textBandColorButton, color);
+    }
 }
 
 void SlideEditorDialog::onBackgroundTypeChanged(int index)

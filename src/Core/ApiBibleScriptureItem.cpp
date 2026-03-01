@@ -11,6 +11,7 @@ ApiBibleScriptureItem::ApiBibleScriptureItem(QObject* parent)
     : PresentationItem(parent)
     , m_oneVersePerSlide(true)
     , m_includeVerseNumbers(true)
+    , m_includeVerseReferences(false)
     , m_includeHeaderSlide(true)
     , m_settingsManager(nullptr)
 {
@@ -24,6 +25,7 @@ ApiBibleScriptureItem::ApiBibleScriptureItem(const ApiBiblePassage& passage, QOb
     , m_bibleAbbreviation(passage.bibleAbbreviation)
     , m_oneVersePerSlide(true)
     , m_includeVerseNumbers(true)
+    , m_includeVerseReferences(false)
     , m_includeHeaderSlide(true)
     , m_settingsManager(nullptr)
 {
@@ -60,6 +62,14 @@ QList<Slide> ApiBibleScriptureItem::generateSlides() const
 
     bool useRedLetters = m_settingsManager ? m_settingsManager->redLettersEnabled() : false;
 
+    // Check scripture reference position setting
+    bool refAtBottom = m_settingsManager
+        && m_settingsManager->scriptureReferencePosition() == "bottom";
+
+    // Translation label for reference display
+    QString translationLabel = m_bibleAbbreviation.isEmpty()
+        ? QStringLiteral("API.bible") : m_bibleAbbreviation;
+
     // Helper to create and style a slide (with optional rich text for red letters)
     auto createSlide = [this](const QString& text, const QString& richText = QString()) -> Slide {
         Slide slide(text);
@@ -69,6 +79,34 @@ QList<Slide> ApiBibleScriptureItem::generateSlides() const
         if (m_hasCustomStyle) {
             m_itemStyle.applyTo(slide);
         }
+        return slide;
+    };
+
+    // Helper to create a scripture template slide with reference in its own zone
+    auto createScriptureSlide = [&](const QString& refText, const QString& bodyText,
+                                    const QString& bodyRichText = QString()) -> Slide {
+        Slide slide;
+        if (m_hasCustomStyle) {
+            m_itemStyle.applyTo(slide);
+        }
+        slide.setSlideTemplate(SlideTemplate::Scripture);
+        auto zones = Slide::createTemplateZones(SlideTemplate::Scripture, refAtBottom);
+        for (auto& zone : zones) {
+            if (zone.id == "reference") {
+                zone.text = refText;
+                zone.textColor = slide.textColor();
+                zone.fontFamily = slide.fontFamily();
+            } else if (zone.id == "body") {
+                zone.text = bodyText;
+                if (!bodyRichText.isEmpty()) {
+                    zone.richText = bodyRichText;
+                }
+                zone.textColor = slide.textColor();
+                zone.fontFamily = slide.fontFamily();
+                zone.fontSize = slide.fontSize();
+            }
+        }
+        slide.setTextZones(zones);
         return slide;
     };
 
@@ -86,21 +124,28 @@ QList<Slide> ApiBibleScriptureItem::generateSlides() const
     if (m_oneVersePerSlide) {
         // Each verse gets its own slide
         for (const ApiBibleVerse& verse : m_verses) {
-            QString slideText;
-            QString slideRichText;
+            QString bodyText;
+            QString bodyRichText;
 
             if (m_includeVerseNumbers) {
-                slideText = QStringLiteral("%1 %2").arg(verse.number).arg(verse.text);
+                bodyText = QStringLiteral("%1 %2").arg(verse.number).arg(verse.text);
                 if (useRedLetters && !verse.richText.isEmpty()) {
-                    slideRichText = QStringLiteral("%1 %2").arg(verse.number).arg(verse.richText);
+                    bodyRichText = QStringLiteral("%1 %2").arg(verse.number).arg(verse.richText);
                 }
             } else {
-                slideText = verse.text;
+                bodyText = verse.text;
                 if (useRedLetters && !verse.richText.isEmpty()) {
-                    slideRichText = verse.richText;
+                    bodyRichText = verse.richText;
                 }
             }
-            slides.append(createSlide(slideText, slideRichText));
+
+            if (m_includeVerseReferences) {
+                QString refText = QStringLiteral("%1:%2 (%3)")
+                    .arg(m_reference, QString::number(verse.number), translationLabel);
+                slides.append(createScriptureSlide(refText, bodyText, bodyRichText));
+            } else {
+                slides.append(createSlide(bodyText, bodyRichText));
+            }
         }
     } else {
         // All verses on one slide
@@ -131,8 +176,15 @@ QList<Slide> ApiBibleScriptureItem::generateSlides() const
                 }
             }
         }
-        slides.append(createSlide(combinedText,
-            (useRedLetters && hasAnyRichText) ? combinedRichText : QString()));
+
+        QString richTextStr = (useRedLetters && hasAnyRichText) ? combinedRichText : QString();
+
+        if (m_includeVerseReferences) {
+            QString refText = QStringLiteral("%1 (%2)").arg(m_reference, translationLabel);
+            slides.append(createScriptureSlide(refText, combinedText, richTextStr));
+        } else {
+            slides.append(createSlide(combinedText, richTextStr));
+        }
     }
 
     // Cascading backgrounds: slides don't have explicit backgrounds by default.
@@ -187,6 +239,15 @@ void ApiBibleScriptureItem::setIncludeVerseNumbers(bool include)
     }
 }
 
+void ApiBibleScriptureItem::setIncludeVerseReferences(bool include)
+{
+    if (m_includeVerseReferences != include) {
+        m_includeVerseReferences = include;
+        invalidateSlideCache();
+        emit itemChanged();
+    }
+}
+
 void ApiBibleScriptureItem::setIncludeHeaderSlide(bool include)
 {
     if (m_includeHeaderSlide != include) {
@@ -209,6 +270,7 @@ QJsonObject ApiBibleScriptureItem::toJson() const
     json["bibleAbbreviation"] = m_bibleAbbreviation;
     json["oneVersePerSlide"] = m_oneVersePerSlide;
     json["includeVerseNumbers"] = m_includeVerseNumbers;
+    json["includeVerseReferences"] = m_includeVerseReferences;
     json["includeHeaderSlide"] = m_includeHeaderSlide;
 
     // Serialize cached verses
@@ -241,6 +303,7 @@ ApiBibleScriptureItem* ApiBibleScriptureItem::fromJson(const QJsonObject& json, 
     item->m_bibleAbbreviation = json["bibleAbbreviation"].toString();
     item->m_oneVersePerSlide = json["oneVersePerSlide"].toBool(true);
     item->m_includeVerseNumbers = json["includeVerseNumbers"].toBool(true);
+    item->m_includeVerseReferences = json["includeVerseReferences"].toBool(false);
     item->m_includeHeaderSlide = json["includeHeaderSlide"].toBool(true);
     item->m_settingsManager = settings;
 

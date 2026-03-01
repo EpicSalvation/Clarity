@@ -96,6 +96,9 @@ public:
     bool scriptureOneVersePerSlide() const;  // Whether to create one slide per verse
     void setScriptureOneVersePerSlide(bool onePerSlide);
 
+    QString scriptureReferencePosition() const;  // "top" or "bottom", default "top"
+    void setScriptureReferencePosition(const QString& position);
+
     // Red Letter Edition settings
     bool redLettersEnabled() const;          // Whether to show words of Jesus in red
     void setRedLettersEnabled(bool enabled);

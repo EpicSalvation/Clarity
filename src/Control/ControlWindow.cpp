@@ -1825,6 +1825,7 @@ void ControlWindow::onInsertScripture()
         esvItem->setSettingsManager(m_settingsManager);
         esvItem->setOneVersePerSlide(page->oneVersePerSlide());
         esvItem->setIncludeVerseNumbers(page->includeVerseNumbers());
+        esvItem->setIncludeVerseReferences(page->includeVerseReferences());
         esvItem->setIncludeHeaderSlide(true);
         esvItem->setItemStyle(page->slideStyle());
 
@@ -1849,6 +1850,7 @@ void ControlWindow::onInsertScripture()
         item->setSettingsManager(m_settingsManager);
         item->setOneVersePerSlide(page->oneVersePerSlide());
         item->setIncludeVerseNumbers(page->includeVerseNumbers());
+        item->setIncludeVerseReferences(page->includeVerseReferences());
         item->setIncludeHeaderSlide(true);
         item->setItemStyle(page->slideStyle());
 

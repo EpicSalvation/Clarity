@@ -351,29 +351,18 @@ void ThemeManager::initBuiltInThemes()
         m_builtInThemes.append(theme);
     }
 
-    // Theme 14: Scripture Classic — elegant printed page
+    // Theme 14: Scripture Classic — elegant white-on-black serif
     {
-        Theme theme("Scripture Classic", "Cream page with elegant serif typography");
+        Theme theme("Scripture Classic", "Black background with classic serif typography");
         theme.setBuiltIn(true);
-        theme.setBackgroundType(Slide::Gradient);
-        theme.setGradientStops({
-            GradientStop(0.0, QColor("#fdf8f0")),
-            GradientStop(1.0, QColor("#f0e8d8"))
-        });
-        theme.setGradientType(RadialGradient);
-        theme.setRadialCenterX(0.5);
-        theme.setRadialCenterY(0.45);
-        theme.setRadialRadius(0.8);
-        theme.setTextColor(QColor("#1a1a1a"));
-        theme.setAccentColor(QColor("#8b0000"));
+        theme.setBackgroundType(Slide::SolidColor);
+        theme.setBackgroundColor(QColor("#000000"));
+        theme.setTextColor(QColor("#e8e4de"));
+        theme.setAccentColor(QColor("#a89070"));
         theme.setFontFamily("Times New Roman");
         theme.setTitleFontSize(64);
         theme.setBodyFontSize(44);
-        theme.setDropShadowEnabled(true);
-        theme.setDropShadowColor(QColor(220, 210, 190, 90));
-        theme.setDropShadowOffsetX(1);
-        theme.setDropShadowOffsetY(2);
-        theme.setDropShadowBlur(3);
+        theme.setDropShadowEnabled(false);
         m_builtInThemes.append(theme);
     }
 
