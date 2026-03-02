@@ -54,8 +54,18 @@ QVariant PresentationModel::data(const QModelIndex& index, int role) const
     SlidePosition pos = m_presentation->positionForFlatIndex(flatIndex);
 
     switch (role) {
-    case TextRole:
-        return slide.text();
+    case TextRole: {
+        QString text = slide.text();
+        if (text.isEmpty() && slide.hasTextZones()) {
+            for (const auto& zone : slide.textZones()) {
+                if (!zone.text.trimmed().isEmpty()) {
+                    text = zone.text.trimmed();
+                    break;
+                }
+            }
+        }
+        return text;
+    }
     case BackgroundColorRole:
         return slide.backgroundColor();
     case TextColorRole:
@@ -94,9 +104,19 @@ QVariant PresentationModel::data(const QModelIndex& index, int role) const
         return slide.groupLabel();
     case GroupIndexRole:
         return slide.groupIndex();
-    case Qt::DisplayRole:
+    case Qt::DisplayRole: {
         // For default list view display, show truncated text
-        return slide.text().left(50) + (slide.text().length() > 50 ? "..." : "");
+        QString displayText = slide.text();
+        if (displayText.isEmpty() && slide.hasTextZones()) {
+            for (const auto& zone : slide.textZones()) {
+                if (!zone.text.trimmed().isEmpty()) {
+                    displayText = zone.text.trimmed();
+                    break;
+                }
+            }
+        }
+        return displayText.left(50) + (displayText.length() > 50 ? "..." : "");
+    }
     default:
         return QVariant();
     }

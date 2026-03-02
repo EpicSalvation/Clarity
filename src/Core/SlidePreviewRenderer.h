@@ -63,47 +63,21 @@ public:
      */
     static void setVideoThumbnailGenerator(VideoThumbnailGenerator* generator);
 
-private:
-    /**
-     * @brief Draw solid color background
-     */
+    // Background and legibility drawing methods (public for SlideCanvasWidget reuse)
     static void drawBackground(QPainter& painter, const Slide& slide, const QRect& rect);
-
-    /**
-     * @brief Draw gradient background
-     */
     static void drawGradient(QPainter& painter, const Slide& slide, const QRect& rect);
-
-    /**
-     * @brief Draw image background
-     */
     static void drawImage(QPainter& painter, const Slide& slide, const QRect& rect);
-
-    /**
-     * @brief Draw video background (thumbnail frame)
-     */
     static void drawVideo(QPainter& painter, const Slide& slide, const QRect& rect);
-
-    /**
-     * @brief Draw slide text with scaled font
-     */
-    static void drawText(QPainter& painter, const Slide& slide, const QRect& rect,
-                         int scaledFontSize, const QString& redLetterColor = "#cc0000");
-
-    /**
-     * @brief Draw text legibility layers (overlay, band, container)
-     */
     static void drawLegibilityLayers(QPainter& painter, const Slide& slide,
                                      const QRect& rect, const QRect& textRect);
+    static void drawTextZoneLegibility(QPainter& painter, const Slide& slide, const QRect& rect);
 
-    /**
-     * @brief Draw slide number indicator
-     */
+private:
+    static void drawText(QPainter& painter, const Slide& slide, const QRect& rect,
+                         int scaledFontSize, const QString& redLetterColor = "#cc0000");
     static void drawSlideNumber(QPainter& painter, int slideNumber, const QRect& rect);
-
-    /**
-     * @brief Draw highlight border around slide
-     */
+    static void drawTextZones(QPainter& painter, const Slide& slide, const QRect& rect,
+                              const QString& redLetterColor);
     static void drawHighlight(QPainter& painter, const QRect& rect,
                               const QColor& color, int borderWidth);
 

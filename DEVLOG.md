@@ -4,6 +4,138 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-03-01 - Bulleted and Numbered List Support (+ Bug Fixes)
+
+### Summary
+Added bulleted and numbered list support to the WYSIWYG slide editor. Users can now create lists in Blank slides and in the Body zone of TitleBody template slides using toolbar buttons. The existing rich text infrastructure (used for red-letter scripture) is extended to store list HTML, so lists render correctly in previews, output display, and confidence monitor. Fixed four bugs: blank template list slides not rendering in the slide grid, font size changes not applying to bulleted text, blank template list slides not respecting alignment, and first bullet in lists appearing grey in the editing window.
+
+### Work Completed
+
+**SlideEditorDialog (SlideEditorDialog.h/.cpp)**
+- Added `m_bulletListButton` and `m_numberedListButton` checkable QToolButtons to the toolbar, after alignment buttons, separated by a vertical divider
+- Wired buttons to `SlideCanvasWidget::toggleBulletList()` / `toggleNumberedList()`
+- Connected `listStyleChanged` signal to update button checked states
+- Added list button state sync in `syncToolbarFromZone()`
+
+**SlideCanvasWidget (SlideCanvasWidget.h/.cpp)**
+- Added `toggleBulletList()` and `toggleNumberedList()` methods using `QTextCursor::createList()` with `QTextListFormat::ListDisc` / `QTextListFormat::ListDecimal`
+- Toggle behavior: clicking a list button when already in that list style removes the list; clicking the other style switches
+- Added `currentListStyle()` query (0=none, 1=bullet, 2=numbered)
+- Added `listStyleChanged(int)` signal, emitted on cursor position changes
+- Modified `buildCurrentSlide()` to detect list blocks via `QTextBlock::textList()` and store full HTML in `richText` field when lists are present
+- Modified `rebuildZoneEditors()` to load from `richText` via `setHtml()` when available (preserves lists on save/reopen)
+- Modified `textChanged` handler for template zones to keep `richText` in sync
+- Modified shadow painting in `paintEvent()` to use `setHtml()` for documents with lists, ensuring shadows align with list text
+
+**SlidePreviewRenderer (SlidePreviewRenderer.cpp)**
+- Added list CSS rules (`ul, ol { margin: 0; padding-left: 1.2em; } li { margin: 0.1em 0; }`) to all rich text CSS blocks
+- Added full-HTML detection (`<html` prefix) so list-editor HTML passes through without being double-wrapped in `<p>` tags
+- Added shadow recoloring for full-HTML content using `QTextCursor::mergeCharFormat()`
+
+### Bug Fixes
+
+**Blank template list slides not rendering in slide grid**
+- Root cause: `extractListHtml()` returned `QTextEdit::toHtml()` which embeds absolute pixel sizes from the canvas scale factor (e.g., 15px). The renderer passed this full HTML through without applying its own font/color/size CSS, so text rendered invisibly small in thumbnails.
+- Fix: Rewrote `extractListHtml()` to iterate `QTextBlock`s and emit clean structural HTML (`<ul>/<ol>/<li>/<p>` tags with text only, no inline styles). The renderer's CSS now properly controls font/color/size.
+- Also fixed renderer to not wrap list content in `<p>` tags (invalid HTML — block-level `<ul>`/`<ol>` can't be inside `<p>`). Added `hasListTags` check to use `<body>` wrapper instead.
+
+**Font size changes not applying to bulleted text**
+- Root cause: `updateFontScaling()` set the editor's default font via `setFont()`, but list items had inline char formats (from `QTextCursor::createList()`) that overrode the default.
+- Fix: Added `cursor.mergeCharFormat()` in `updateFontScaling()` to apply font family, size, and color to all existing text after `selectAll()`.
+
+**Blank template list slides not respecting alignment in grid preview**
+- Root cause: Alignment info lived only in `zone.horizontalAlignment` and was never encoded into the structural richText HTML. The renderer's CSS hardcoded `text-align: center`.
+- Fix: `extractListHtml()` now accepts alignment parameter and emits `align='...' style='text-align:...;'` on `<li>`, `<ul>`, `<ol>`, and `<p>` tags. Qt's rich text engine responds to the `align` HTML attribute.
+- Also fixed renderer's `hasListTags` detection to match `<ul`/`<ol` (not `<ul>`/`<ol>`) since structural HTML now includes attributes on those tags.
+
+**First bullet in lists appearing grey in the editing window**
+- Root cause (confirmed via debug dump): `mergeCharFormat()` on a selection only sets the *fragment-level* char format (the `<span>` inside the `<li>`). Qt draws list bullet markers (•) using the *block-level* char format (the `<li>` element itself), which had no foreground color set, so it fell back to the default.
+- Fix: Added a block iteration loop in `updateFontScaling()` that calls `setBlockCharFormat()` on every block, ensuring bullet markers use the correct color. Same fix applied to the shadow document in `paintEvent()`.
+
+### Technical Decisions
+- Reused existing `richText` field and `QTextDocument`-based rendering pipeline rather than adding a new field — lists are just another form of rich text
+- Clean structural HTML (no inline styles) stored in `richText` when lists are present, plain text otherwise — lets the renderer control styling at render time
+- List detection uses `QTextBlock::textList()` iteration which is reliable and fast
+
+### Testing
+- Build succeeds cleanly with zero errors
+
+### Next Steps
+- Manual testing: verify list creation, toggling, persistence, preview thumbnails, output display rendering
+
+---
+
+## 2026-03-01 - WYSIWYG Slide Editor
+
+### Summary
+Replaced the form-based SlideEditorDialog with a WYSIWYG editor. Users now type directly on a rendered slide canvas and see real-time updates as they change fonts, colors, backgrounds, and legibility effects. The new layout features a toolbar (template, font, size, color, alignment), a central 16:9 canvas widget, and collapsible panels for background, text effects, transition, and notes.
+
+### Work Completed
+
+**SlidePreviewRenderer (SlidePreviewRenderer.h)**
+- Made `drawBackground`, `drawGradient`, `drawImage`, `drawVideo`, `drawLegibilityLayers`, `drawTextZoneLegibility` public static methods so SlideCanvasWidget can reuse them
+
+**SlideCanvasWidget (NEW — SlideCanvasWidget.h/.cpp)**
+- Custom QWidget that paints the slide background using SlidePreviewRenderer's static methods
+- Hosts transparent QTextEdit children for each text zone, positioned at fractional coordinates
+- Maintains 16:9 aspect ratio with `heightForWidth()` and letterbox painting
+- Font scaling: design resolution is 1080p, scale factor = `canvasHeight / 1080.0`
+- Zone selection: focus events on QTextEdits emit `zoneSelected(int)` signal
+- Drop shadows painted in `paintEvent()` before child widget rendering
+- Dashed selection indicator for multi-zone templates
+- Extensive setter API for bidirectional toolbar ↔ canvas sync
+- Vertical text centering via document margin adjustment
+
+**SlideEditorDialog (Complete Rewrite — SlideEditorDialog.h/.cpp)**
+- New layout: toolbar → canvas → collapsible panels → OK/Cancel
+- Toolbar: template combo, font family/size, text color button, L/C/R alignment buttons
+- Canvas: SlideCanvasWidget with stretch factor 1 (takes available space)
+- Four collapsible panels using checkable QGroupBoxes:
+  1. Background — type combo, solid/gradient/image/video controls, blur
+  2. Text Effects — drop shadow, overlay, container, band (routes to slide-level or per-zone)
+  3. Transition — type, duration, auto-advance
+  4. Notes — presenter notes text edit
+- All changes are live — no "apply" button needed
+- `m_updatingFromZone` guard prevents feedback loops during programmatic toolbar updates
+- `syncToolbarFromZone()` / `syncTextEffectsFromZone()` update controls when zone selection changes
+- Dialog resized to 1100x750 (up from 900x600) for canvas space
+
+### Technical Decisions
+- Used `document()->setDocumentMargin()` for vertical centering instead of `setViewportMargins()` (which is protected on QAbstractScrollArea)
+- Collapsible panels default to collapsed to maximize canvas area
+- Background/legibility controls route to either slide-level or zone-level setters based on `zoneCount() > 1`
+- Rich text (red-letter) editing deferred — QTextEdits use plain text for now
+
+### Fixes (iteration 2)
+
+**Drop shadow alignment fix (SlideCanvasWidget.cpp)**
+- Shadows were drawn with `QPainter::drawText()` using alignment flags on zone rects, but QTextEdit has its own internal layout (document margins, viewport padding) that doesn't match
+- Fix: shadows now paint the QTextEdit's actual `QTextDocument` at the editor's position + shadow offset — guarantees pixel-perfect alignment with rendered text
+- Shadow document is cloned per-frame with matching font, alignment, and text width
+
+**Zone vertical alignment fix (SlideCanvasWidget.cpp)**
+- Was using `setDocumentMargin()` for vertical centering, which applies margin on all 4 sides, pushing text inward incorrectly
+- Fix: now repositions the QTextEdit widget itself within the zone rect based on vertical alignment. Measures document height, computes top offset for center/bottom alignment, and sets the editor geometry accordingly
+- `setDocumentMargin(0)` removes all internal padding so text aligns exactly with the painted position
+
+**Layout restructure (SlideEditorDialog)**
+- Replaced bottom collapsible checkbox panels with a right-side scrollable column
+- Uses `QSplitter` (65/35 split) with canvas on left, property panels on right
+- Panels are always visible in the scroll area: Background, Text Effects, Transition, Notes
+- Each section is a compact QGroupBox — no expand/collapse needed
+- Right panel constrained to 280-450px width via min/max on the scroll area
+
+### Testing
+- Build passes cleanly (no warnings)
+- Manual testing needed: open editor, type text, change template/background/effects
+
+### Next Steps
+- Rich text support in zone editors (red-letter scripture)
+- Undo/redo within the WYSIWYG editor
+- Keyboard shortcuts for common operations
+
+---
+
 ## 2026-03-01 - Scripture Reference Position Setting & Template Integration
 
 ### Summary

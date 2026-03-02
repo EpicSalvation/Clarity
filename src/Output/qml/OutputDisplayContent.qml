@@ -77,6 +77,9 @@ Item {
     property bool textBandEnabledA: false
     property color textBandColorA: "#80000000"
     property int textBandBlurA: 0
+    // Text zones for template slides
+    property string textZonesJsonA: "[]"
+    property bool hasTextZonesA: false
 
     // Cached slide data for container B
     property string slideTextB: ""
@@ -115,6 +118,9 @@ Item {
     property bool textBandEnabledB: false
     property color textBandColorB: "#80000000"
     property int textBandBlurB: 0
+    // Text zones for template slides
+    property string textZonesJsonB: "[]"
+    property bool hasTextZonesB: false
 
     // Copy current displayController values to the specified container
     function copyToContainerA() {
@@ -154,6 +160,8 @@ Item {
         textBandEnabledA = displayController.textBandEnabled
         textBandColorA = displayController.textBandColor
         textBandBlurA = displayController.textBandBlur
+        textZonesJsonA = displayController.textZonesJson
+        hasTextZonesA = displayController.hasTextZones
     }
 
     function copyToContainerB() {
@@ -193,6 +201,8 @@ Item {
         textBandEnabledB = displayController.textBandEnabled
         textBandColorB = displayController.textBandColor
         textBandBlurB = displayController.textBandBlur
+        textZonesJsonB = displayController.textZonesJson
+        hasTextZonesB = displayController.hasTextZones
     }
 
     // Check if any blur effect is active on the currently-showing container
@@ -570,7 +580,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             height: textContentA.height + root.textContainerPaddingA * 2
             clip: true
-            visible: root.textBandEnabledA && root.textBandBlurA > 0
+            visible: root.textBandEnabledA && root.textBandBlurA > 0 && !root.hasTextZonesA
 
             MultiEffect {
                 source: bgContentA
@@ -593,7 +603,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             height: textContentA.height + root.textContainerPaddingA * 2
             color: root.textBandColorA
-            visible: root.textBandEnabledA
+            visible: root.textBandEnabledA && !root.hasTextZonesA
         }
 
         // Text container blur - frosted glass effect behind the text container box.
@@ -604,7 +614,7 @@ Item {
             width: textContentA.width + root.textContainerPaddingA * 2
             height: textContentA.height + root.textContainerPaddingA * 2
             clip: true
-            visible: root.textContainerEnabledA && root.textContainerBlurA > 0
+            visible: root.textContainerEnabledA && root.textContainerBlurA > 0 && !root.hasTextZonesA
 
             MultiEffect {
                 source: bgContentA
@@ -627,14 +637,11 @@ Item {
             height: textContentA.height + root.textContainerPaddingA * 2
             radius: root.textContainerRadiusA
             color: root.textContainerColorA
-            visible: root.textContainerEnabledA
+            visible: root.textContainerEnabledA && !root.hasTextZonesA
         }
 
-        // Text shadow with optional blur.
-        // When blur > 0, the wrapper Item uses layer rendering at reduced resolution.
-        // The layer captures the shadow text + margin into a texture, downsamples it,
-        // then displays it upscaled with bilinear filtering for a soft shadow effect.
-        // Extra margin around the text gives the blur room to spread beyond text edges.
+        // Text shadow with optional blur (legacy single-text path).
+        // Hidden when text zones are active — zones render their own shadows.
         Item {
             id: textShadowWrapperA
             anchors.centerIn: parent
@@ -642,7 +649,7 @@ Item {
             anchors.verticalCenterOffset: root.dropShadowOffsetYA
             width: textShadowInnerA.width + root.dropShadowBlurA * 4
             height: textShadowInnerA.paintedHeight + root.dropShadowBlurA * 4
-            visible: root.dropShadowEnabledA
+            visible: root.dropShadowEnabledA && !root.hasTextZonesA
 
             layer.enabled: root.dropShadowBlurA > 0
             layer.smooth: true
@@ -654,7 +661,6 @@ Item {
             Text {
                 id: textShadowInnerA
                 anchors.centerIn: parent
-                // Use same format as main text but override all colors to shadow color
                 text: root.useRichTextA
                     ? "<style>*{color:" + root.dropShadowColorA + "}.jesus{color:" + root.dropShadowColorA + "}</style>" + root.slideRichTextA
                     : root.slideTextA
@@ -669,11 +675,12 @@ Item {
             }
         }
 
-        // Main text content - supports rich text for red letter display
+        // Main text content — legacy single-text path.
+        // Hidden when text zones are active.
         Text {
             id: textContentA
             anchors.centerIn: parent
-            // Use rich text when available, applying red letter color via inline CSS
+            visible: !root.hasTextZonesA
             text: root.useRichTextA
                 ? "<style>.jesus{color:" + root.redLetterColorA + "}</style>" + root.slideRichTextA
                 : root.slideTextA
@@ -687,6 +694,95 @@ Item {
             width: parent.width * 0.8
             style: root.useRichTextA ? Text.Normal : Text.Outline
             styleColor: "black"
+        }
+
+        // Template text zones — Repeater renders each zone independently.
+        // Each zone is positioned by fractional coordinates and has its own
+        // font, size, color, and alignment settings.
+        Repeater {
+            id: zoneRepeaterA
+            model: root.hasTextZonesA ? JSON.parse(root.textZonesJsonA) : []
+
+            Item {
+                // Position using fractional coordinates relative to the slide
+                x: modelData.x * slideA.width
+                y: modelData.y * slideA.height
+                width: modelData.w * slideA.width
+                height: modelData.h * slideA.height
+
+                // Compute text content position within zone based on alignment.
+                // Text element fills the zone, but text renders at an aligned position within it.
+                property real textContentX: modelData.hAlign === 0 ? 0
+                    : modelData.hAlign === 2 ? width - zoneTextA.paintedWidth
+                    : (width - zoneTextA.paintedWidth) / 2
+                property real textContentY: modelData.vAlign === 0 ? 0
+                    : modelData.vAlign === 2 ? height - zoneTextA.paintedHeight
+                    : (height - zoneTextA.paintedHeight) / 2
+
+                // Per-zone text band (horizontal strip across full slide width at zone height)
+                Rectangle {
+                    anchors.left: undefined
+                    x: -parent.x  // Stretch to slide left edge
+                    width: slideA.width
+                    y: parent.textContentY - (modelData.tcPad || 20)
+                    height: zoneTextA.paintedHeight + (modelData.tcPad || 20) * 2
+                    color: modelData.tbColor || "#80000000"
+                    visible: (modelData.tbEnabled !== undefined ? modelData.tbEnabled : false) && (modelData.text || modelData.richText)
+                }
+
+                // Per-zone text container (box behind zone text)
+                Rectangle {
+                    x: parent.textContentX - (modelData.tcPad || 20)
+                    y: parent.textContentY - (modelData.tcPad || 20)
+                    width: zoneTextA.paintedWidth + (modelData.tcPad || 20) * 2
+                    height: zoneTextA.paintedHeight + (modelData.tcPad || 20) * 2
+                    radius: modelData.tcRad || 8
+                    color: modelData.tcColor || "#80000000"
+                    visible: (modelData.tcEnabled !== undefined ? modelData.tcEnabled : false) && (modelData.text || modelData.richText)
+                }
+
+                // Per-zone drop shadow
+                Text {
+                    anchors.fill: parent
+                    anchors.leftMargin: modelData.dsOffX || 2
+                    anchors.topMargin: modelData.dsOffY || 2
+                    visible: modelData.dsEnabled !== undefined ? modelData.dsEnabled : true
+                    text: modelData.richText ? modelData.richText : (modelData.text || "")
+                    textFormat: modelData.richText ? Text.RichText : Text.PlainText
+                    color: modelData.dsColor || "#80000000"
+                    font.family: modelData.fontFamily || "Arial"
+                    font.pixelSize: modelData.fontSize || 48
+                    horizontalAlignment: modelData.hAlign === 0 ? Text.AlignLeft
+                                       : modelData.hAlign === 2 ? Text.AlignRight
+                                       : Text.AlignHCenter
+                    verticalAlignment: modelData.vAlign === 0 ? Text.AlignTop
+                                     : modelData.vAlign === 2 ? Text.AlignBottom
+                                     : Text.AlignVCenter
+                    wrapMode: Text.WordWrap
+                }
+
+                // Zone text content
+                Text {
+                    id: zoneTextA
+                    anchors.fill: parent
+                    text: modelData.richText
+                        ? "<style>.jesus{color:" + root.redLetterColorA + "}</style>" + modelData.richText
+                        : (modelData.text || "")
+                    textFormat: modelData.richText ? Text.RichText : Text.PlainText
+                    color: modelData.textColor || "#ffffff"
+                    font.family: modelData.fontFamily || "Arial"
+                    font.pixelSize: modelData.fontSize || 48
+                    horizontalAlignment: modelData.hAlign === 0 ? Text.AlignLeft
+                                       : modelData.hAlign === 2 ? Text.AlignRight
+                                       : Text.AlignHCenter
+                    verticalAlignment: modelData.vAlign === 0 ? Text.AlignTop
+                                     : modelData.vAlign === 2 ? Text.AlignBottom
+                                     : Text.AlignVCenter
+                    wrapMode: Text.WordWrap
+                    style: Text.Outline
+                    styleColor: "black"
+                }
+            }
         }
     }
 
@@ -828,7 +924,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             height: textContentB.height + root.textContainerPaddingB * 2
             clip: true
-            visible: root.textBandEnabledB && root.textBandBlurB > 0
+            visible: root.textBandEnabledB && root.textBandBlurB > 0 && !root.hasTextZonesB
 
             MultiEffect {
                 source: bgContentB
@@ -851,7 +947,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             height: textContentB.height + root.textContainerPaddingB * 2
             color: root.textBandColorB
-            visible: root.textBandEnabledB
+            visible: root.textBandEnabledB && !root.hasTextZonesB
         }
 
         // Text container blur - frosted glass effect behind the text container box
@@ -861,7 +957,7 @@ Item {
             width: textContentB.width + root.textContainerPaddingB * 2
             height: textContentB.height + root.textContainerPaddingB * 2
             clip: true
-            visible: root.textContainerEnabledB && root.textContainerBlurB > 0
+            visible: root.textContainerEnabledB && root.textContainerBlurB > 0 && !root.hasTextZonesB
 
             MultiEffect {
                 source: bgContentB
@@ -884,10 +980,11 @@ Item {
             height: textContentB.height + root.textContainerPaddingB * 2
             radius: root.textContainerRadiusB
             color: root.textContainerColorB
-            visible: root.textContainerEnabledB
+            visible: root.textContainerEnabledB && !root.hasTextZonesB
         }
 
-        // Text shadow with optional blur
+        // Text shadow with optional blur (legacy single-text path).
+        // Hidden when text zones are active.
         Item {
             id: textShadowWrapperB
             anchors.centerIn: parent
@@ -895,7 +992,7 @@ Item {
             anchors.verticalCenterOffset: root.dropShadowOffsetYB
             width: textShadowInnerB.width + root.dropShadowBlurB * 4
             height: textShadowInnerB.paintedHeight + root.dropShadowBlurB * 4
-            visible: root.dropShadowEnabledB
+            visible: root.dropShadowEnabledB && !root.hasTextZonesB
 
             layer.enabled: root.dropShadowBlurB > 0
             layer.smooth: true
@@ -921,11 +1018,12 @@ Item {
             }
         }
 
-        // Main text content - supports rich text for red letter display
+        // Main text content — legacy single-text path.
+        // Hidden when text zones are active.
         Text {
             id: textContentB
             anchors.centerIn: parent
-            // Use rich text when available, applying red letter color via inline CSS
+            visible: !root.hasTextZonesB
             text: root.useRichTextB
                 ? "<style>.jesus{color:" + root.redLetterColorB + "}</style>" + root.slideRichTextB
                 : root.slideTextB
@@ -939,6 +1037,91 @@ Item {
             width: parent.width * 0.8
             style: root.useRichTextB ? Text.Normal : Text.Outline
             styleColor: "black"
+        }
+
+        // Template text zones — Repeater renders each zone independently.
+        Repeater {
+            id: zoneRepeaterB
+            model: root.hasTextZonesB ? JSON.parse(root.textZonesJsonB) : []
+
+            Item {
+                x: modelData.x * slideB.width
+                y: modelData.y * slideB.height
+                width: modelData.w * slideB.width
+                height: modelData.h * slideB.height
+
+                // Compute text content position within zone based on alignment
+                property real textContentX: modelData.hAlign === 0 ? 0
+                    : modelData.hAlign === 2 ? width - zoneTextB.paintedWidth
+                    : (width - zoneTextB.paintedWidth) / 2
+                property real textContentY: modelData.vAlign === 0 ? 0
+                    : modelData.vAlign === 2 ? height - zoneTextB.paintedHeight
+                    : (height - zoneTextB.paintedHeight) / 2
+
+                // Per-zone text band (horizontal strip across full slide width at zone height)
+                Rectangle {
+                    anchors.left: undefined
+                    x: -parent.x
+                    width: slideB.width
+                    y: parent.textContentY - (modelData.tcPad || 20)
+                    height: zoneTextB.paintedHeight + (modelData.tcPad || 20) * 2
+                    color: modelData.tbColor || "#80000000"
+                    visible: (modelData.tbEnabled !== undefined ? modelData.tbEnabled : false) && (modelData.text || modelData.richText)
+                }
+
+                // Per-zone text container (box behind zone text)
+                Rectangle {
+                    x: parent.textContentX - (modelData.tcPad || 20)
+                    y: parent.textContentY - (modelData.tcPad || 20)
+                    width: zoneTextB.paintedWidth + (modelData.tcPad || 20) * 2
+                    height: zoneTextB.paintedHeight + (modelData.tcPad || 20) * 2
+                    radius: modelData.tcRad || 8
+                    color: modelData.tcColor || "#80000000"
+                    visible: (modelData.tcEnabled !== undefined ? modelData.tcEnabled : false) && (modelData.text || modelData.richText)
+                }
+
+                // Per-zone drop shadow
+                Text {
+                    anchors.fill: parent
+                    anchors.leftMargin: modelData.dsOffX || 2
+                    anchors.topMargin: modelData.dsOffY || 2
+                    visible: modelData.dsEnabled !== undefined ? modelData.dsEnabled : true
+                    text: modelData.richText ? modelData.richText : (modelData.text || "")
+                    textFormat: modelData.richText ? Text.RichText : Text.PlainText
+                    color: modelData.dsColor || "#80000000"
+                    font.family: modelData.fontFamily || "Arial"
+                    font.pixelSize: modelData.fontSize || 48
+                    horizontalAlignment: modelData.hAlign === 0 ? Text.AlignLeft
+                                       : modelData.hAlign === 2 ? Text.AlignRight
+                                       : Text.AlignHCenter
+                    verticalAlignment: modelData.vAlign === 0 ? Text.AlignTop
+                                     : modelData.vAlign === 2 ? Text.AlignBottom
+                                     : Text.AlignVCenter
+                    wrapMode: Text.WordWrap
+                }
+
+                // Zone text content
+                Text {
+                    id: zoneTextB
+                    anchors.fill: parent
+                    text: modelData.richText
+                        ? "<style>.jesus{color:" + root.redLetterColorB + "}</style>" + modelData.richText
+                        : (modelData.text || "")
+                    textFormat: modelData.richText ? Text.RichText : Text.PlainText
+                    color: modelData.textColor || "#ffffff"
+                    font.family: modelData.fontFamily || "Arial"
+                    font.pixelSize: modelData.fontSize || 48
+                    horizontalAlignment: modelData.hAlign === 0 ? Text.AlignLeft
+                                       : modelData.hAlign === 2 ? Text.AlignRight
+                                       : Text.AlignHCenter
+                    verticalAlignment: modelData.vAlign === 0 ? Text.AlignTop
+                                     : modelData.vAlign === 2 ? Text.AlignBottom
+                                     : Text.AlignVCenter
+                    wrapMode: Text.WordWrap
+                    style: Text.Outline
+                    styleColor: "black"
+                }
+            }
         }
     }
 

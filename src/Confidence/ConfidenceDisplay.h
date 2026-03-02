@@ -12,6 +12,7 @@
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QSettings>
+#include <QStringList>
 
 namespace Clarity {
 
@@ -89,7 +90,15 @@ public:
     explicit ConfidenceDisplay(QObject* parent = nullptr);
 
     // Current slide getters
-    QString currentSlideText() const { return m_currentSlide.text(); }
+    QString currentSlideText() const {
+        if (m_currentSlide.hasTextZones()) {
+            QStringList parts;
+            for (const auto& z : m_currentSlide.textZones())
+                if (!z.text.isEmpty()) parts << z.text;
+            return parts.join("\n\n");
+        }
+        return m_currentSlide.text();
+    }
     QString currentSlideRichText() const { return m_currentSlide.richText(); }
     bool currentUseRichText() const { return m_currentSlide.hasRichText(); }
     QColor currentBackgroundColor() const { return m_currentSlide.backgroundColor(); }
@@ -103,7 +112,15 @@ public:
     int currentGradientAngle() const { return m_currentSlide.gradientAngle(); }
 
     // Next slide getters
-    QString nextSlideText() const { return m_nextSlide.text(); }
+    QString nextSlideText() const {
+        if (m_nextSlide.hasTextZones()) {
+            QStringList parts;
+            for (const auto& z : m_nextSlide.textZones())
+                if (!z.text.isEmpty()) parts << z.text;
+            return parts.join("\n\n");
+        }
+        return m_nextSlide.text();
+    }
     QString nextSlideRichText() const { return m_nextSlide.richText(); }
     bool nextUseRichText() const { return m_nextSlide.hasRichText(); }
     QColor nextBackgroundColor() const { return m_nextSlide.backgroundColor(); }

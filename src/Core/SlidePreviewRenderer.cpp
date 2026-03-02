@@ -7,6 +7,7 @@
 #include <QLinearGradient>
 #include <QRadialGradient>
 #include <QTextDocument>
+#include <QTextCursor>
 #include <QAbstractTextDocumentLayout>
 #include <QtMath>
 
@@ -53,23 +54,32 @@ QPixmap SlidePreviewRenderer::render(const Slide& slide, const QSize& size,
     // Original design is 1080p, so scale font proportionally
     int scaledFontSize = qMax(10, slide.fontSize() * size.height() / 1080);
 
-    // Calculate text rect for legibility layers
-    int margin = qMax(4, rect.width() / 20);
-    QRect textAreaRect = rect.adjusted(margin, margin, -margin, -margin);
+    if (slide.hasTextZones()) {
+        // Template slides: draw overlay globally, then per-zone legibility + text
+        if (slide.overlayEnabled()) {
+            painter.fillRect(rect, slide.overlayColor());
+        }
+        drawTextZoneLegibility(painter, slide, rect);
+        drawText(painter, slide, rect, scaledFontSize, options.redLetterColor);
+    } else {
+        // Legacy single-text path
+        int margin = qMax(4, rect.width() / 20);
+        QRect textAreaRect = rect.adjusted(margin, margin, -margin, -margin);
 
-    // Measure actual text bounds for container/band sizing
-    QRect textBounds;
-    if (!slide.text().isEmpty()) {
-        QFont font(slide.fontFamily());
-        font.setPixelSize(scaledFontSize);
-        QFontMetrics fm(font);
-        textBounds = fm.boundingRect(textAreaRect, Qt::AlignCenter | Qt::TextWordWrap, slide.text());
+        // Measure actual text bounds for container/band sizing
+        QRect textBounds;
+        if (!slide.text().isEmpty()) {
+            QFont font(slide.fontFamily());
+            font.setPixelSize(scaledFontSize);
+            QFontMetrics fm(font);
+            textBounds = fm.boundingRect(textAreaRect, Qt::AlignCenter | Qt::TextWordWrap, slide.text());
+        }
+
+        // Draw legibility layers between background and text
+        drawLegibilityLayers(painter, slide, rect, textBounds);
+
+        drawText(painter, slide, rect, scaledFontSize, options.redLetterColor);
     }
-
-    // Draw legibility layers between background and text
-    drawLegibilityLayers(painter, slide, rect, textBounds);
-
-    drawText(painter, slide, rect, scaledFontSize, options.redLetterColor);
 
     // Draw slide number if requested
     if (options.showSlideNumber) {
@@ -193,6 +203,12 @@ void SlidePreviewRenderer::drawVideo(QPainter& painter, const Slide& slide, cons
 void SlidePreviewRenderer::drawText(QPainter& painter, const Slide& slide, const QRect& rect,
                                     int scaledFontSize, const QString& redLetterColor)
 {
+    // Template text zones — render each zone independently
+    if (slide.hasTextZones()) {
+        drawTextZones(painter, slide, rect, redLetterColor);
+        return;
+    }
+
     QString text = slide.text();
     if (text.isEmpty()) {
         return;
@@ -219,14 +235,25 @@ void SlidePreviewRenderer::drawText(QPainter& painter, const Slide& slide, const
             "<style>"
             "body { color: %1; font-family: %2; font-size: %3px; text-align: center; }"
             ".jesus { color: %4; }"
+            "ul, ol { margin: 0; padding-left: 1.2em; }"
+            "li { margin: 0.1em 0; }"
             "</style>"
         ).arg(slide.textColor().name())
          .arg(slide.fontFamily())
          .arg(scaledFontSize)
          .arg(redLetterColor);
 
-        // Wrap in centered paragraph
-        QString html = css + "<body><p style='text-align: center;'>" + slide.richText() + "</p></body>";
+        // Wrap content in body with CSS. Use <p> wrapper for inline markup (red-letter),
+        // but not for block-level content (lists) which would be invalid inside <p>.
+        bool isFullHtml = slide.richText().contains(QLatin1String("<html"), Qt::CaseInsensitive);
+        bool hasListTags = slide.richText().contains(QLatin1String("<ul")) || slide.richText().contains(QLatin1String("<ol"));
+        QString html;
+        if (isFullHtml)
+            html = slide.richText();
+        else if (hasListTags)
+            html = css + "<body>" + slide.richText() + "</body>";
+        else
+            html = css + "<body><p style='text-align: center;'>" + slide.richText() + "</p></body>";
         doc.setHtml(html);
 
         // Calculate vertical centering
@@ -242,11 +269,28 @@ void SlidePreviewRenderer::drawText(QPainter& painter, const Slide& slide, const
                 "<style>"
                 "body { color: %1; font-family: %2; font-size: %3px; text-align: center; }"
                 ".jesus { color: %1; }"
+                "ul, ol { margin: 0; padding-left: 1.2em; }"
+                "li { margin: 0.1em 0; }"
                 "</style>"
             ).arg(slide.dropShadowColor().name())
              .arg(slide.fontFamily())
              .arg(scaledFontSize);
-            shadowDoc.setHtml(shadowCss + "<body><p style='text-align: center;'>" + slide.richText() + "</p></body>");
+            QString shadowHtml;
+            if (isFullHtml)
+                shadowHtml = slide.richText();
+            else if (hasListTags)
+                shadowHtml = shadowCss + "<body>" + slide.richText() + "</body>";
+            else
+                shadowHtml = shadowCss + "<body><p style='text-align: center;'>" + slide.richText() + "</p></body>";
+            shadowDoc.setHtml(shadowHtml);
+            // Recolor all text to shadow color for full-HTML content
+            if (isFullHtml) {
+                QTextCursor sc(&shadowDoc);
+                sc.select(QTextCursor::Document);
+                QTextCharFormat fmt;
+                fmt.setForeground(slide.dropShadowColor());
+                sc.mergeCharFormat(fmt);
+            }
 
             painter.save();
             painter.translate(textRect.left() + shadowOffsetX, yOffset + shadowOffsetY);
@@ -304,6 +348,198 @@ void SlidePreviewRenderer::drawLegibilityLayers(QPainter& painter, const Slide& 
         painter.setBrush(slide.textContainerColor());
         painter.drawRoundedRect(containerRect, scaledRadius, scaledRadius);
         painter.restore();
+    }
+}
+
+void SlidePreviewRenderer::drawTextZones(QPainter& painter, const Slide& slide, const QRect& rect,
+                                          const QString& redLetterColor)
+{
+    const auto zones = slide.textZones();
+
+    for (const auto& zone : zones) {
+        if (zone.text.isEmpty() && zone.richText.isEmpty())
+            continue;
+
+        // Per-zone drop shadow offsets
+        int shadowOffsetX = 0, shadowOffsetY = 0;
+        if (zone.dropShadowEnabled) {
+            shadowOffsetX = qMax(1, zone.dropShadowOffsetX * rect.height() / 1080);
+            shadowOffsetY = qMax(1, zone.dropShadowOffsetY * rect.height() / 1080);
+        }
+
+        // Compute pixel rect from fractional coordinates
+        QRect zoneRect(
+            rect.x() + qRound(zone.x * rect.width()),
+            rect.y() + qRound(zone.y * rect.height()),
+            qRound(zone.width * rect.width()),
+            qRound(zone.height * rect.height())
+        );
+
+        int scaledSize = qMax(8, zone.fontSize * rect.height() / 1080);
+
+        // Compute alignment flags
+        int hAlign = (zone.horizontalAlignment == 0) ? Qt::AlignLeft
+                   : (zone.horizontalAlignment == 2) ? Qt::AlignRight
+                   : Qt::AlignHCenter;
+        int vAlign = (zone.verticalAlignment == 0) ? Qt::AlignTop
+                   : (zone.verticalAlignment == 2) ? Qt::AlignBottom
+                   : Qt::AlignVCenter;
+        int flags = hAlign | vAlign | Qt::TextWordWrap;
+
+        if (!zone.richText.isEmpty()) {
+            // Rich text path using QTextDocument
+            QTextDocument doc;
+            doc.setTextWidth(zoneRect.width());
+
+            QString alignStr = (zone.horizontalAlignment == 0) ? "left"
+                             : (zone.horizontalAlignment == 2) ? "right"
+                             : "center";
+
+            QString css = QString(
+                "<style>"
+                "body { color: %1; font-family: %2; font-size: %3px; text-align: %4; }"
+                ".jesus { color: %5; }"
+                "ul, ol { margin: 0; padding-left: 1.2em; }"
+                "li { margin: 0.1em 0; }"
+                "</style>"
+            ).arg(zone.textColor.name(), zone.fontFamily)
+             .arg(scaledSize)
+             .arg(alignStr, redLetterColor);
+
+            bool isFullHtml = zone.richText.contains(QLatin1String("<html"), Qt::CaseInsensitive);
+            bool hasListTags = zone.richText.contains(QLatin1String("<ul")) || zone.richText.contains(QLatin1String("<ol"));
+            QString html;
+            if (isFullHtml)
+                html = zone.richText;
+            else if (hasListTags)
+                html = css + "<body>" + zone.richText + "</body>";
+            else
+                html = css + "<body><p style='text-align: " + alignStr + ";'>" + zone.richText + "</p></body>";
+            doc.setHtml(html);
+
+            int docHeight = doc.size().height();
+            int yOffset = zoneRect.top();
+            if (zone.verticalAlignment == 1) // center
+                yOffset += (zoneRect.height() - docHeight) / 2;
+            else if (zone.verticalAlignment == 2) // bottom
+                yOffset += zoneRect.height() - docHeight;
+            yOffset = qMax(zoneRect.top(), yOffset);
+
+            // Shadow pass (per-zone)
+            if (zone.dropShadowEnabled) {
+                QTextDocument shadowDoc;
+                shadowDoc.setTextWidth(zoneRect.width());
+                QString shadowCss = QString(
+                    "<style>"
+                    "body { color: %1; font-family: %2; font-size: %3px; text-align: %4; }"
+                    ".jesus { color: %1; }"
+                    "ul, ol { margin: 0; padding-left: 1.2em; }"
+                    "li { margin: 0.1em 0; }"
+                    "</style>"
+                ).arg(zone.dropShadowColor.name(), zone.fontFamily)
+                 .arg(scaledSize)
+                 .arg(alignStr);
+                QString shadowHtml;
+                if (isFullHtml)
+                    shadowHtml = zone.richText;
+                else if (hasListTags)
+                    shadowHtml = shadowCss + "<body>" + zone.richText + "</body>";
+                else
+                    shadowHtml = shadowCss + "<body><p style='text-align: " + alignStr + ";'>" + zone.richText + "</p></body>";
+                shadowDoc.setHtml(shadowHtml);
+                if (isFullHtml) {
+                    QTextCursor sc(&shadowDoc);
+                    sc.select(QTextCursor::Document);
+                    QTextCharFormat fmt;
+                    fmt.setForeground(zone.dropShadowColor);
+                    sc.mergeCharFormat(fmt);
+                }
+
+                painter.save();
+                painter.translate(zoneRect.left() + shadowOffsetX, yOffset + shadowOffsetY);
+                shadowDoc.drawContents(&painter, QRectF(0, 0, zoneRect.width(), zoneRect.height()));
+                painter.restore();
+            }
+
+            painter.save();
+            painter.translate(zoneRect.left(), yOffset);
+            doc.drawContents(&painter, QRectF(0, 0, zoneRect.width(), zoneRect.height()));
+            painter.restore();
+        } else {
+            // Plain text path
+            QFont font(zone.fontFamily);
+            font.setPixelSize(scaledSize);
+            painter.setFont(font);
+
+            // Shadow pass (per-zone)
+            if (zone.dropShadowEnabled) {
+                painter.setPen(zone.dropShadowColor);
+                painter.drawText(zoneRect.translated(shadowOffsetX, shadowOffsetY), flags, zone.text);
+            }
+
+            painter.setPen(zone.textColor);
+            painter.drawText(zoneRect, flags, zone.text);
+        }
+    }
+}
+
+void SlidePreviewRenderer::drawTextZoneLegibility(QPainter& painter, const Slide& slide, const QRect& rect)
+{
+    const auto zones = slide.textZones();
+
+    for (const auto& zone : zones) {
+        if (zone.text.isEmpty() && zone.richText.isEmpty())
+            continue;
+
+        // Compute zone pixel rect from fractional coordinates
+        QRect zoneRect(
+            rect.x() + qRound(zone.x * rect.width()),
+            rect.y() + qRound(zone.y * rect.height()),
+            qRound(zone.width * rect.width()),
+            qRound(zone.height * rect.height())
+        );
+
+        int scaledSize = qMax(8, zone.fontSize * rect.height() / 1080);
+
+        // Measure text bounds within the zone rect
+        int hAlign = (zone.horizontalAlignment == 0) ? Qt::AlignLeft
+                   : (zone.horizontalAlignment == 2) ? Qt::AlignRight
+                   : Qt::AlignHCenter;
+        int vAlign = (zone.verticalAlignment == 0) ? Qt::AlignTop
+                   : (zone.verticalAlignment == 2) ? Qt::AlignBottom
+                   : Qt::AlignVCenter;
+        int flags = hAlign | vAlign | Qt::TextWordWrap;
+
+        QFont font(zone.fontFamily);
+        font.setPixelSize(scaledSize);
+        QFontMetrics fm(font);
+        QString displayText = zone.richText.isEmpty() ? zone.text : zone.text;
+        QRect textBounds = fm.boundingRect(zoneRect, flags, displayText);
+
+        if (!textBounds.isValid())
+            continue;
+
+        // Text band (horizontal strip across the full width at zone height) — per-zone
+        if (zone.textBandEnabled) {
+            int padding = qMax(2, rect.height() / 20);
+            QRect bandRect(rect.left(), textBounds.top() - padding,
+                           rect.width(), textBounds.height() + padding * 2);
+            painter.fillRect(bandRect, zone.textBandColor);
+        }
+
+        // Text container (box behind zone text) — per-zone
+        if (zone.textContainerEnabled) {
+            int scaledPadding = qMax(2, zone.textContainerPadding * rect.height() / 1080);
+            int scaledRadius = qMax(1, zone.textContainerRadius * rect.height() / 1080);
+            QRect containerRect = textBounds.adjusted(-scaledPadding, -scaledPadding,
+                                                       scaledPadding, scaledPadding);
+            painter.save();
+            painter.setRenderHint(QPainter::Antialiasing, true);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(zone.textContainerColor);
+            painter.drawRoundedRect(containerRect, scaledRadius, scaledRadius);
+            painter.restore();
+        }
     }
 }
 

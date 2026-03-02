@@ -363,6 +363,20 @@ void OutputDisplay::updateSlide(const Slide& slide)
         changed = true;
     }
 
+    // Handle text zones
+    QString newZonesJson = slide.hasTextZones() ? slide.textZonesJson() : QStringLiteral("[]");
+    if (m_textZonesJson != newZonesJson) {
+        m_textZonesJson = newZonesJson;
+        emit textZonesJsonChanged();
+        changed = true;
+    }
+    bool newHasZones = slide.hasTextZones();
+    if (m_hasTextZones != newHasZones) {
+        m_hasTextZones = newHasZones;
+        emit hasTextZonesChanged();
+        changed = true;
+    }
+
     if (m_isCleared) {
         m_isCleared = false;
         emit isClearedChanged();
@@ -421,6 +435,9 @@ void OutputDisplay::clearDisplay()
     m_textBandColor = QColor("#80000000");
     m_textBandBlur = 0;
 
+    m_textZonesJson = "[]";
+    m_hasTextZones = false;
+
     m_isCleared = true;
 
     emit slideTextChanged();
@@ -455,6 +472,8 @@ void OutputDisplay::clearDisplay()
     emit textBandEnabledChanged();
     emit textBandColorChanged();
     emit textBandBlurChanged();
+    emit textZonesJsonChanged();
+    emit hasTextZonesChanged();
 
     emit isClearedChanged();
 
@@ -466,10 +485,14 @@ void OutputDisplay::clearTextOnly()
     m_slideText.clear();
     m_slideRichText.clear();
     m_useRichText = false;
+    m_textZonesJson = "[]";
+    m_hasTextZones = false;
 
     emit slideTextChanged();
     emit slideRichTextChanged();
     emit useRichTextChanged();
+    emit textZonesJsonChanged();
+    emit hasTextZonesChanged();
 
     // Trigger immediate update in QML
     emit cutTransition();

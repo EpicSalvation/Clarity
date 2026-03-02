@@ -20,6 +20,23 @@ QString CustomSlideItem::displayName() const
 {
     // Use the first line of text as the display name, or "Empty Slide" if blank
     QString text = m_slide.text().trimmed();
+    if (text.isEmpty() && m_slide.hasTextZones()) {
+        // Template slide: use first non-empty zone text (prefer "title" zone)
+        for (const auto& zone : m_slide.textZones()) {
+            if (zone.id == "title" && !zone.text.trimmed().isEmpty()) {
+                text = zone.text.trimmed();
+                break;
+            }
+        }
+        if (text.isEmpty()) {
+            for (const auto& zone : m_slide.textZones()) {
+                if (!zone.text.trimmed().isEmpty()) {
+                    text = zone.text.trimmed();
+                    break;
+                }
+            }
+        }
+    }
     if (text.isEmpty()) {
         return tr("Empty Slide");
     }

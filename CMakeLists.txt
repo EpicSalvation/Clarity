@@ -121,6 +121,8 @@ add_executable(Clarity
     src/Control/SettingsDialog.cpp
     src/Control/SlideEditorDialog.h
     src/Control/SlideEditorDialog.cpp
+    src/Control/SlideCanvasWidget.h
+    src/Control/SlideCanvasWidget.cpp
     src/Control/GradientEditorWidget.h
     src/Control/GradientEditorWidget.cpp
     src/Control/ScriptureDialog.h

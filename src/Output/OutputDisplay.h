@@ -67,6 +67,10 @@ class OutputDisplay : public QObject {
     Q_PROPERTY(QColor textBandColor READ textBandColor NOTIFY textBandColorChanged)
     Q_PROPERTY(int textBandBlur READ textBandBlur NOTIFY textBandBlurChanged)
 
+    // Slide template text zones
+    Q_PROPERTY(QString textZonesJson READ textZonesJson NOTIFY textZonesJsonChanged)
+    Q_PROPERTY(bool hasTextZones READ hasTextZones NOTIFY hasTextZonesChanged)
+
     // Transition properties
     Q_PROPERTY(QString transitionType READ transitionType NOTIFY transitionTypeChanged)
     Q_PROPERTY(int transitionDuration READ transitionDuration NOTIFY transitionDurationChanged)
@@ -121,6 +125,10 @@ public:
     QColor textBandColor() const { return m_textBandColor; }
     int textBandBlur() const { return m_textBandBlur; }
 
+    // Text zones getters
+    QString textZonesJson() const { return m_textZonesJson; }
+    bool hasTextZones() const { return m_hasTextZones; }
+
     // Transition getters
     QString transitionType() const { return m_transitionType; }
     int transitionDuration() const { return m_transitionDuration; }
@@ -169,6 +177,9 @@ signals:
     void textBandEnabledChanged();
     void textBandColorChanged();
     void textBandBlurChanged();
+
+    void textZonesJsonChanged();
+    void hasTextZonesChanged();
 
     void transitionTypeChanged();
     void transitionDurationChanged();
@@ -245,6 +256,10 @@ private:
     bool m_textBandEnabled;
     QColor m_textBandColor;
     int m_textBandBlur;
+
+    // Text zones
+    QString m_textZonesJson = "[]";
+    bool m_hasTextZones = false;
 
     // Transition properties
     QString m_transitionType;

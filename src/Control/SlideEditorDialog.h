@@ -15,6 +15,9 @@
 #include <QLineEdit>
 #include <QCheckBox>
 #include <QGroupBox>
+#include <QToolButton>
+
+class QVBoxLayout;
 
 namespace Clarity {
 
@@ -22,15 +25,13 @@ class SettingsManager;
 class MediaLibrary;
 class VideoThumbnailGenerator;
 class GradientEditorWidget;
+class SlideCanvasWidget;
 
 /**
- * @brief Dialog for editing slide properties
+ * @brief WYSIWYG slide editor dialog
  *
- * Provides UI for:
- * - Text content editing
- * - Background type selection (solid color, gradient, image)
- * - Background configuration (colors, gradient angle, image path)
- * - Text styling (color, font, size)
+ * Layout: toolbar across the top, canvas on the left, scrollable property
+ * panels on the right, OK/Cancel at the bottom.
  */
 class SlideEditorDialog : public QDialog {
     Q_OBJECT
@@ -39,11 +40,11 @@ public:
     explicit SlideEditorDialog(SettingsManager* settings, MediaLibrary* mediaLibrary,
                                VideoThumbnailGenerator* thumbnailGen, QWidget* parent = nullptr);
 
-    // Set/get the slide being edited
     void setSlide(const Slide& slide);
     Slide slide() const;
 
 private slots:
+    void onTemplateChanged(int index);
     void onBackgroundTypeChanged(int index);
     void onChooseBackgroundColor();
     void onChooseTextColor();
@@ -55,91 +56,97 @@ private slots:
     void onChooseOverlayColor();
     void onChooseTextContainerColor();
     void onChooseTextBandColor();
+    void onZoneSelected(int index);
 
 private:
     void setupUI();
+    void setupToolbar(QVBoxLayout* mainLayout);
+    void setupCenterAndPanels(QVBoxLayout* mainLayout);
+    QWidget* buildRightPanel();
+    QWidget* buildBackgroundSection();
+    QWidget* buildTextEffectsSection();
+    QWidget* buildTransitionSection();
+    QWidget* buildNotesSection();
     void updateBackgroundControls();
     void updateColorButton(QPushButton* button, const QColor& color);
     void installWheelFilter(QWidget* widget);
     void setImageFromPath(const QString& path);
     void setVideoFromPath(const QString& path);
+    void syncToolbarFromZone(int zoneIndex);
+    void syncTextEffectsFromZone(int zoneIndex);
 
     SettingsManager* m_settings;
     MediaLibrary* m_mediaLibrary;
     VideoThumbnailGenerator* m_thumbnailGen;
 
-    // Text controls
-    QTextEdit* m_textEdit;
-    QPushButton* m_textColorButton;
+    // Toolbar controls
+    QComboBox* m_templateCombo;
     QComboBox* m_fontFamilyCombo;
     QSpinBox* m_fontSizeSpinBox;
+    QPushButton* m_textColorButton;
+    QToolButton* m_alignLeftButton;
+    QToolButton* m_alignCenterButton;
+    QToolButton* m_alignRightButton;
+    QToolButton* m_bulletListButton;
+    QToolButton* m_numberedListButton;
 
-    // Background type controls
+    // WYSIWYG canvas
+    SlideCanvasWidget* m_canvas;
+
+    // Background section controls
+    QCheckBox* m_useOwnBackgroundCheck;
     QComboBox* m_backgroundTypeCombo;
     QStackedWidget* m_backgroundStack;
-
-    // Solid color controls
     QPushButton* m_backgroundColorButton;
-
-    // Gradient controls
     GradientEditorWidget* m_gradientEditor;
-
-    // Image controls
     QLineEdit* m_imagePathEdit;
     QPushButton* m_choosImageButton;
     QPushButton* m_imageLibraryButton;
     QLabel* m_imagePreviewLabel;
-
-    // Video controls
     QLineEdit* m_videoPathEdit;
     QPushButton* m_chooseVideoButton;
     QPushButton* m_videoLibraryButton;
     QCheckBox* m_videoLoopCheck;
+    QSpinBox* m_overlayBlurSpinBox;
 
-    // Dialog buttons
-    QPushButton* m_okButton;
-    QPushButton* m_cancelButton;
-
-    // Transition override controls
-    QComboBox* m_transitionTypeCombo;
-    QComboBox* m_transitionDurationCombo;
-
-    // Auto-advance timer control
-    QSpinBox* m_autoAdvanceSpinBox;
-
-    // Presenter notes
-    QTextEdit* m_notesEdit;
-
-    // Text legibility: Drop shadow controls
+    // Text effects section controls
+    QGroupBox* m_shadowGroup;
     QCheckBox* m_dropShadowEnabledCheck;
     QPushButton* m_dropShadowColorButton;
     QSpinBox* m_dropShadowOffsetXSpinBox;
     QSpinBox* m_dropShadowOffsetYSpinBox;
     QSpinBox* m_dropShadowBlurSpinBox;
-
-    // Text legibility: Overlay controls
+    QGroupBox* m_overlayGroup;
     QCheckBox* m_overlayEnabledCheck;
     QPushButton* m_overlayColorButton;
-    QSpinBox* m_overlayBlurSpinBox;
-
-    // Text legibility: Text container controls
+    QGroupBox* m_containerGroup;
     QCheckBox* m_textContainerEnabledCheck;
     QPushButton* m_textContainerColorButton;
     QSpinBox* m_textContainerPaddingSpinBox;
     QSpinBox* m_textContainerRadiusSpinBox;
     QSpinBox* m_textContainerBlurSpinBox;
-
-    // Text legibility: Text band controls
+    QGroupBox* m_bandGroup;
     QCheckBox* m_textBandEnabledCheck;
     QPushButton* m_textBandColorButton;
     QSpinBox* m_textBandBlurSpinBox;
 
-    // Cascading background: "Use own background" toggle
-    QCheckBox* m_useOwnBackgroundCheck;
-    QGroupBox* m_backgroundGroup;
+    // Transition section controls
+    QComboBox* m_transitionTypeCombo;
+    QComboBox* m_transitionDurationCombo;
+    QSpinBox* m_autoAdvanceSpinBox;
+
+    // Notes section controls
+    QTextEdit* m_notesEdit;
+
+    // Dialog buttons
+    QPushButton* m_okButton;
+    QPushButton* m_cancelButton;
 
     // Current slide data
     Slide m_slide;
+
+    // Guard against feedback loops when syncing toolbar from zone
+    bool m_updatingFromZone = false;
 };
 
 } // namespace Clarity
