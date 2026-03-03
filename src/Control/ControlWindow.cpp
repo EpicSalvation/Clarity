@@ -50,6 +50,7 @@ namespace Clarity {
 
 ControlWindow::ControlWindow(QWidget* parent)
     : QMainWindow(parent)
+    , m_insertToolBar(nullptr)
     , m_stackedWidget(nullptr)
     , m_startupWidget(nullptr)
     , m_editingWidget(nullptr)
@@ -399,6 +400,65 @@ void ControlWindow::setupUI()
 
     setMenuBar(menuBar);
 
+    // Quick-access insert toolbar — one large icon-only button per insert type.
+    // Buttons are disabled until a presentation is open (see updateMenuStates).
+    m_insertToolBar = new QToolBar(tr("Insert"), this);
+    m_insertToolBar->setObjectName("insertToolBar");
+    m_insertToolBar->setIconSize(QSize(40, 40));
+    m_insertToolBar->setMovable(false);
+    m_insertToolBar->setFloatable(false);
+    m_insertToolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    addToolBar(Qt::TopToolBarArea, m_insertToolBar);
+
+    // Slide group
+    QAction* tbSlideGroup = m_insertToolBar->addAction(
+        AppStyle::themedIcon(":/icons/toolbar-slide-group.svg"),
+        tr("Insert Slide Group (Ctrl+G)"));
+    connect(tbSlideGroup, &QAction::triggered, this, &ControlWindow::onInsertSlideGroup);
+
+    m_insertToolBar->addSeparator();
+
+    // Slide templates — each opens the editor pre-configured with that layout
+    QAction* tbBlank = m_insertToolBar->addAction(
+        AppStyle::themedIcon(":/icons/toolbar-slide-blank.svg"),
+        tr("Add Blank Slide"));
+    connect(tbBlank, &QAction::triggered, this,
+            [this]() { addSlideWithTemplate(SlideTemplate::Blank); });
+
+    QAction* tbTitle = m_insertToolBar->addAction(
+        AppStyle::themedIcon(":/icons/toolbar-slide-title.svg"),
+        tr("Add Title Slide"));
+    connect(tbTitle, &QAction::triggered, this,
+            [this]() { addSlideWithTemplate(SlideTemplate::Title); });
+
+    QAction* tbTitleBody = m_insertToolBar->addAction(
+        AppStyle::themedIcon(":/icons/toolbar-slide-title-body.svg"),
+        tr("Add Title + Body Slide"));
+    connect(tbTitleBody, &QAction::triggered, this,
+            [this]() { addSlideWithTemplate(SlideTemplate::TitleBody); });
+
+    QAction* tbScriptureSlide = m_insertToolBar->addAction(
+        AppStyle::themedIcon(":/icons/toolbar-slide-scripture.svg"),
+        tr("Add Scripture Slide"));
+    connect(tbScriptureSlide, &QAction::triggered, this,
+            [this]() { addSlideWithTemplate(SlideTemplate::Scripture); });
+
+    m_insertToolBar->addSeparator();
+
+    // Content from library
+    QAction* tbSong = m_insertToolBar->addAction(
+        AppStyle::themedIcon(":/icons/toolbar-song.svg"),
+        tr("Insert Song (Ctrl+L)"));
+    connect(tbSong, &QAction::triggered, this, &ControlWindow::onInsertSong);
+
+    QAction* tbScripture = m_insertToolBar->addAction(
+        AppStyle::themedIcon(":/icons/toolbar-scripture.svg"),
+        tr("Insert Scripture (Ctrl+B)"));
+    connect(tbScripture, &QAction::triggered, this, &ControlWindow::onInsertScripture);
+
+    // All toolbar buttons start disabled; enabled when a presentation is open
+    m_insertToolBar->setEnabled(false);
+
     // Stacked widget: page 0 = startup, page 1 = editing
     m_stackedWidget = new QStackedWidget(this);
     setCentralWidget(m_stackedWidget);
@@ -726,6 +786,7 @@ void ControlWindow::updateMenuStates()
     m_slideMenu->setEnabled(hasPresentation);
     m_viewMenu->setEnabled(hasPresentation);
     m_formatMenu->setEnabled(hasPresentation);
+    m_insertToolBar->setEnabled(hasPresentation);
 }
 
 void ControlWindow::updateUI()
@@ -1196,6 +1257,75 @@ void ControlWindow::onAddSlide()
         m_presentationModel->setCurrentSlideIndex(newIndex);
         broadcastCurrentSlide();
     }
+}
+
+void ControlWindow::addSlideWithTemplate(SlideTemplate tmpl)
+{
+    if (!m_hasPresentation) return;
+
+    Presentation* presentation = m_presentationModel->presentation();
+    SlidePosition currentPos = presentation->positionForFlatIndex(presentation->currentSlideIndex());
+
+    // Determine context: is the currently active slide inside a SlideGroupItem?
+    SlideGroupItem* currentGroup = nullptr;
+    if (currentPos.isValid()) {
+        currentGroup = qobject_cast<SlideGroupItem*>(
+            presentation->itemAt(currentPos.itemIndex));
+    }
+
+    // Build a new slide pre-configured with the requested template layout.
+    // When inserting into a group, seed the background/text from the group's
+    // custom style (if any) so the new slide inherits the group's look.
+    Slide newSlide;
+    newSlide.setBackgroundColor(QColor("#1e3a8a"));
+    newSlide.setTextColor(QColor("#ffffff"));
+    if (currentGroup && currentGroup->hasCustomStyle())
+        currentGroup->itemStyle().applyTo(newSlide);
+    newSlide.setSlideTemplate(tmpl);
+    if (tmpl != SlideTemplate::Blank)
+        newSlide.setTextZones(Slide::createTemplateZones(tmpl));
+
+    // Let the user fill in content before committing
+    SlideEditorDialog dialog(m_settingsManager, m_mediaLibrary, m_thumbnailGenerator, this);
+    dialog.setSlide(newSlide);
+    if (dialog.exec() != QDialog::Accepted) return;
+
+    saveUndoSnapshot(tr("Add Slide"));
+    Slide editedSlide = dialog.slide();
+
+    if (currentGroup) {
+        // ── Insert inside the slide group, after the current slide ────────────
+        int insertAt = currentPos.slideInItem + 1;
+
+        currentGroup->blockSignals(true);
+        currentGroup->insertSlide(insertAt, editedSlide);
+        currentGroup->invalidateSlideCache();
+        currentGroup->blockSignals(false);
+        m_presentationModel->notifyGroupItemChanged();
+
+        int newFlatIndex = presentation->flatIndexForPosition(currentPos.itemIndex, insertAt);
+        if (newFlatIndex >= 0) {
+            m_slideGridView->setCurrentIndex(m_presentationModel->index(newFlatIndex, 0));
+            m_presentationModel->setCurrentSlideIndex(newFlatIndex);
+        }
+    } else {
+        // ── Insert as a new CustomSlideItem after the current playlist item ───
+        int insertItemIndex = currentPos.isValid()
+                                  ? currentPos.itemIndex + 1
+                                  : presentation->itemCount();
+
+        m_presentationModel->insertItem(insertItemIndex, new CustomSlideItem(editedSlide));
+
+        Presentation* updatedPres = m_presentationModel->presentation();
+        int firstSlideIndex = updatedPres->flatIndexForPosition(insertItemIndex, 0);
+        if (firstSlideIndex >= 0) {
+            m_slideGridView->setCurrentIndex(m_presentationModel->index(firstSlideIndex, 0));
+            m_presentationModel->setCurrentSlideIndex(firstSlideIndex);
+        }
+    }
+
+    broadcastCurrentSlide();
+    updateUI();
 }
 
 void ControlWindow::onEditSlide()

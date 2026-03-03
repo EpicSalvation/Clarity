@@ -5,6 +5,7 @@
 
 #include "Core/Presentation.h"
 #include "Core/PresentationModel.h"
+#include "Core/Slide.h"
 #include "Core/ItemListModel.h"
 #include "Core/SlideFilterProxyModel.h"
 #include "Core/IpcServer.h"
@@ -34,6 +35,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QShortcut>
+#include <QToolBar>
 
 namespace Clarity {
 
@@ -162,6 +164,7 @@ private slots:
 private:
     void setupUI();
     void setupShortcuts();
+    void addSlideWithTemplate(SlideTemplate tmpl); ///< Open editor pre-loaded with template, then insert
     void initializeBibleDatabase();
     void updateUI();
     void broadcastCurrentSlide();
@@ -182,6 +185,7 @@ private:
     void updateMenuStates();
 
     // UI components
+    QToolBar* m_insertToolBar;               ///< Quick-access toolbar for common inserts
     QStackedWidget* m_stackedWidget;         ///< Switches between startup and editing pages
     StartupWidget* m_startupWidget;          ///< Welcome/startup screen (page 0)
     QWidget* m_editingWidget;                ///< Editing UI container (page 1)

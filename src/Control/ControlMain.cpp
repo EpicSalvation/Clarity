@@ -7,8 +7,10 @@
 #include "Core/SettingsManager.h"
 #include "Core/Version.h"
 #include <QApplication>
+#include <QGuiApplication>
 #include <QIcon>
 #include <QStyleFactory>
+#include <QStyleHints>
 #include <QTranslator>
 #include <QLocale>
 #include <QLibraryInfo>
@@ -90,6 +92,10 @@ int ControlMain::run(int argc, char* argv[])
         qDebug() << "Searched: :/i18n," << QApplication::applicationDirPath() + "/translations";
     }
 
+    // Prevent spinboxes and combo boxes from consuming scroll-wheel events when
+    // they don't have keyboard focus (which would stop the parent scroll area).
+    AppStyle::installScrollFix(&app);
+
     // Apply the saved visual theme (dark / light / system) before any windows open.
     // We use a temporary SettingsManager here; the real one is created inside
     // ControlWindow but shares the same QSettings storage.
@@ -98,6 +104,14 @@ int ControlMain::run(int argc, char* argv[])
         AppStyle::ThemeMode mode = AppStyle::fromString(themeSettings.themeMode());
         AppStyle::apply(&app, mode);
     }
+
+    // When "System Default" is active, re-apply the theme if the OS color scheme
+    // changes while the app is running (e.g. user toggles Windows dark mode).
+    QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
+                     &app, [&app]() {
+                         if (AppStyle::currentMode() == AppStyle::ThemeMode::System)
+                             AppStyle::apply(&app, AppStyle::ThemeMode::System);
+                     });
 
     ControlWindow window;
     window.show();

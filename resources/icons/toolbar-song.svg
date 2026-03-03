@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- Note head 1 (filled ellipse, slightly rotated) -->
+  <ellipse cx="6" cy="18" rx="3" ry="2.25" transform="rotate(-15, 6, 18)" fill="currentColor"/>
+  <!-- Note head 2 -->
+  <ellipse cx="16" cy="16" rx="3" ry="2.25" transform="rotate(-15, 16, 16)" fill="currentColor"/>
+  <!-- Stem 1 -->
+  <line x1="9" y1="17.5" x2="9" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <!-- Stem 2 -->
+  <line x1="19" y1="15.5" x2="19" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <!-- Beam (double, for eighth notes) -->
+  <line x1="9" y1="7" x2="19" y2="7" stroke="currentColor" stroke-width="2.5"/>
+  <line x1="9" y1="9.5" x2="19" y2="9.5" stroke="currentColor" stroke-width="2.5"/>
+</svg>

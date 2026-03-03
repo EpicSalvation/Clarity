@@ -20,5 +20,14 @@
         <file alias="icons/stop.svg">icons/stop.svg</file>
         <file alias="icons/chevron-up.svg">icons/chevron-up.svg</file>
         <file alias="icons/chevron-down.svg">icons/chevron-down.svg</file>
+
+        <!-- Toolbar insert icons -->
+        <file alias="icons/toolbar-slide-blank.svg">icons/toolbar-slide-blank.svg</file>
+        <file alias="icons/toolbar-slide-title.svg">icons/toolbar-slide-title.svg</file>
+        <file alias="icons/toolbar-slide-title-body.svg">icons/toolbar-slide-title-body.svg</file>
+        <file alias="icons/toolbar-slide-scripture.svg">icons/toolbar-slide-scripture.svg</file>
+        <file alias="icons/toolbar-slide-group.svg">icons/toolbar-slide-group.svg</file>
+        <file alias="icons/toolbar-song.svg">icons/toolbar-song.svg</file>
+        <file alias="icons/toolbar-scripture.svg">icons/toolbar-scripture.svg</file>
     </qresource>
 </RCC>

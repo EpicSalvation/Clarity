@@ -4,6 +4,82 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-03-02 - Scroll Wheel Fix, HiDPI Icons, Context-Aware Toolbar Insert
+
+### Summary
+Fixed three issues with the quick-insert toolbar introduced earlier today: (1) toolbar icons were blurry on high-DPI displays; (2) inserting a slide template while inside a slide group was always adding to the playlist instead of the group; (3) scrolling in any scroll area (e.g. Settings) would stop when the cursor passed over a spinbox or combo box, and worse, the spinbox value would change.
+
+### Work Completed
+
+**HiDPI Toolbar Icon Sharpening (AppStyle.cpp)**
+- `themedIcon()` now renders SVG icons at five logical sizes (`{16, 24, 32, 40, 48}`) each at 1× and 2× DPR
+- Without the 40 px variant, Qt was upscaling from 32 px and producing blurry icons in the 40 px toolbar
+- Without 2× variants, icons were blurry on HiDPI screens in general
+
+**Context-Aware Template Insert (ControlWindow.cpp)**
+- `addSlideWithTemplate()` now checks whether the current selection is a slide inside a `SlideGroupItem` (grid slide selected) or a playlist item
+- If inside a group: inserts the new slide at `slideInItem + 1` within the group via `insertSlide()`, applies group style, and selects the new slide in the grid
+- If at playlist level: inserts a new `CustomSlideItem` after the current item at `itemIndex + 1` (unchanged behavior)
+
+**Scroll Wheel Fix — WheelEventFilter + SettingsDialog (WheelEventFilter.cpp, SettingsDialog.cpp, AppStyle.cpp)**
+- Root cause: `SettingsDialog` never installed `WheelEventFilter` on its spinboxes/combo boxes, so they stole wheel events without forwarding them. The global `WheelScrollFilter` (app-level) failed to compensate because spinboxes acquire keyboard focus from tab order, causing `hasFocus()` to return true and the filter to pass through.
+- **`WheelEventFilter`** updated: now forwards blocked wheel events to the nearest `QAbstractScrollArea` ancestor's scrollbar (via `sendEvent(bar, event)`) instead of silently swallowing them. The scrollbar has `Qt::StrongFocus` (not `Qt::WheelFocus`), so the synthetic event does not cause focus changes. Blocking now occurs whenever the setting is false, OR the widget is not focused — only `(setting=true AND focused)` allows value change.
+- **`SettingsDialog::setupUI()`** now installs `WheelEventFilter` on all child `QAbstractSpinBox` and `QComboBox` instances via `findChildren`, covering all current and future controls.
+- **`AppStyle::installScrollFix()`** reduced to a no-op — the unreliable global filter is removed in favor of the per-widget approach.
+
+### Technical Decisions
+- Targeting the scrollbar directly (not the scroll area) in `WheelEventFilter` avoids the `Qt::WheelFocus` side-effect that caused the scroll area to re-distribute focus to its first child on each wheel event
+- `findChildren<QAbstractSpinBox*>()` + `findChildren<QComboBox*>()` in `setupUI()` is future-proof: any new spinboxes/combos added to SettingsDialog automatically get the filter
+
+### Issues / Blockers
+- Build initially failed with `invalid 'static_cast' from QEvent* to QWheelEvent*` — fixed by adding `#include <QWheelEvent>` (required in Qt 6 since the type is not pulled in transitively)
+
+### Next Steps
+- Consider refreshing toolbar icons on theme change (currently baked at startup)
+- Consider installing `WheelEventFilter` via `findChildren` in other dialogs that use manual per-widget installation, to reduce boilerplate
+
+### Commits
+- Branch: `main`
+
+---
+
+## 2026-03-02 - Quick-Insert Toolbar + System Theme Fix
+
+### Summary
+Added a large icon-only toolbar under the menu bar with buttons for every common insert operation (slide group, four slide templates, song, scripture). Also fixed "System Default" theme mode, which was applying Fusion's generic palette mixed with the light stylesheet instead of properly detecting the OS dark/light preference.
+
+### Work Completed
+
+**System Default Theme Fix (AppStyle.h/.cpp, ControlMain.cpp)**
+- Added `effectiveMode()` static helper that resolves `ThemeMode::System` → `ThemeMode::Dark` or `ThemeMode::Light` by querying `QGuiApplication::styleHints()->colorScheme()`
+- `apply()` now delegates to `darkPalette()`/`lightPalette()` in System mode (was using `standardPalette()`, a Fusion generic that mismatched the QSS)
+- `loadStylesheet()` now picks `dark.qss` or `light.qss` based on OS scheme in System mode (was always loading `light.qss`)
+- `themedIcon()` now calls `effectiveMode()` so icons use the correct color in System mode
+- Added `QStyleHints::colorSchemeChanged` signal connection in `ControlMain.cpp` to re-apply the theme automatically when the user toggles Windows dark mode while the app is running
+
+**Quick-Insert Toolbar (ControlWindow.h/.cpp, Resources.qrc)**
+- Created 7 new SVG icons in `resources/icons/` using `currentColor` for theme-adaptive coloring
+- `toolbar-slide-group.svg` — three stacked slide rectangles
+- `toolbar-slide-blank.svg` — empty rectangle
+- `toolbar-slide-title.svg` — rectangle with bold title + smaller subtitle lines
+- `toolbar-slide-title-body.svg` — rectangle with bold title line + two body lines
+- `toolbar-slide-scripture.svg` — rectangle with short centered reference + two verse lines
+- `toolbar-song.svg` — beamed double eighth notes
+- `toolbar-scripture.svg` — open book / Bible
+- Added `QToolBar* m_insertToolBar` (40×40 icon size, icon-only, fixed position) to `ControlWindow`
+- Toolbar order: [Slide Group | ─ | Blank | Title | Title+Body | Scripture Slide | ─ | Song | Scripture]
+- Added `addSlideWithTemplate(SlideTemplate)` private method: creates a `Slide` with template zones pre-populated, opens `SlideEditorDialog`, then inserts as `CustomSlideItem` after the current position
+- Toolbar disabled as a unit via `updateMenuStates()` when no presentation is open
+
+### Technical Decisions
+- Used `QToolBar::setEnabled()` to disable all buttons at once instead of tracking individual actions — simpler and consistent with how menus are disabled
+- `addSlideWithTemplate()` inserts after the current item (matching song/scripture/group insert behavior) rather than appending to the end (old `onAddSlide()` behavior)
+- `SlideTemplate::Blank` skips zone creation since blank slides use the legacy single-text path
+- System theme auto-responds to OS changes via signal connection; Dark/Light modes ignore OS preference as before
+
+### Next Steps
+- Consider refreshing toolbar icons on theme change (currently icons are loaded once at startup)
+
 ## 2026-03-01 - Bulleted and Numbered List Support (+ Bug Fixes)
 
 ### Summary

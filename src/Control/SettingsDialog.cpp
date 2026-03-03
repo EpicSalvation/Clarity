@@ -8,6 +8,8 @@
 #include "Core/BibleDatabase.h"
 #include "Core/SongLibrary.h"
 #include "Core/ThemeManager.h"
+#include "Core/WheelEventFilter.h"
+#include <QAbstractSpinBox>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -163,6 +165,15 @@ void SettingsDialog::setupUI()
     connect(buttonBox, &QDialogButtonBox::rejected, this, &SettingsDialog::onCancelClicked);
 
     outerLayout->addWidget(buttonBox);
+
+    // Install wheel event filter on all spinboxes and combo boxes so that
+    // scrolling in the settings pages forwards to the page's scroll area
+    // instead of changing input values.
+    auto* wheelFilter = new WheelEventFilter(m_settingsManager, this);
+    for (auto* w : findChildren<QAbstractSpinBox*>())
+        w->installEventFilter(wheelFilter);
+    for (auto* w : findChildren<QComboBox*>())
+        w->installEventFilter(wheelFilter);
 }
 
 void SettingsDialog::createGeneralPage()

@@ -5,9 +5,12 @@
 #include <QFile>
 #include <QFont>
 #include <QFontDatabase>
+#include <QGuiApplication>
 #include <QPainter>
 #include <QStyle>
+#include <QStyleHints>
 #include <QSvgRenderer>
+#include <QWidget>
 #include <QDebug>
 
 namespace Clarity {
@@ -17,18 +20,15 @@ AppStyle::ThemeMode AppStyle::s_currentMode = AppStyle::ThemeMode::System;
 void AppStyle::apply(QApplication* app, ThemeMode mode)
 {
     s_currentMode = mode;
-    // Apply palette
-    switch (mode) {
+    // Apply palette — System resolves to Dark or Light based on OS preference
+    ThemeMode resolved = (mode == ThemeMode::System) ? effectiveMode() : mode;
+    switch (resolved) {
     case ThemeMode::Dark:
         app->setPalette(darkPalette());
         break;
     case ThemeMode::Light:
-        app->setPalette(lightPalette());
-        break;
-    case ThemeMode::System:
     default:
-        // Reset to Fusion defaults
-        app->setPalette(app->style()->standardPalette());
+        app->setPalette(lightPalette());
         break;
     }
 
@@ -54,6 +54,16 @@ QString AppStyle::toString(ThemeMode mode)
     case ThemeMode::System: return "system";
     }
     return "system";
+}
+
+AppStyle::ThemeMode AppStyle::effectiveMode()
+{
+    if (s_currentMode != ThemeMode::System)
+        return s_currentMode;
+
+    // Ask the OS which color scheme it prefers
+    Qt::ColorScheme scheme = QGuiApplication::styleHints()->colorScheme();
+    return (scheme == Qt::ColorScheme::Dark) ? ThemeMode::Dark : ThemeMode::Light;
 }
 
 // ---------------------------------------------------------------------------
@@ -162,11 +172,14 @@ QPalette AppStyle::lightPalette()
 
 QString AppStyle::loadStylesheet(ThemeMode mode)
 {
+    // Resolve System to the actual OS preference before picking a stylesheet
+    ThemeMode resolved = (mode == ThemeMode::System) ? effectiveMode() : mode;
+
     QString path;
-    switch (mode) {
+    switch (resolved) {
     case ThemeMode::Dark:   path = ":/styles/dark.qss";  break;
-    case ThemeMode::Light:  path = ":/styles/light.qss"; break;
-    case ThemeMode::System: path = ":/styles/light.qss"; break;
+    case ThemeMode::Light:
+    default:                path = ":/styles/light.qss"; break;
     }
 
     QFile f(path);
@@ -198,8 +211,8 @@ void AppStyle::applyFont(QApplication* app)
 
 QIcon AppStyle::themedIcon(const QString& svgPath)
 {
-    // Determine icon color based on current theme
-    QColor color = (s_currentMode == ThemeMode::Dark)
+    // Determine icon color based on effective theme (System resolves to Dark/Light)
+    QColor color = (effectiveMode() == ThemeMode::Dark)
                        ? QColor("#d4d4d4")   // light gray on dark backgrounds
                        : QColor("#333333");  // dark gray on light backgrounds
 
@@ -214,16 +227,28 @@ QIcon AppStyle::themedIcon(const QString& svgPath)
     if (!renderer.isValid())
         return QIcon(svgPath);
 
-    // Render at multiple sizes for sharp display at different DPIs
+    // Render each logical size at 1× and 2× so icons are sharp at every DPI.
+    // Without 2× variants Qt upscales the nearest 1× pixmap, which blurs icons
+    // on HiDPI screens. Without 40/48 the toolbar's 40 px icons upscale from 32 px.
     QIcon icon;
-    for (int s : {16, 24, 32}) {
-        QPixmap pm(s, s);
-        pm.fill(Qt::transparent);
-        QPainter painter(&pm);
-        renderer.render(&painter);
-        icon.addPixmap(pm);
+    for (int s : {16, 24, 32, 40, 48}) {
+        for (int dpr : {1, 2}) {
+            QPixmap pm(s * dpr, s * dpr);
+            pm.fill(Qt::transparent);
+            QPainter painter(&pm);
+            renderer.render(&painter);
+            painter.end();
+            pm.setDevicePixelRatio(dpr);
+            icon.addPixmap(pm);
+        }
     }
     return icon;
+}
+
+void AppStyle::installScrollFix(QApplication* /*app*/)
+{
+    // Wheel-event forwarding is handled by WheelEventFilter installed
+    // per-widget inside each dialog. No global filter is needed.
 }
 
 } // namespace Clarity

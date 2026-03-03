@@ -55,6 +55,22 @@ public:
     /** @brief Returns the most recently applied theme mode. */
     static ThemeMode currentMode() { return s_currentMode; }
 
+    /**
+     * @brief Returns the effective theme mode, resolving System to Dark or Light
+     * based on the OS color scheme preference. Always returns Dark or Light.
+     */
+    static ThemeMode effectiveMode();
+
+    /**
+     * @brief Install a global event filter that prevents QAbstractSpinBox and
+     * QComboBox from consuming scroll-wheel events when they don't have keyboard
+     * focus. Without this, scrolling in a settings panel stops the moment the
+     * cursor passes over a spinner or combo box.
+     *
+     * Call once, right after QApplication is created (before any windows open).
+     */
+    static void installScrollFix(QApplication* app);
+
 private:
     static QPalette darkPalette();
     static QPalette lightPalette();
