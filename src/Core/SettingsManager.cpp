@@ -712,4 +712,26 @@ void SettingsManager::setThemeMode(const QString& mode)
     }
 }
 
+bool SettingsManager::hasCompletedMainTour() const
+{
+    return m_settings->value("Tour/MainCompleted", false).toBool();
+}
+
+void SettingsManager::setHasCompletedMainTour(bool completed)
+{
+    m_settings->setValue("Tour/MainCompleted", completed);
+    m_settings->sync();
+}
+
+bool SettingsManager::hasCompletedSettingsTour() const
+{
+    return m_settings->value("Tour/SettingsCompleted", false).toBool();
+}
+
+void SettingsManager::setHasCompletedSettingsTour(bool completed)
+{
+    m_settings->setValue("Tour/SettingsCompleted", completed);
+    m_settings->sync();
+}
+
 } // namespace Clarity

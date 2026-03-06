@@ -12,6 +12,7 @@ namespace Clarity {
 
 LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     : QWidget(parent)
+    , m_outputGroup(nullptr)
 {
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setContentsMargins(5, 5, 5, 5);
@@ -33,7 +34,8 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
         " padding: 2px; }";
 
     // --- Output group: preview + blackout/whiteout buttons ---
-    QFrame* outputGroup = new QFrame(this);
+    m_outputGroup = new QFrame(this);
+    QFrame* outputGroup = m_outputGroup;
     outputGroup->setFrameShape(QFrame::StyledPanel);
     outputGroup->setStyleSheet(groupStyle);
     QVBoxLayout* outputGroupLayout = new QVBoxLayout(outputGroup);

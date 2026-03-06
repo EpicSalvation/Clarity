@@ -10,6 +10,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QProgressBar>
+#include <QFrame>
 
 namespace Clarity {
 
@@ -75,6 +76,18 @@ public:
      * @brief Set the confidence preview active state (green/red border)
      */
     void setConfidenceActive(bool active);
+
+    /**
+     * @brief Returns the output group frame (preview + control buttons).
+     * Used by the welcome tour to spotlight this area.
+     */
+    QFrame* outputGroupFrame() const { return m_outputGroup; }
+
+    /**
+     * @brief Returns the output preview widget.
+     * Used by the welcome tour to spotlight the live preview area.
+     */
+    LivePreviewWidget* outputPreviewWidget() const { return m_outputPreview; }
 
     /**
      * @brief Get the preferred size for this panel
@@ -180,6 +193,7 @@ signals:
     void timerResetClicked();
 
 private:
+    QFrame* m_outputGroup;                         ///< Output group frame (preview + control buttons)
     LivePreviewWidget* m_outputPreview;            ///< Output display preview
     ConfidencePreviewWidget* m_confidencePreview;  ///< Confidence monitor preview
     QPushButton* m_blackoutButton;                 ///< Blackout toggle button

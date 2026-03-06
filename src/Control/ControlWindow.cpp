@@ -3,6 +3,7 @@
 
 #include "ControlWindow.h"
 #include "AppStyle.h"
+#include "TourOverlay.h"
 #include "SettingsDialog.h"
 #include "SlideEditorDialog.h"
 #include "ScriptureInsertDialog.h"
@@ -51,6 +52,7 @@ namespace Clarity {
 ControlWindow::ControlWindow(QWidget* parent)
     : QMainWindow(parent)
     , m_insertToolBar(nullptr)
+    , m_settingsAction(nullptr)
     , m_stackedWidget(nullptr)
     , m_startupWidget(nullptr)
     , m_editingWidget(nullptr)
@@ -387,6 +389,8 @@ void ControlWindow::setupUI()
     QMenu* helpMenu = menuBar->addMenu(tr("&Help"));
     helpMenu->addAction(tr("&Keyboard Shortcuts..."), QKeySequence("F1"), this, &ControlWindow::showKeyboardShortcuts);
     helpMenu->addSeparator();
+    helpMenu->addAction(tr("&Welcome Tour..."), this, &ControlWindow::startMainTour);
+    helpMenu->addSeparator();
     helpMenu->addAction(tr("&About Clarity..."), this, &ControlWindow::showAbout);
 
     // Debug menu — testing tools for development
@@ -415,6 +419,7 @@ void ControlWindow::setupUI()
         AppStyle::themedIcon(":/icons/toolbar-slide-group.svg"),
         tr("Insert Slide Group (Ctrl+G)"));
     connect(tbSlideGroup, &QAction::triggered, this, &ControlWindow::onInsertSlideGroup);
+    m_insertActions.append(tbSlideGroup);
 
     m_insertToolBar->addSeparator();
 
@@ -424,24 +429,28 @@ void ControlWindow::setupUI()
         tr("Add Blank Slide"));
     connect(tbBlank, &QAction::triggered, this,
             [this]() { addSlideWithTemplate(SlideTemplate::Blank); });
+    m_insertActions.append(tbBlank);
 
     QAction* tbTitle = m_insertToolBar->addAction(
         AppStyle::themedIcon(":/icons/toolbar-slide-title.svg"),
         tr("Add Title Slide"));
     connect(tbTitle, &QAction::triggered, this,
             [this]() { addSlideWithTemplate(SlideTemplate::Title); });
+    m_insertActions.append(tbTitle);
 
     QAction* tbTitleBody = m_insertToolBar->addAction(
         AppStyle::themedIcon(":/icons/toolbar-slide-title-body.svg"),
         tr("Add Title + Body Slide"));
     connect(tbTitleBody, &QAction::triggered, this,
             [this]() { addSlideWithTemplate(SlideTemplate::TitleBody); });
+    m_insertActions.append(tbTitleBody);
 
     QAction* tbScriptureSlide = m_insertToolBar->addAction(
         AppStyle::themedIcon(":/icons/toolbar-slide-scripture.svg"),
         tr("Add Scripture Slide"));
     connect(tbScriptureSlide, &QAction::triggered, this,
             [this]() { addSlideWithTemplate(SlideTemplate::Scripture); });
+    m_insertActions.append(tbScriptureSlide);
 
     m_insertToolBar->addSeparator();
 
@@ -450,14 +459,29 @@ void ControlWindow::setupUI()
         AppStyle::themedIcon(":/icons/toolbar-song.svg"),
         tr("Insert Song (Ctrl+L)"));
     connect(tbSong, &QAction::triggered, this, &ControlWindow::onInsertSong);
+    m_insertActions.append(tbSong);
 
     QAction* tbScripture = m_insertToolBar->addAction(
         AppStyle::themedIcon(":/icons/toolbar-scripture.svg"),
         tr("Insert Scripture (Ctrl+B)"));
     connect(tbScripture, &QAction::triggered, this, &ControlWindow::onInsertScripture);
+    m_insertActions.append(tbScripture);
 
-    // All toolbar buttons start disabled; enabled when a presentation is open
-    m_insertToolBar->setEnabled(false);
+    // Spacer to push Settings to the right
+    QWidget* toolbarSpacer = new QWidget(this);
+    toolbarSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_insertToolBar->addWidget(toolbarSpacer);
+
+    // Settings button — always enabled regardless of presentation state
+    m_settingsAction = m_insertToolBar->addAction(
+        AppStyle::themedIcon(":/icons/toolbar-settings.svg"),
+        tr("Settings"));
+    m_settingsAction->setToolTip(tr("Open Settings"));
+    connect(m_settingsAction, &QAction::triggered, this, &ControlWindow::onSettings);
+
+    // Disable insert actions until a presentation is open; Settings stays enabled
+    for (QAction* action : qAsConst(m_insertActions))
+        action->setEnabled(false);
 
     // Stacked widget: page 0 = startup, page 1 = editing
     m_stackedWidget = new QStackedWidget(this);
@@ -714,6 +738,14 @@ void ControlWindow::showEditingUI()
     m_stackedWidget->setCurrentIndex(1);
     updateWindowTitle();
     updateMenuStates();
+
+    // Launch the welcome tour the first time the editing UI is shown.
+    // Mark it immediately to prevent duplicate tours if the user opens
+    // multiple files before the tour completes.
+    if (!m_settingsManager->hasCompletedMainTour()) {
+        m_settingsManager->setHasCompletedMainTour(true);
+        QTimer::singleShot(400, this, &ControlWindow::startMainTour);
+    }
 }
 
 void ControlWindow::openFile(const QString& filePath)
@@ -786,7 +818,9 @@ void ControlWindow::updateMenuStates()
     m_slideMenu->setEnabled(hasPresentation);
     m_viewMenu->setEnabled(hasPresentation);
     m_formatMenu->setEnabled(hasPresentation);
-    m_insertToolBar->setEnabled(hasPresentation);
+    // Enable/disable individual insert actions; m_settingsAction is always enabled
+    for (QAction* action : qAsConst(m_insertActions))
+        action->setEnabled(hasPresentation);
 }
 
 void ControlWindow::updateUI()
@@ -3508,6 +3542,57 @@ void ControlWindow::showKeyboardShortcuts()
     msgBox.setText(shortcuts);
     msgBox.setIcon(QMessageBox::Information);
     msgBox.exec();
+}
+
+void ControlWindow::startMainTour()
+{
+    // Build the tour steps, spotlighting each major area of the editing UI
+    QList<TourOverlay::Step> steps;
+
+    steps.append({
+        m_insertToolBar,
+        tr("Insert Toolbar"),
+        tr("Use these buttons to quickly add songs, scripture, slide groups, and individual slide templates to your presentation.")
+    });
+
+    steps.append({
+        m_slideListView,
+        tr("Playlist"),
+        tr("Items you add — songs, scripture passages, and slide groups — appear in this list. Click an item to view its slides in the grid.")
+    });
+
+    steps.append({
+        m_slideGridView,
+        tr("Slide Grid"),
+        tr("Individual slides for the selected item appear here as thumbnails. Click any slide to send it live to your output display instantly.")
+    });
+
+    steps.append({
+        m_livePreviewPanel->outputPreviewWidget(),
+        tr("Live Preview"),
+        tr("This preview shows exactly what is currently displayed on your output screen. Double-click it to toggle the output display on or off.")
+    });
+
+    steps.append({
+        m_livePreviewPanel->outputGroupFrame(),
+        tr("Screen Controls"),
+        tr("Blackout and Whiteout instantly blank the screen — handy between items. Clear Text and Clear BG let you independently hide just the text or just the background.")
+    });
+
+    steps.append({
+        m_insertToolBar->widgetForAction(m_settingsAction),
+        tr("Settings"),
+        tr("Click the gear icon to open Settings, where you can configure your output display, Bible translations, remote control, and more. Open Settings now to continue the tour there!")
+    });
+
+    auto* tour = new TourOverlay(this, steps);
+    connect(tour, &TourOverlay::completed, this, [this]() {
+        m_settingsManager->setHasCompletedMainTour(true);
+    });
+    connect(tour, &TourOverlay::skipped, this, [this]() {
+        m_settingsManager->setHasCompletedMainTour(true);
+    });
+    tour->start();
 }
 
 void ControlWindow::showAbout()

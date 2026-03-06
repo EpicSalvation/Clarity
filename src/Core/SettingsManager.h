@@ -217,6 +217,13 @@ public:
     // Reset all settings to defaults
     void resetToDefaults();
 
+    // First-run tour tracking
+    bool hasCompletedMainTour() const;
+    void setHasCompletedMainTour(bool completed);
+
+    bool hasCompletedSettingsTour() const;
+    void setHasCompletedSettingsTour(bool completed);
+
 signals:
     void recentFilesChanged();
     void outputScreenIndexChanged(int index);

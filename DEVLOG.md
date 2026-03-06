@@ -4,6 +4,64 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-03-06 - Welcome Tour, Settings Button in Toolbar
+
+### Summary
+Added a spotlight-style guided welcome tour for first-time users of both the main control window and the Settings dialog. Also added a Settings gear button to the right side of the insert toolbar so Settings is always one click away during live use.
+
+### Work Completed
+
+**Settings Button in Insert Toolbar (ControlWindow.h/.cpp, Resources.qrc)**
+- Added a settings gear SVG icon (`toolbar-settings.svg`) to match the existing toolbar icon style
+- Added `m_settingsIcon` toolbar action right-aligned via an expanding spacer widget, always enabled regardless of whether a presentation is open
+- Switched from `m_insertToolBar->setEnabled(bool)` to per-action enable/disable using a new `m_insertActions` list, so the Settings button stays active even when no presentation is loaded
+- Settings action connects to the existing `onSettings()` slot
+
+**TourOverlay Widget (TourOverlay.h/.cpp, CMakeLists.txt)**
+- New `TourOverlay : QWidget` class that can run any list of `TourStep` objects over any parent window
+- Semi-transparent dark overlay rendered via `paintEvent` using four fill-rects around the spotlight area (avoids WA_TranslucentBackground complexity on child widgets)
+- Blue glow border drawn around the spotlit widget
+- Floating callout QFrame with title, description, step counter, and Back/Next/Skip buttons
+- Callout auto-positions below the spotlight when room permits, above otherwise, always clamped within window bounds
+- Tracks parent window resizes via `eventFilter` to stay full-size and reposition the callout
+- `beforeShow` lambda per step lets callers switch pages/tabs before the spotlight appears
+- Emits `completed()` and `skipped()` signals for caller to respond to
+
+**Main UI Tour (ControlWindow.h/.cpp)**
+- Added `startMainTour()` slot that builds and starts a 6-step tour covering: insert toolbar, playlist, slide grid, live output preview, screen control buttons, and the Settings toolbar button
+- Tour auto-starts on first launch (after 400 ms delay), triggered from `showEditingUI()` the first time the editing UI becomes visible
+- Completion flag set immediately at trigger time to prevent duplicate tours if files are opened rapidly
+- Help menu gains a "Welcome Tour…" item to replay the tour at any time
+
+**Settings Tour (SettingsDialog.h/.cpp)**
+- Added `startSettingsTour()` public method that runs a 5-step tour covering: category navigation, Display, Bible, Remote Control, and a finish step
+- Each step's `beforeShow` lambda switches the category list to the relevant page before spotlighting `m_pageStack`
+- Tour auto-starts via `showEvent` override the first time the Settings dialog is opened
+- Added "Replay Settings Tour" button in the Settings General tab → Help group box
+- Same eager-flag pattern prevents repeat triggers
+
+**SettingsManager (SettingsManager.h/.cpp)**
+- Added `hasCompletedMainTour()` / `setHasCompletedMainTour(bool)` stored at `Tour/MainCompleted`
+- Added `hasCompletedSettingsTour()` / `setHasCompletedSettingsTour(bool)` stored at `Tour/SettingsCompleted`
+
+### Technical Decisions
+- **Four-rect overlay vs. CompositionMode_Clear**: Child widgets cannot reliably use `CompositionMode_Clear` for transparent cutouts because the parent widget's opaque background shows through. Drawing four dark rectangles around the spotlight area achieves the same visual effect without requiring `WA_TranslucentBackground` on the window hierarchy.
+- **Eager flag marking**: The first-run flags are set at trigger time (not at tour completion) so that opening multiple files quickly or closing mid-tour doesn't create a second tour on the next launch.
+- **Per-action disabling instead of toolbar-level**: `QToolBar::setEnabled(false)` disables the entire toolbar widget including all children with no way to independently re-enable a single action. Switching to per-action enable/disable allows the Settings button to stay enabled at all times.
+
+### Testing
+- Manual: create a new presentation, verify tour appears after ~400 ms with spotlight on toolbar; advance through all steps; verify Settings button in toolbar opens Settings dialog; verify Settings tour starts on first open; verify replay works from Help menu and General tab button
+- Verify tours do not re-appear after completion on subsequent launches
+
+### Next Steps
+- Consider adding a tour step for the media drawer (library) once that feature is more prominent
+- Consider adding keyboard shortcut (Esc) to skip the tour
+
+### Commits
+- Branch: `claude/add-welcome-tour-eU5vn`
+
+---
+
 ## 2026-03-02 - Scroll Wheel Fix, HiDPI Icons, Context-Aware Toolbar Insert
 
 ### Summary
