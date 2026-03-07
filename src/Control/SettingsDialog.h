@@ -36,6 +36,12 @@ public:
     explicit SettingsDialog(SettingsManager* settingsManager, QWidget* parent = nullptr);
     ~SettingsDialog();
 
+    /** Launch the settings tour immediately. Call this to replay it. */
+    void startSettingsTour();
+
+protected:
+    void showEvent(QShowEvent* event) override;
+
     /**
      * @brief Set the Bible database for translation management
      */
@@ -150,6 +156,9 @@ private:
 
     // Settings manager
     SettingsManager* m_settingsManager;
+
+    // Replay tour button (in General page)
+    QPushButton* m_replaySettingsTourButton;
 };
 
 } // namespace Clarity

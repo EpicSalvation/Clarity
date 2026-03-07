@@ -167,6 +167,8 @@ add_executable(Clarity
     src/Control/SongSelectSearchDialog.cpp
     src/Control/AppStyle.h
     src/Control/AppStyle.cpp
+    src/Control/TourOverlay.h
+    src/Control/TourOverlay.cpp
 
     # Output display files
     src/Output/OutputMain.h

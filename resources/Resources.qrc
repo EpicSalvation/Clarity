@@ -29,5 +29,6 @@
         <file alias="icons/toolbar-slide-group.svg">icons/toolbar-slide-group.svg</file>
         <file alias="icons/toolbar-song.svg">icons/toolbar-song.svg</file>
         <file alias="icons/toolbar-scripture.svg">icons/toolbar-scripture.svg</file>
+        <file alias="icons/toolbar-settings.svg">icons/toolbar-settings.svg</file>
     </qresource>
 </RCC>

@@ -123,6 +123,7 @@ private slots:
     // Help
     void showKeyboardShortcuts();
     void showAbout();
+    void startMainTour();
 
     // Media drag-and-drop
     void onMediaDroppedOnSlide(const QModelIndex& proxyIndex, const QString& path,
@@ -186,6 +187,8 @@ private:
 
     // UI components
     QToolBar* m_insertToolBar;               ///< Quick-access toolbar for common inserts
+    QList<QAction*> m_insertActions;         ///< Insert actions that toggle with presentation state
+    QAction* m_settingsAction;              ///< Settings toolbar action (always enabled)
     QStackedWidget* m_stackedWidget;         ///< Switches between startup and editing pages
     StartupWidget* m_startupWidget;          ///< Welcome/startup screen (page 0)
     QWidget* m_editingWidget;                ///< Editing UI container (page 1)

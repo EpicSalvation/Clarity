@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Troy Dontigney
 
 #include "SettingsDialog.h"
+#include "TourOverlay.h"
 #include "AppStyle.h"
 #include "BibleImportDialog.h"
 #include "CCLIReportDialog.h"
@@ -24,6 +25,8 @@
 #include <QRegularExpressionValidator>
 #include <QMessageBox>
 #include <QDebug>
+#include <QShowEvent>
+#include <QTimer>
 #include <climits>
 
 namespace Clarity {
@@ -69,6 +72,7 @@ SettingsDialog::SettingsDialog(SettingsManager* settingsManager, QWidget* parent
     , m_esvCacheStatusLabel(nullptr)
     , m_apiBibleApiKeyEdit(nullptr)
     , m_settingsManager(settingsManager)
+    , m_replaySettingsTourButton(nullptr)
 {
     setupUI();
     loadSettings();
@@ -311,6 +315,16 @@ void SettingsDialog::createGeneralPage()
     libraryLayout->addWidget(librarySyncHelpLabel);
 
     pageLayout->addWidget(libraryGroup);
+
+    // Tour replay button
+    QGroupBox* tourGroup = new QGroupBox(tr("Help"), generalPage);
+    QVBoxLayout* tourLayout = new QVBoxLayout(tourGroup);
+    m_replaySettingsTourButton = new QPushButton(tr("Replay Settings Tour"), tourGroup);
+    m_replaySettingsTourButton->setToolTip(tr("Watch the guided tour of Settings again"));
+    connect(m_replaySettingsTourButton, &QPushButton::clicked,
+            this, &SettingsDialog::startSettingsTour);
+    tourLayout->addWidget(m_replaySettingsTourButton);
+    pageLayout->addWidget(tourGroup);
 
     pageLayout->addStretch(); // Push content to top
 
@@ -1180,6 +1194,71 @@ void SettingsDialog::onRedLetterColorClicked()
         m_redLetterColor = color;
         updateColorButtonStyle(m_redLetterColorButton, color);
     }
+}
+
+void SettingsDialog::showEvent(QShowEvent* event)
+{
+    QDialog::showEvent(event);
+
+    // Launch the settings tour the first time this dialog is shown.
+    // Mark immediately to prevent duplicate tours if the dialog is closed and reopened.
+    if (m_settingsManager && !m_settingsManager->hasCompletedSettingsTour()) {
+        m_settingsManager->setHasCompletedSettingsTour(true);
+        QTimer::singleShot(300, this, &SettingsDialog::startSettingsTour);
+    }
+}
+
+void SettingsDialog::startSettingsTour()
+{
+    // Category indices match the order in setupUI:
+    //   0 = General, 1 = Display, 2 = Bible, 3 = Copyright, 4 = Remote Control
+    QList<TourOverlay::Step> steps;
+
+    steps.append({
+        m_categoryList,
+        tr("Settings Categories"),
+        tr("Click any category in this list to jump to that group of settings. Let's walk through the most important ones."),
+        [this]() { m_categoryList->setCurrentRow(0); }
+    });
+
+    steps.append({
+        m_pageStack,
+        tr("Display Settings"),
+        tr("Choose which monitor to use for your output display and confidence monitor. You can also set transitions and preview sizes here."),
+        [this]() { m_categoryList->setCurrentRow(1); }
+    });
+
+    steps.append({
+        m_pageStack,
+        tr("Bible Settings"),
+        tr("Import Bible translations and choose your preferred version for scripture slides. Red-letter edition and scripture reference position are also configured here."),
+        [this]() { m_categoryList->setCurrentRow(2); }
+    });
+
+    steps.append({
+        m_pageStack,
+        tr("Remote Control"),
+        tr("Enable the built-in web remote to control slides from your phone or tablet over your local network. No extra software needed."),
+        [this]() { m_categoryList->setCurrentRow(4); }
+    });
+
+    steps.append({
+        nullptr,
+        tr("You're All Set!"),
+        tr("That covers the key settings. Make any changes you need, then click OK to save. You can always replay this tour from the General tab."),
+        [this]() { m_categoryList->setCurrentRow(0); }
+    });
+
+    auto* tour = new TourOverlay(this, steps);
+    connect(tour, &TourOverlay::completed, this, [this]() {
+        if (m_settingsManager)
+            m_settingsManager->setHasCompletedSettingsTour(true);
+    });
+    connect(tour, &TourOverlay::skipped, this, [this]() {
+        if (m_settingsManager)
+            m_settingsManager->setHasCompletedSettingsTour(true);
+    });
+    tour->start();
 }
 
 } // namespace Clarity
