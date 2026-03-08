@@ -319,6 +319,15 @@ void SettingsDialog::createGeneralPage()
     // Tour replay button
     QGroupBox* tourGroup = new QGroupBox(tr("Help"), generalPage);
     QVBoxLayout* tourLayout = new QVBoxLayout(tourGroup);
+    m_autoCheckUpdatesCheckbox = new QCheckBox(tr("Check for updates automatically"), tourGroup);
+    m_autoCheckUpdatesCheckbox->setChecked(m_settingsManager->autoCheckForUpdates());
+    tourLayout->addWidget(m_autoCheckUpdatesCheckbox);
+
+    m_includeBetaCheckbox = new QCheckBox(tr("Include beta releases"), tourGroup);
+    m_includeBetaCheckbox->setChecked(m_settingsManager->includeBetaUpdates());
+    m_includeBetaCheckbox->setToolTip(tr("Notify about pre-release builds in addition to stable releases"));
+    tourLayout->addWidget(m_includeBetaCheckbox);
+
     m_replaySettingsTourButton = new QPushButton(tr("Replay Settings Tour"), tourGroup);
     m_replaySettingsTourButton->setToolTip(tr("Watch the guided tour of Settings again"));
     connect(m_replaySettingsTourButton, &QPushButton::clicked,
@@ -1137,6 +1146,10 @@ void SettingsDialog::saveSettings()
     m_settingsManager->setCcliLicenseNumber(m_ccliLicenseNumberEdit->text());
     m_settingsManager->setShowCcliOnTitleSlides(m_showCcliOnTitleSlidesCheckBox->isChecked());
     m_settingsManager->setShowCopyrightSlide(m_showCopyrightSlideCheckBox->isChecked());
+
+    // Save update check settings
+    m_settingsManager->setAutoCheckForUpdates(m_autoCheckUpdatesCheckbox->isChecked());
+    m_settingsManager->setIncludeBetaUpdates(m_includeBetaCheckbox->isChecked());
 
     // Save ESV API settings
     m_settingsManager->setEsvApiKey(m_esvApiKeyEdit->text());

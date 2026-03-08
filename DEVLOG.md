@@ -4,6 +4,33 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-03-07 - Update Checker with Beta Channel Support
+
+### Summary
+Added a silent background update checker that queries the GitHub Releases API on startup (at most once per day) and shows a one-click prompt when a newer version is available. Users can also trigger it manually via Help > Check for Updates. A "Include beta releases" opt-in setting allows users to be notified about pre-release builds, which is the only release type currently published.
+
+### Work Completed
+- **`src/Core/UpdateChecker.h/.cpp`** — New async `QObject` that calls `GET /repos/EpicSalvation/Clarity/releases?per_page=20`. Iterates the release list, skips prereleases unless beta channel is opted in, finds the highest-versioned eligible release, compares semver against `CLARITY_VERSION`, and emits `updateAvailable(ver, url)`, `upToDate()`, or `checkFailed(err)`.
+- **`CMakeLists.txt`** — Added `UpdateChecker.h/.cpp` to the `ClarityCore` source list.
+- **`src/Core/SettingsManager`** — Added `Updates/AutoCheckEnabled` (default `true`), `Updates/IncludeBeta` (default `false`), and `Updates/LastChecked` (ISO date string, default `""`) settings.
+- **`src/Control/ControlWindow`** — Added `onCheckForUpdates(bool silent)` slot; Help menu entry "Check for Updates…"; startup check via `QTimer::singleShot(3000)` guarded by `m_updateCheckInitiated` flag and one-per-day timestamp. Passes `includeBetaUpdates()` setting to `checker->check()`. Included `QDesktopServices` for browser URL opening.
+- **`src/Control/SettingsDialog`** — Added "Check for updates automatically" and "Include beta releases" checkboxes to the Help group on the General page.
+
+### Technical Decisions
+- Uses the `/releases` list endpoint rather than `/releases/latest` so that pre-releases (which GitHub excludes from "latest") are visible when beta channel is enabled. This works correctly right now when only beta releases exist, and will automatically prefer stable releases once they are published.
+- `UpdateChecker` is fire-and-forget: created on demand, parented to caller, `deleteLater()` called in each signal handler.
+- Version comparison strips leading `v`, splits on `-` for pre-release suffix, compares numeric base parts; a release (no suffix) beats any pre-release of the same base.
+- The `lastUpdateCheck` timestamp is written before the async check fires to prevent double-checks on concurrent launches.
+
+### Testing
+- Build: clean compile, no new errors.
+- Verified working: with "Include beta releases" checked, app detects and prompts for current beta release on startup and via Help > Check for Updates.
+
+### Commits
+- Branch: `main`
+
+---
+
 ## 2026-03-06 - Welcome Tour, Settings Button in Toolbar
 
 ### Summary
@@ -59,6 +86,8 @@ Added a spotlight-style guided welcome tour for first-time users of both the mai
 
 ### Commits
 - Branch: `claude/add-welcome-tour-eU5vn`
+- Commit: `4ddff6b` — Add welcome tour, Settings toolbar button
+- Merged: PR #32 — [Add spotlight-style welcome tours for main UI and Settings](https://github.com/EpicSalvation/Clarity/pull/32)
 
 ---
 

@@ -734,4 +734,41 @@ void SettingsManager::setHasCompletedSettingsTour(bool completed)
     m_settings->sync();
 }
 
+bool SettingsManager::autoCheckForUpdates() const
+{
+    return m_settings->value("Updates/AutoCheckEnabled", true).toBool();
+}
+
+void SettingsManager::setAutoCheckForUpdates(bool enabled)
+{
+    if (autoCheckForUpdates() != enabled) {
+        m_settings->setValue("Updates/AutoCheckEnabled", enabled);
+        m_settings->sync();
+    }
+}
+
+bool SettingsManager::includeBetaUpdates() const
+{
+    return m_settings->value("Updates/IncludeBeta", false).toBool();
+}
+
+void SettingsManager::setIncludeBetaUpdates(bool enabled)
+{
+    if (includeBetaUpdates() != enabled) {
+        m_settings->setValue("Updates/IncludeBeta", enabled);
+        m_settings->sync();
+    }
+}
+
+QString SettingsManager::lastUpdateCheck() const
+{
+    return m_settings->value("Updates/LastChecked", "").toString();
+}
+
+void SettingsManager::setLastUpdateCheck(const QString& isoDate)
+{
+    m_settings->setValue("Updates/LastChecked", isoDate);
+    m_settings->sync();
+}
+
 } // namespace Clarity

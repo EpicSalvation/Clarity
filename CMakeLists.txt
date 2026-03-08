@@ -49,6 +49,8 @@ add_library(ClarityCore STATIC
     src/Core/IpcClient.cpp
     src/Core/SettingsManager.h
     src/Core/SettingsManager.cpp
+    src/Core/UpdateChecker.h
+    src/Core/UpdateChecker.cpp
     src/Core/BibleDatabase.h
     src/Core/BibleDatabase.cpp
     src/Core/Song.h

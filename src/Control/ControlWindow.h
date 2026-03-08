@@ -22,6 +22,7 @@
 #include "Core/UndoManager.h"
 #include "Core/EsvApiClient.h"
 #include "Core/ApiBibleClient.h"
+#include "Core/UpdateChecker.h"
 #include "ProcessManager.h"
 #include "SlideGridDelegate.h"
 #include "SlideGridView.h"
@@ -124,6 +125,7 @@ private slots:
     void showKeyboardShortcuts();
     void showAbout();
     void startMainTour();
+    void onCheckForUpdates(bool silent = false);
 
     // Media drag-and-drop
     void onMediaDroppedOnSlide(const QModelIndex& proxyIndex, const QString& path,
@@ -257,6 +259,8 @@ private:
 
     // Song usage tracking (prevents duplicate records per session)
     QSet<int> m_recordedSongUsage;  ///< Song IDs that have been recorded this session
+
+    bool m_updateCheckInitiated = false;
 };
 
 } // namespace Clarity

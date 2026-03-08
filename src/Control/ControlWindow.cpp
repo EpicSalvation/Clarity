@@ -45,6 +45,7 @@
 #include <QEventLoop>
 #include <QCollator>
 #include <QFileInfo>
+#include <QDesktopServices>
 #include <cstdlib>
 
 namespace Clarity {
@@ -320,6 +321,18 @@ ControlWindow::ControlWindow(QWidget* parent)
     connect(m_settingsManager, &SettingsManager::slidePreviewSizeChanged, this, [this](const QString& size) {
         applySlidePreviewSize(size);
     });
+
+    // Silent startup update check — at most once per day, guarded by flag so it fires only once
+    if (!m_updateCheckInitiated) {
+        m_updateCheckInitiated = true;
+        if (m_settingsManager->autoCheckForUpdates()) {
+            QDateTime last = QDateTime::fromString(m_settingsManager->lastUpdateCheck(), Qt::ISODate);
+            if (!last.isValid() || last.daysTo(QDateTime::currentDateTime()) >= 1) {
+                m_settingsManager->setLastUpdateCheck(QDateTime::currentDateTime().toString(Qt::ISODate));
+                QTimer::singleShot(3000, this, [this]{ onCheckForUpdates(true); });
+            }
+        }
+    }
 }
 
 ControlWindow::~ControlWindow()
@@ -390,6 +403,7 @@ void ControlWindow::setupUI()
     helpMenu->addAction(tr("&Keyboard Shortcuts..."), QKeySequence("F1"), this, &ControlWindow::showKeyboardShortcuts);
     helpMenu->addSeparator();
     helpMenu->addAction(tr("&Welcome Tour..."), this, &ControlWindow::startMainTour);
+    helpMenu->addAction(tr("Check for &Updates..."), this, [this]{ onCheckForUpdates(false); });
     helpMenu->addSeparator();
     helpMenu->addAction(tr("&About Clarity..."), this, &ControlWindow::showAbout);
 
@@ -3617,6 +3631,42 @@ void ControlWindow::showAbout()
     msgBox.setText(about);
     msgBox.setIcon(QMessageBox::Information);
     msgBox.exec();
+}
+
+void ControlWindow::onCheckForUpdates(bool silent)
+{
+    auto* checker = new UpdateChecker(this);
+
+    connect(checker, &UpdateChecker::updateAvailable, this,
+            [this, checker](const QString& ver, const QUrl& url) {
+        checker->deleteLater();
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle(tr("Update Available"));
+        msgBox.setTextFormat(Qt::RichText);
+        msgBox.setText(tr("<b>Clarity %1 is available.</b><p>You have %2.</p>")
+                           .arg(ver, CLARITY_VERSION));
+        msgBox.setIcon(QMessageBox::Information);
+        auto* openBtn = msgBox.addButton(tr("Open Download Page"), QMessageBox::AcceptRole);
+        msgBox.addButton(tr("Later"), QMessageBox::RejectRole);
+        msgBox.exec();
+        if (msgBox.clickedButton() == openBtn)
+            QDesktopServices::openUrl(url);
+    });
+
+    connect(checker, &UpdateChecker::upToDate, this, [this, checker, silent]() {
+        checker->deleteLater();
+        if (!silent)
+            QMessageBox::information(this, tr("No Updates"), tr("Clarity is up to date."));
+    });
+
+    connect(checker, &UpdateChecker::checkFailed, this, [this, checker, silent](const QString& err) {
+        checker->deleteLater();
+        if (!silent)
+            QMessageBox::warning(this, tr("Update Check Failed"),
+                                 tr("Could not check for updates:\n%1").arg(err));
+    });
+
+    checker->check(m_settingsManager->includeBetaUpdates());
 }
 
 void ControlWindow::onRemoteNavigation(const QString& action)

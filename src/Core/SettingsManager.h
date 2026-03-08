@@ -224,6 +224,16 @@ public:
     bool hasCompletedSettingsTour() const;
     void setHasCompletedSettingsTour(bool completed);
 
+    // Update check settings
+    bool autoCheckForUpdates() const;
+    void setAutoCheckForUpdates(bool enabled);
+
+    bool includeBetaUpdates() const;          ///< Whether to consider pre-release builds as updates
+    void setIncludeBetaUpdates(bool enabled);
+
+    QString lastUpdateCheck() const;          ///< ISO date string, "" if never checked
+    void setLastUpdateCheck(const QString& isoDate);
+
 signals:
     void recentFilesChanged();
     void outputScreenIndexChanged(int index);

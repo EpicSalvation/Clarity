@@ -39,9 +39,6 @@ public:
     /** Launch the settings tour immediately. Call this to replay it. */
     void startSettingsTour();
 
-protected:
-    void showEvent(QShowEvent* event) override;
-
     /**
      * @brief Set the Bible database for translation management
      */
@@ -56,6 +53,9 @@ protected:
      * @brief Set the song library for CCLI report generation
      */
     void setSongLibrary(SongLibrary* library);
+
+protected:
+    void showEvent(QShowEvent* event) override;
 
 private slots:
     void onCategoryChanged(int row);
@@ -159,6 +159,10 @@ private:
 
     // Replay tour button (in General page)
     QPushButton* m_replaySettingsTourButton;
+
+    // Update check (in General page)
+    QCheckBox* m_autoCheckUpdatesCheckbox = nullptr;
+    QCheckBox* m_includeBetaCheckbox = nullptr;
 };
 
 } // namespace Clarity
