@@ -537,6 +537,12 @@ void OutputDisplay::transitionComplete()
 
 void OutputDisplay::initBlurLog()
 {
+    // Opt-in diagnostic only: the log appends forever and would grow without
+    // bound on production machines if always enabled.
+    if (qEnvironmentVariableIsEmpty("CLARITY_BLUR_LOG")) {
+        return;
+    }
+
     QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(logDir);
     QString logPath = logDir + "/clarity_blur_perf.log";

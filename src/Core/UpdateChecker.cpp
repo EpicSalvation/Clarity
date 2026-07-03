@@ -19,6 +19,10 @@ UpdateChecker::UpdateChecker(QObject* parent)
     : QObject(parent)
     , m_network(new QNetworkAccessManager(this))
 {
+    // Connect once here: connecting inside check() added a duplicate
+    // connection per call, so onReply fired multiple times per reply.
+    connect(m_network, &QNetworkAccessManager::finished,
+            this, &UpdateChecker::onReply);
 }
 
 void UpdateChecker::check(bool includeBeta)
@@ -29,9 +33,6 @@ void UpdateChecker::check(bool includeBeta)
     // GitHub API requires a User-Agent header
     request.setRawHeader("User-Agent", QByteArray("Clarity/") + CLARITY_VERSION);
     request.setRawHeader("Accept", "application/vnd.github+json");
-
-    connect(m_network, &QNetworkAccessManager::finished,
-            this, &UpdateChecker::onReply);
 
     m_network->get(request);
     qDebug() << "UpdateChecker: Checking for updates (includeBeta=" << includeBeta << ")";

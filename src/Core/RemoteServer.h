@@ -10,7 +10,9 @@
 #include <QWebSocketServer>
 #include <QWebSocket>
 #include <QList>
+#include <QHash>
 #include <QImage>
+#include <QDateTime>
 
 namespace Clarity {
 
@@ -132,16 +134,41 @@ private:
     QByteArray getAppJs();
     QString getLocalIpAddress() const;
 
+    /**
+     * @brief Whether a client may receive slide content / issue commands
+     */
+    bool isAuthorized(QWebSocket* client) const;
+
+    /**
+     * @brief Build the current-state message sent to authorized clients
+     */
+    QJsonObject stateJson() const;
+
     quint16 m_port;
     QTcpServer* m_httpServer;
     QWebSocketServer* m_webSocketServer;
     QList<QWebSocket*> m_webSocketClients;
     QList<QWebSocket*> m_authenticatedClients;  // Clients that have entered correct PIN
     QList<QTcpSocket*> m_httpClients;
+    QHash<QTcpSocket*, QByteArray> m_httpBuffers;  // Partial HTTP requests per client
 
     // PIN protection
     bool m_pinEnabled = false;
     QString m_pin;
+
+    // PIN brute-force protection, tracked per peer address
+    struct PinAttempts {
+        int failures = 0;
+        QDateTime lockedUntil;
+    };
+    QHash<QString, PinAttempts> m_pinAttempts;
+
+    // Hard limits
+    static constexpr int MAX_WS_CLIENTS = 16;
+    static constexpr int MAX_HTTP_CLIENTS = 32;
+    static constexpr int MAX_HTTP_REQUEST_SIZE = 8192;
+    static constexpr int MAX_PIN_FAILURES = 5;
+    static constexpr int PIN_LOCKOUT_SECONDS = 60;
 
     // Current state for new clients
     int m_currentIndex = 0;

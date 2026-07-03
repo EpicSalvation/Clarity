@@ -66,6 +66,10 @@ private:
     QMap<QLocalSocket*, QByteArray> m_receiveBuffers; // Buffered data per client
 
     static const QString SERVER_NAME;
+
+    // Slide messages can embed base64 image data, so allow large messages,
+    // but still bound memory against a misbehaving client.
+    static constexpr qsizetype MAX_RECEIVE_BUFFER_SIZE = 64 * 1024 * 1024;
 };
 
 } // namespace Clarity

@@ -4,6 +4,7 @@
 #include "MediaLibrary.h"
 #include <QStandardPaths>
 #include <QFile>
+#include <QSaveFile>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QUuid>
@@ -109,7 +110,9 @@ void MediaLibrary::loadIndex()
 void MediaLibrary::saveIndex()
 {
     QString indexPath = m_libraryPath + "/index.json";
-    QFile file(indexPath);
+    // Atomic write: never truncate the existing index until the new
+    // contents are fully on disk.
+    QSaveFile file(indexPath);
 
     if (!file.open(QIODevice::WriteOnly)) {
         qWarning() << "Failed to save media library index:" << indexPath;
@@ -134,7 +137,9 @@ void MediaLibrary::saveIndex()
 
     QJsonDocument doc(root);
     file.write(doc.toJson(QJsonDocument::Indented));
-    file.close();
+    if (!file.commit()) {
+        qWarning() << "Failed to write media library index:" << indexPath << file.errorString();
+    }
 }
 
 QString MediaLibrary::generateUniqueFilename(const QString& originalName, MediaType type)
@@ -175,7 +180,7 @@ QString MediaLibrary::findExistingMedia(const QString& sourcePath) const
     }
 
     // Calculate hash of source file (first 64KB for quick comparison)
-    QCryptographicHash hash(QCryptographicHash::Md5);
+    QCryptographicHash hash(QCryptographicHash::Sha256);
     hash.addData(sourceFile.read(65536));
     QByteArray sourceHash = hash.result();
     sourceFile.close();
@@ -187,7 +192,7 @@ QString MediaLibrary::findExistingMedia(const QString& sourcePath) const
             continue;
         }
 
-        QCryptographicHash libHash(QCryptographicHash::Md5);
+        QCryptographicHash libHash(QCryptographicHash::Sha256);
         libHash.addData(libFile.read(65536));
         libFile.close();
 

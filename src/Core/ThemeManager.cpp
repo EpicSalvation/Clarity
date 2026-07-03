@@ -5,6 +5,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QFile>
+#include <QSaveFile>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QDebug>
@@ -538,14 +539,19 @@ void ThemeManager::saveCustomThemes()
 
     QJsonDocument doc(root);
 
-    QFile file(path);
+    // Atomic write: never truncate the existing themes file until the new
+    // contents are fully on disk.
+    QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
         qCritical() << "Failed to open themes file for writing:" << path << file.errorString();
         return;
     }
 
     file.write(doc.toJson(QJsonDocument::Indented));
-    file.close();
+    if (!file.commit()) {
+        qCritical() << "Failed to write themes file:" << path << file.errorString();
+        return;
+    }
 
     qDebug() << "Saved" << m_customThemes.count() << "custom themes to:" << path;
 }
