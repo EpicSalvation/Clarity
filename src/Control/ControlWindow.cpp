@@ -27,6 +27,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QFile>
+#include <QSaveFile>
 #include <QJsonDocument>
 #include <QCloseEvent>
 #include <QMouseEvent>
@@ -1856,7 +1857,9 @@ void ControlWindow::savePresentation()
         return;
     }
 
-    QFile file(m_currentFilePath);
+    // QSaveFile writes to a temp file and renames on commit, so a crash or
+    // power loss mid-save can't destroy the existing presentation file.
+    QSaveFile file(m_currentFilePath);
     if (!file.open(QIODevice::WriteOnly)) {
         QMessageBox::critical(this, tr("Error"), tr("Could not save file: %1").arg(file.errorString()));
         qCritical() << "Failed to open file for writing:" << m_currentFilePath << file.errorString();
@@ -1867,11 +1870,10 @@ void ControlWindow::savePresentation()
     QJsonDocument doc(json);
 
     qint64 written = file.write(doc.toJson(QJsonDocument::Indented));
-    file.close();
 
-    if (written == -1) {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to write to file."));
-        qCritical() << "Failed to write to file:" << m_currentFilePath;
+    if (written == -1 || !file.commit()) {
+        QMessageBox::critical(this, tr("Error"), tr("Failed to write to file: %1").arg(file.errorString()));
+        qCritical() << "Failed to write to file:" << m_currentFilePath << file.errorString();
         return;
     }
 

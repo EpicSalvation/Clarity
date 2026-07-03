@@ -6,9 +6,28 @@
 #include <QNetworkInterface>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QUrl>
 #include <QDebug>
 
 namespace Clarity {
+
+namespace {
+// Constant-time string comparison so PIN checks don't leak
+// length/prefix information through response timing.
+bool constantTimeEquals(const QString& a, const QString& b)
+{
+    const QByteArray ba = a.toUtf8();
+    const QByteArray bb = b.toUtf8();
+    qsizetype diff = ba.size() ^ bb.size();
+    const qsizetype len = qMax(ba.size(), bb.size());
+    for (qsizetype i = 0; i < len; ++i) {
+        const char ca = i < ba.size() ? ba.at(i) : 0;
+        const char cb = i < bb.size() ? bb.at(i) : 0;
+        diff |= (ca ^ cb);
+    }
+    return diff == 0;
+}
+} // namespace
 
 RemoteServer::RemoteServer(quint16 port, QObject* parent)
     : QObject(parent)
@@ -73,6 +92,8 @@ void RemoteServer::stop()
         client->deleteLater();
     }
     m_httpClients.clear();
+    m_httpBuffers.clear();
+    m_pinAttempts.clear();
 
     // Stop servers
     if (m_webSocketServer->isListening()) {
@@ -209,6 +230,24 @@ QString RemoteServer::getLocalIpAddress() const
     return fallbackAddress.isEmpty() ? "127.0.0.1" : fallbackAddress;
 }
 
+bool RemoteServer::isAuthorized(QWebSocket* client) const
+{
+    return !m_pinEnabled || m_authenticatedClients.contains(client);
+}
+
+QJsonObject RemoteServer::stateJson() const
+{
+    QJsonObject json;
+    json["type"] = "init";
+    json["currentIndex"] = m_currentIndex;
+    json["totalSlides"] = m_totalSlides;
+    json["currentText"] = m_currentText;
+    json["nextText"] = m_nextText;
+    json["outputConnected"] = m_outputConnected;
+    json["confidenceConnected"] = m_confidenceConnected;
+    return json;
+}
+
 void RemoteServer::broadcastSlideUpdate(int currentIndex, int totalSlides,
                                         const QString& currentText, const QString& nextText)
 {
@@ -226,8 +265,11 @@ void RemoteServer::broadcastSlideUpdate(int currentIndex, int totalSlides,
 
     QString message = QJsonDocument(json).toJson(QJsonDocument::Compact);
 
+    // Slide content only goes to clients that have passed PIN auth
     for (QWebSocket* client : m_webSocketClients) {
-        client->sendTextMessage(message);
+        if (isAuthorized(client)) {
+            client->sendTextMessage(message);
+        }
     }
 }
 
@@ -244,7 +286,9 @@ void RemoteServer::broadcastStatus(bool outputConnected, bool confidenceConnecte
     QString message = QJsonDocument(json).toJson(QJsonDocument::Compact);
 
     for (QWebSocket* client : m_webSocketClients) {
-        client->sendTextMessage(message);
+        if (isAuthorized(client)) {
+            client->sendTextMessage(message);
+        }
     }
 }
 
@@ -252,6 +296,14 @@ void RemoteServer::onHttpConnection()
 {
     QTcpSocket* client = m_httpServer->nextPendingConnection();
     if (!client) return;
+
+    if (m_httpClients.size() >= MAX_HTTP_CLIENTS) {
+        qWarning() << "RemoteServer: HTTP client limit reached, rejecting connection from"
+                   << client->peerAddress().toString();
+        client->close();
+        client->deleteLater();
+        return;
+    }
 
     m_httpClients.append(client);
     connect(client, &QTcpSocket::readyRead, this, &RemoteServer::onHttpReadyRead);
@@ -263,7 +315,25 @@ void RemoteServer::onHttpReadyRead()
     QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
     if (!client) return;
 
-    QByteArray request = client->readAll();
+    // Accumulate until the request headers are complete; requests may
+    // arrive split across multiple TCP segments.
+    QByteArray& buffer = m_httpBuffers[client];
+    buffer.append(client->readAll());
+
+    if (buffer.size() > MAX_HTTP_REQUEST_SIZE) {
+        qWarning() << "RemoteServer: Oversized HTTP request from"
+                   << client->peerAddress().toString() << "- closing connection";
+        m_httpBuffers.remove(client);
+        client->close();
+        return;
+    }
+
+    if (!buffer.contains("\r\n\r\n")) {
+        return;  // Headers not complete yet
+    }
+
+    QByteArray request = buffer;
+    m_httpBuffers.remove(client);
     handleHttpRequest(client, request);
 }
 
@@ -272,6 +342,7 @@ void RemoteServer::onHttpDisconnected()
     QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
     if (client) {
         m_httpClients.removeAll(client);
+        m_httpBuffers.remove(client);
         client->deleteLater();
     }
 }
@@ -299,20 +370,14 @@ void RemoteServer::handleHttpRequest(QTcpSocket* client, const QByteArray& reque
     QByteArray body;
     QString contentType = "text/html; charset=utf-8";
 
-    if (path == "/" || path == "/index.html") {
-        body = getIndexHtml();
-    } else if (path == "/style.css") {
-        body = getStyleCss();
-        contentType = "text/css; charset=utf-8";
-    } else if (path == "/app.js") {
-        body = getAppJs();
-        contentType = "application/javascript; charset=utf-8";
-    } else {
-        // 404 Not Found
+    // Only static GET resources are served
+    if (method != "GET" || !(path == "/" || path == "/index.html" ||
+                             path == "/style.css" || path == "/app.js")) {
         body = "<!DOCTYPE html><html><body><h1>404 Not Found</h1></body></html>";
         response = "HTTP/1.1 404 Not Found\r\n";
         response += "Content-Type: text/html\r\n";
         response += "Content-Length: " + QByteArray::number(body.size()) + "\r\n";
+        response += "X-Content-Type-Options: nosniff\r\n";
         response += "Connection: close\r\n\r\n";
         response += body;
         client->write(response);
@@ -321,10 +386,22 @@ void RemoteServer::handleHttpRequest(QTcpSocket* client, const QByteArray& reque
         return;
     }
 
+    if (path == "/" || path == "/index.html") {
+        body = getIndexHtml();
+    } else if (path == "/style.css") {
+        body = getStyleCss();
+        contentType = "text/css; charset=utf-8";
+    } else {
+        body = getAppJs();
+        contentType = "application/javascript; charset=utf-8";
+    }
+
     // Build response
     response = "HTTP/1.1 200 OK\r\n";
     response += "Content-Type: " + contentType.toUtf8() + "\r\n";
     response += "Content-Length: " + QByteArray::number(body.size()) + "\r\n";
+    response += "X-Content-Type-Options: nosniff\r\n";
+    response += "X-Frame-Options: DENY\r\n";
     response += "Connection: close\r\n";
     response += "Cache-Control: no-cache\r\n\r\n";
     response += body;
@@ -339,6 +416,30 @@ void RemoteServer::onWebSocketConnection()
     QWebSocket* client = m_webSocketServer->nextPendingConnection();
     if (!client) return;
 
+    if (m_webSocketClients.size() >= MAX_WS_CLIENTS) {
+        qWarning() << "RemoteServer: WebSocket client limit reached, rejecting"
+                   << client->peerAddress().toString();
+        client->close();
+        client->deleteLater();
+        return;
+    }
+
+    // Reject cross-site WebSocket connections: browsers send the page's
+    // origin, which must be our own HTTP server (same port). Non-browser
+    // clients send no origin and are allowed.
+    const QString origin = client->origin();
+    if (!origin.isEmpty()) {
+        const QUrl originUrl(origin);
+        const int originPort = originUrl.port(80);
+        if (originPort != m_port) {
+            qWarning() << "RemoteServer: Rejecting WebSocket connection with foreign origin"
+                       << origin << "from" << client->peerAddress().toString();
+            client->close();
+            client->deleteLater();
+            return;
+        }
+    }
+
     m_webSocketClients.append(client);
     connect(client, &QWebSocket::textMessageReceived,
             this, &RemoteServer::onWebSocketTextMessage);
@@ -348,17 +449,11 @@ void RemoteServer::onWebSocketConnection()
     qDebug() << "RemoteServer: Client connected from" << client->peerAddress().toString();
     emit clientConnected();
 
-    // Send current state to new client
-    QJsonObject json;
-    json["type"] = "init";
-    json["currentIndex"] = m_currentIndex;
-    json["totalSlides"] = m_totalSlides;
-    json["currentText"] = m_currentText;
-    json["nextText"] = m_nextText;
-    json["outputConnected"] = m_outputConnected;
-    json["confidenceConnected"] = m_confidenceConnected;
-
-    client->sendTextMessage(QJsonDocument(json).toJson(QJsonDocument::Compact));
+    // Send current state to the new client only if no PIN is required;
+    // otherwise slide content is withheld until authentication succeeds.
+    if (isAuthorized(client)) {
+        client->sendTextMessage(QJsonDocument(stateJson()).toJson(QJsonDocument::Compact));
+    }
 }
 
 void RemoteServer::onWebSocketTextMessage(const QString& message)
@@ -378,6 +473,29 @@ void RemoteServer::onWebSocketTextMessage(const QString& message)
         QJsonObject response;
         response["type"] = "authResponse";
 
+        const QString peer = client->peerAddress().toString();
+        const QDateTime now = QDateTime::currentDateTimeUtc();
+
+        // Prune expired lockout entries so the table can't grow unbounded
+        for (auto it = m_pinAttempts.begin(); it != m_pinAttempts.end();) {
+            if (it.value().lockedUntil.isValid() && now >= it.value().lockedUntil) {
+                it = m_pinAttempts.erase(it);
+            } else {
+                ++it;
+            }
+        }
+
+        PinAttempts& attempts = m_pinAttempts[peer];
+
+        if (attempts.lockedUntil.isValid() && now < attempts.lockedUntil) {
+            response["success"] = false;
+            response["pinRequired"] = true;
+            response["error"] = "Too many attempts. Try again later.";
+            qWarning() << "RemoteServer: PIN attempt from locked-out peer" << peer;
+            client->sendTextMessage(QJsonDocument(response).toJson(QJsonDocument::Compact));
+            return;
+        }
+
         if (!m_pinEnabled) {
             // No PIN required, auto-authenticate
             if (!m_authenticatedClients.contains(client)) {
@@ -385,16 +503,24 @@ void RemoteServer::onWebSocketTextMessage(const QString& message)
             }
             response["success"] = true;
             response["pinRequired"] = false;
-        } else if (pin == m_pin) {
+        } else if (constantTimeEquals(pin, m_pin)) {
             // Correct PIN
             if (!m_authenticatedClients.contains(client)) {
                 m_authenticatedClients.append(client);
             }
+            m_pinAttempts.remove(peer);
             response["success"] = true;
             response["pinRequired"] = true;
             qDebug() << "RemoteServer: Client authenticated with PIN";
         } else {
             // Wrong PIN
+            attempts.failures++;
+            if (attempts.failures >= MAX_PIN_FAILURES) {
+                attempts.lockedUntil = now.addSecs(PIN_LOCKOUT_SECONDS);
+                attempts.failures = 0;
+                qWarning() << "RemoteServer: Peer" << peer << "locked out for"
+                           << PIN_LOCKOUT_SECONDS << "seconds after repeated PIN failures";
+            }
             response["success"] = false;
             response["pinRequired"] = true;
             response["error"] = "Incorrect PIN";
@@ -402,6 +528,12 @@ void RemoteServer::onWebSocketTextMessage(const QString& message)
         }
 
         client->sendTextMessage(QJsonDocument(response).toJson(QJsonDocument::Compact));
+
+        // Now that the client is authenticated, deliver the current state
+        // that was withheld at connection time.
+        if (response["success"].toBool()) {
+            client->sendTextMessage(QJsonDocument(stateJson()).toJson(QJsonDocument::Compact));
+        }
         return;
     }
 

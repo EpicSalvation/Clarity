@@ -27,6 +27,10 @@ bool IpcServer::start()
     // Remove any existing server (in case of previous crash)
     QLocalServer::removeServer(SERVER_NAME);
 
+    // Restrict the socket to the current user so other local accounts
+    // cannot connect and inject slide/control messages.
+    m_server->setSocketOptions(QLocalServer::UserAccessOption);
+
     if (!m_server->listen(SERVER_NAME)) {
         qCritical() << "IpcServer: Failed to start server:" << m_server->errorString();
         emit errorOccurred(m_server->errorString());
@@ -136,10 +140,19 @@ void IpcServer::onClientReadyRead()
     }
 
     // Append new data to buffer
-    m_receiveBuffers[client].append(client->readAll());
+    QByteArray& buffer = m_receiveBuffers[client];
+    buffer.append(client->readAll());
+
+    // Guard against a runaway client streaming data with no message
+    // delimiter, which would grow the buffer without bound.
+    if (buffer.size() > MAX_RECEIVE_BUFFER_SIZE) {
+        qWarning() << "IpcServer: Receive buffer limit exceeded for client"
+                   << m_clients.value(client, "unknown") << "- disconnecting";
+        client->disconnectFromServer();
+        return;
+    }
 
     // Process complete messages (newline-delimited)
-    QByteArray& buffer = m_receiveBuffers[client];
     int newlineIndex;
 
     while ((newlineIndex = buffer.indexOf('\n')) != -1) {

@@ -3,6 +3,7 @@
 
 #include "SlideGroupLibrary.h"
 #include <QFile>
+#include <QSaveFile>
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonArray>
@@ -131,17 +132,18 @@ bool SlideGroupLibrary::saveLibrary()
 
     QJsonDocument doc(root);
 
-    QFile file(m_libraryPath);
+    // Atomic write: never truncate the existing library until the new
+    // contents are fully on disk.
+    QSaveFile file(m_libraryPath);
     if (!file.open(QIODevice::WriteOnly)) {
         qWarning() << "Failed to save slide group library:" << file.errorString();
         return false;
     }
 
     qint64 written = file.write(doc.toJson(QJsonDocument::Indented));
-    file.close();
 
-    if (written == -1) {
-        qWarning() << "Failed to write slide group library data";
+    if (written == -1 || !file.commit()) {
+        qWarning() << "Failed to write slide group library data:" << file.errorString();
         return false;
     }
 

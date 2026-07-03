@@ -103,6 +103,14 @@ void IpcClient::onReadyRead()
     // Append new data to buffer
     m_receiveBuffer.append(m_socket->readAll());
 
+    // Guard against unbounded growth if the stream never delivers a delimiter
+    if (m_receiveBuffer.size() > MAX_RECEIVE_BUFFER_SIZE) {
+        qWarning() << "IpcClient: Receive buffer limit exceeded - resetting connection";
+        m_receiveBuffer.clear();
+        m_socket->abort();
+        return;
+    }
+
     // Process complete messages (newline-delimited)
     int newlineIndex;
 

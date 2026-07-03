@@ -53,6 +53,10 @@ private:
 
     static const QString SERVER_NAME;
     static const int RECONNECT_INTERVAL_MS = 2000;
+
+    // Slide messages can embed base64 image data, so allow large messages,
+    // but still bound memory against a runaway stream.
+    static constexpr qsizetype MAX_RECEIVE_BUFFER_SIZE = 64 * 1024 * 1024;
 };
 
 } // namespace Clarity

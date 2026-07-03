@@ -4,6 +4,51 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-07-03 - Security & Reliability Review Hardening
+
+### Summary
+Completed a security, safety, and efficiency review of the codebase ahead of release, and fixed the issues found. Focus areas were the network-facing remote control server, local IPC, the update checker, and crash-safety of every file that stores user data.
+
+### Work Completed
+
+**RemoteServer hardening (`src/Core/RemoteServer.h/.cpp`)**
+- Slide content is no longer sent to unauthenticated WebSocket clients when PIN protection is enabled. Previously, the `init` state message and every `slideUpdate`/`status` broadcast went to *all* connected sockets, so a client that never entered the PIN still received full slide text. State is now delivered only after successful authentication (or immediately when no PIN is configured).
+- Added PIN brute-force protection: after 5 failed attempts a peer address is locked out for 60 seconds. Expired lockout entries are pruned so the tracking table stays bounded.
+- PIN comparison is now constant-time, closing a timing side channel.
+- Added a cross-site WebSocket hijacking (CSWSH) guard: browser connections whose `Origin` port doesn't match the remote-control HTTP port are rejected (non-browser clients with no Origin are still allowed).
+- Added connection caps (16 WebSocket / 32 HTTP clients) and an 8 KB HTTP request size limit.
+- HTTP requests are now buffered until headers are complete instead of assuming the whole request arrives in one `readyRead`.
+- Only `GET` is served; responses now include `X-Content-Type-Options: nosniff` and `X-Frame-Options: DENY`.
+
+**IPC hardening (`src/Core/IpcServer.h/.cpp`, `src/Core/IpcClient.h/.cpp`)**
+- The `clarity-ipc` local socket is now created with `QLocalServer::UserAccessOption`, so other user accounts on the same machine can no longer connect and inject slide/control messages.
+- Receive buffers on both server and client are capped at 64 MB (large enough for slides with embedded base64 images) with disconnect-on-overflow, preventing a runaway or malicious peer from exhausting memory.
+
+**Crash-safe data writes (`ControlWindow`, `SongLibrary`, `SlideGroupLibrary`, `ThemeManager`, `MediaLibrary`)**
+- All user-data writes (presentation `.cly` files, song library, slide group library, custom themes, media index) now use `QSaveFile` instead of truncate-and-write `QFile`. A crash or power loss mid-save can no longer destroy the existing file — the new contents are committed atomically or not at all. Commit failures are reported to the user / logged.
+
+**UpdateChecker fix (`src/Core/UpdateChecker.cpp`)**
+- The `QNetworkAccessManager::finished` connection was made inside `check()`, so every additional check (e.g. manual Help > Check for Updates after the startup check) stacked another connection and `onReply` ran multiple times per reply. The connection now happens once in the constructor.
+
+**Misc**
+- The blur performance log (`clarity_blur_perf.log`) appended on every session and grew without bound on production machines. It is now opt-in via the `CLARITY_BLUR_LOG` environment variable.
+- Media library duplicate detection switched from MD5 to SHA-256.
+
+### Technical Decisions
+- Remote-control PIN lockout is tracked per peer address (not per socket) so reconnecting doesn't reset the attempt counter.
+- IPC buffer cap chosen at 64 MB because slide messages legitimately embed base64 image data.
+- Left as known limitations (documented, not changed): API keys and the remote PIN are stored in plaintext `QSettings` (OS keychain integration would need a new dependency such as QtKeychain); the remote-control server defaults to enabled with PIN off — consider prompting users to set a PIN on first remote connection in a future release; remote traffic is plain `ws://`/`http://` on the LAN.
+
+### Testing
+- All 10 modified translation units compile cleanly against Qt 6.4.
+- Full link not possible in the review environment: pre-existing `SlideFilterProxyModel.cpp` uses `beginFilterChange`/`endFilterChange`, which require a newer Qt than 6.4 — unrelated to these changes.
+- Manual test recommended before release: enable PIN, connect from a phone, verify no slide text appears until the PIN is entered, and verify 5 wrong PINs lock the device out for a minute.
+
+### Commits
+- Branch: `claude/codebase-security-review-kyqoko`
+
+---
+
 ## 2026-03-07 - Update Checker with Beta Channel Support
 
 ### Summary
