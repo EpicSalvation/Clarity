@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Troy Dontigney
 
 #include "SongEditorDialog.h"
+#include "AppStyle.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -141,7 +142,7 @@ void SongEditorDialog::setupUI()
         "Tip: Each section becomes one slide. Create separate sections for each verse, chorus, etc.",
         this
     );
-    helpLabel->setStyleSheet("color: #666;");
+    helpLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::mutedTextColor()));
     helpLabel->setWordWrap(true);
     mainLayout->addWidget(helpLabel);
 

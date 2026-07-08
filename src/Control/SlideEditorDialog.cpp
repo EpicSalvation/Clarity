@@ -331,7 +331,7 @@ QWidget* SlideEditorDialog::buildBackgroundSection()
     m_imagePreviewLabel->setMinimumHeight(50);
     m_imagePreviewLabel->setMaximumHeight(70);
     m_imagePreviewLabel->setAlignment(Qt::AlignCenter);
-    m_imagePreviewLabel->setStyleSheet("QLabel { border: 1px solid #ccc; background-color: #f5f5f5; }");
+    m_imagePreviewLabel->setStyleSheet("QLabel { border: 1px solid palette(mid); border-radius: 5px; background-color: palette(base); }");
     m_imagePreviewLabel->setText(tr("No image preview"));
     imageLayout->addWidget(m_imagePreviewLabel);
     m_backgroundStack->addWidget(imagePage);

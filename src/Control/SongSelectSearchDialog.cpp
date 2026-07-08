@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Troy Dontigney
 
 #include "SongSelectSearchDialog.h"
+#include "AppStyle.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGroupBox>
@@ -30,7 +31,7 @@ void SongSelectSearchDialog::setupUI()
         "You'll need to be logged in to SongSelect to download lyric sheets.",
         this);
     instructionsLabel->setWordWrap(true);
-    instructionsLabel->setStyleSheet("color: #666; margin-bottom: 10px;");
+    instructionsLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::mutedTextColor()) + " QLabel { margin-bottom: 10px; }");
     mainLayout->addWidget(instructionsLabel);
 
     // Search input
@@ -70,7 +71,7 @@ void SongSelectSearchDialog::setupUI()
 
     // Status
     m_statusLabel = new QLabel("Enter a search term and click Search or choose an option", this);
-    m_statusLabel->setStyleSheet("color: #666;");
+    m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::mutedTextColor()));
     m_statusLabel->setWordWrap(true);
     mainLayout->addWidget(m_statusLabel);
 

@@ -110,7 +110,7 @@ void MediaLibraryDialog::setupUI()
     m_previewLabel = new QLabel(this);
     m_previewLabel->setFixedSize(200, 150);
     m_previewLabel->setAlignment(Qt::AlignCenter);
-    m_previewLabel->setStyleSheet("QLabel { border: 1px solid #ccc; background-color: #f0f0f0; }");
+    m_previewLabel->setStyleSheet("QLabel { border: 1px solid palette(mid); border-radius: 5px; background-color: palette(base); }");
     m_previewLabel->setText("No selection");
     previewLayout->addWidget(m_previewLabel);
 

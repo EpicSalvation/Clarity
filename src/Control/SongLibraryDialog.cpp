@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Troy Dontigney
 
 #include "SongLibraryDialog.h"
+#include "AppStyle.h"
 #include "SongEditorDialog.h"
 #include "BatchImportDialog.h"
 #include "CCLIReportDialog.h"
@@ -194,7 +195,7 @@ void SongLibraryDialog::setupUI()
     m_lyricsPreview = new QTextEdit(this);
     m_lyricsPreview->setReadOnly(true);
     m_lyricsPreview->setStyleSheet(
-        "QTextEdit { background-color: #f5f5f5; color: #1a1a1a; font-family: monospace; font-size: 11pt; }"
+        "QTextEdit { font-family: monospace; font-size: 11pt; }"
     );
     detailsLayout->addWidget(m_lyricsPreview);
 
@@ -810,10 +811,12 @@ void SongLibraryDialog::showDropIndicator(bool show)
     if (show) {
         if (!m_dropOverlay) {
             m_dropOverlay = new QWidget(this);
-            m_dropOverlay->setStyleSheet(
-                "background-color: rgba(30, 58, 138, 0.3);"
-                "border: 3px dashed #1e3a8a;"
-            );
+            const QColor accent = AppStyle::accentColor();
+            m_dropOverlay->setStyleSheet(QString(
+                "background-color: rgba(%1, %2, %3, 60);"
+                "border: 2px dashed %4;")
+                .arg(accent.red()).arg(accent.green()).arg(accent.blue())
+                .arg(accent.name()));
         }
         m_dropOverlay->setGeometry(rect());
         m_dropOverlay->raise();

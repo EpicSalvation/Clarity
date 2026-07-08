@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Troy Dontigney
 
 #include "TourOverlay.h"
+#include "AppStyle.h"
 
 #include <QPainter>
 #include <QPen>
@@ -66,7 +67,7 @@ TourOverlay::TourOverlay(QWidget* parentWindow, const QList<Step>& steps)
 
     m_stepCountLabel = new QLabel(m_callout);
     m_stepCountLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    m_stepCountLabel->setStyleSheet("QLabel { color: gray; font-size: 9pt; }");
+    m_stepCountLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::mutedTextColor(), 9));
 
     // Navigation row
     QHBoxLayout* navLayout = new QHBoxLayout();
@@ -77,19 +78,8 @@ TourOverlay::TourOverlay(QWidget* parentWindow, const QList<Step>& steps)
     m_nextButton = new QPushButton(tr("Next"), m_callout);
     m_nextButton->setDefault(true);
 
-    // Style the Next button to stand out
-    m_nextButton->setStyleSheet(
-        "QPushButton {"
-        "  background: #3b82f6;"
-        "  color: white;"
-        "  border: none;"
-        "  border-radius: 4px;"
-        "  padding: 5px 14px;"
-        "  font-weight: bold;"
-        "}"
-        "QPushButton:hover { background: #2563eb; }"
-        "QPushButton:pressed { background: #1d4ed8; }"
-    );
+    // Filled accent styling from the app stylesheet (QPushButton[primary="true"])
+    m_nextButton->setProperty("primary", true);
 
     navLayout->addWidget(m_skipButton);
     navLayout->addStretch();

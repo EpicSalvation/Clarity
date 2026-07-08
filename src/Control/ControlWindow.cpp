@@ -522,11 +522,16 @@ void ControlWindow::setupUI()
     m_editingWidget = new QWidget(this);
     m_stackedWidget->addWidget(m_editingWidget);
 
-    // Main layout - vertical with content area on top and buttons at bottom
+    // Main layout - vertical with content area on top and buttons at bottom.
+    // Zero margins so the media drawer's toggle bar runs edge-to-edge.
     QVBoxLayout* mainLayout = new QVBoxLayout(m_editingWidget);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
 
     // Content area: horizontal layout with list on left, grid in center, preview on right
     QHBoxLayout* contentLayout = new QHBoxLayout();
+    contentLayout->setContentsMargins(8, 8, 8, 8);
+    contentLayout->setSpacing(8);
 
     // Left panel: Item list with add/remove/reorder buttons at the bottom
     QWidget* leftPanel = new QWidget(this);
@@ -536,6 +541,7 @@ void ControlWindow::setupUI()
     leftLayout->setSpacing(2);
 
     m_slideListView = new QListView(this);
+    m_slideListView->setObjectName("playlistView");
     m_slideListView->setModel(m_itemListModel);
     m_slideListView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_slideListView->setDragEnabled(true);
@@ -591,7 +597,9 @@ void ControlWindow::setupUI()
     contentLayout->addWidget(leftPanel);
 
     // Center panel: Slide grid view (custom subclass for insert-between drag-and-drop)
+    // objectName enables the recessed "canvas" styling in the theme stylesheets
     m_slideGridView = new SlideGridView(this);
+    m_slideGridView->setObjectName("slideGridView");
 
     // Set up proxy model for filtering slides by item
     m_slideFilterProxy->setSourceModel(m_presentationModel);
@@ -733,7 +741,7 @@ void ControlWindow::setupUI()
     m_remoteStatusLabel->setOpenExternalLinks(false);
     m_remoteStatusLabel->setCursor(Qt::PointingHandCursor);
     m_remoteStatusLabel->setToolTip(tr("Click to show QR code for mobile remote control"));
-    m_remoteStatusLabel->setStyleSheet("QLabel { color: #0066cc; } QLabel:hover { text-decoration: underline; }");
+    m_remoteStatusLabel->setStyleSheet("QLabel { color: palette(link); } QLabel:hover { text-decoration: underline; }");
     m_remoteStatusLabel->installEventFilter(this);
     statusBar()->addPermanentWidget(m_remoteStatusLabel);
 }
@@ -3796,7 +3804,7 @@ void ControlWindow::showQrCode()
            "the presentation remotely from the same network."),
         dialog);
     instructionsLabel->setAlignment(Qt::AlignCenter);
-    instructionsLabel->setStyleSheet("color: gray;");
+    instructionsLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::mutedTextColor()));
     layout->addWidget(instructionsLabel);
 
     // Close button

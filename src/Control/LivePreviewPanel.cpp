@@ -30,7 +30,7 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     const QString groupStyle =
         "QFrame { background-color: palette(alternate-base);"
         " border: 1px solid palette(mid);"
-        " border-radius: 4px;"
+        " border-radius: 6px;"
         " padding: 2px; }";
 
     // --- Output group: preview + blackout/whiteout buttons ---
@@ -80,20 +80,15 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     m_clearTextButton = new QPushButton(tr("Clear Text"), this);
     m_clearTextButton->setCheckable(true);
     m_clearTextButton->setToolTip(tr("Clear text, keep background (T)"));
-    m_clearTextButton->setStyleSheet(
-        "QPushButton { padding: 4px 8px; }"
-        "QPushButton:checked { background-color: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; }"
-    );
+    // Compact padding; checked state comes from the app stylesheet's accent
+    m_clearTextButton->setStyleSheet("QPushButton { padding: 4px 8px; }");
     connect(m_clearTextButton, &QPushButton::clicked, this, &LivePreviewPanel::clearTextClicked);
     screenButtonRow2->addWidget(m_clearTextButton);
 
     m_clearBgButton = new QPushButton(tr("Clear BG"), this);
     m_clearBgButton->setCheckable(true);
     m_clearBgButton->setToolTip(tr("Clear background, keep text (R)"));
-    m_clearBgButton->setStyleSheet(
-        "QPushButton { padding: 4px 8px; }"
-        "QPushButton:checked { background-color: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; }"
-    );
+    m_clearBgButton->setStyleSheet("QPushButton { padding: 4px 8px; }");
     connect(m_clearBgButton, &QPushButton::clicked, this, &LivePreviewPanel::clearBgClicked);
     screenButtonRow2->addWidget(m_clearBgButton);
 
@@ -153,18 +148,7 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     m_ndiButton->setCheckable(false);
     m_ndiButton->setToolTip(tr("Toggle NDI streaming output (N)"));
     m_ndiButton->setFixedHeight(32);
-    m_ndiButton->setStyleSheet(
-        "QPushButton {"
-        "  padding: 4px 8px;"
-        "  font-weight: bold;"
-        "  border: 2px solid #dc2626;"
-        "  border-radius: 4px;"
-        "  background-color: transparent;"
-        "}"
-        "QPushButton:hover {"
-        "  background-color: rgba(128, 128, 128, 40);"
-        "}"
-    );
+    setNdiActive(false);  // applies the red (inactive) outline style
     connect(m_ndiButton, &QPushButton::clicked, this, &LivePreviewPanel::ndiClicked);
     layout->addWidget(m_ndiButton);
 
@@ -186,10 +170,7 @@ LivePreviewPanel::LivePreviewPanel(QWidget* parent)
     m_autoAdvanceProgress->setValue(0);
     m_autoAdvanceProgress->setTextVisible(false);
     m_autoAdvanceProgress->setFixedHeight(8);
-    m_autoAdvanceProgress->setStyleSheet(
-        "QProgressBar { border: 1px solid palette(mid); border-radius: 3px; background: palette(base); }"
-        "QProgressBar::chunk { background: #2563eb; border-radius: 2px; }"
-    );
+    // Default look comes from the app stylesheet (accent chunk, rounded)
     autoAdvanceLayout->addWidget(m_autoAdvanceProgress);
 
     m_autoAdvanceWidget->setVisible(false);
@@ -267,14 +248,16 @@ QSize LivePreviewPanel::minimumSizeHint() const
 
 void LivePreviewPanel::setNdiActive(bool active)
 {
-    QString borderColor = active ? "#16a34a" : "#dc2626";  // green-600 / red-600
+    // Outline button: green when streaming, red when off (theme-aware shades)
+    const QString borderColor = active ? AppStyle::successColor().name()
+                                       : AppStyle::errorColor().name();
     m_ndiButton->setStyleSheet(
         QString(
             "QPushButton {"
             "  padding: 4px 8px;"
-            "  font-weight: bold;"
+            "  font-weight: 600;"
             "  border: 2px solid %1;"
-            "  border-radius: 4px;"
+            "  border-radius: 5px;"
             "  background-color: transparent;"
             "}"
             "QPushButton:hover {"
@@ -328,9 +311,10 @@ void LivePreviewPanel::setAutoAdvanceActive(bool active)
 void LivePreviewPanel::setAutoAdvancePaused(bool paused)
 {
     if (paused) {
+        // Amber chunk signals the paused state; theme QSS supplies the rest
         m_autoAdvanceProgress->setStyleSheet(
-            "QProgressBar { border: 1px solid palette(mid); border-radius: 3px; background: palette(base); }"
-            "QProgressBar::chunk { background: #f59e0b; border-radius: 2px; }"
+            QString("QProgressBar::chunk { background: %1; border-radius: 4px; }")
+                .arg(AppStyle::warningColor().name())
         );
         // Append "(paused)" to label if not already there
         QString text = m_autoAdvanceLabel->text();
@@ -338,10 +322,7 @@ void LivePreviewPanel::setAutoAdvancePaused(bool paused)
             m_autoAdvanceLabel->setText(text + tr(" (paused)"));
         }
     } else {
-        m_autoAdvanceProgress->setStyleSheet(
-            "QProgressBar { border: 1px solid palette(mid); border-radius: 3px; background: palette(base); }"
-            "QProgressBar::chunk { background: #2563eb; border-radius: 2px; }"
-        );
+        m_autoAdvanceProgress->setStyleSheet(QString());  // back to theme default
     }
 }
 

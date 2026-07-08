@@ -9,6 +9,9 @@
 
 namespace Clarity {
 
+// Corner radius shared by the thumbnail clip and its indicator borders
+static constexpr qreal kCornerRadius = 6.0;
+
 // Color palette for section types, derived from the label prefix.
 // Duplicated sections share the same label → same color.
 static QColor sectionColor(const QString& label)
@@ -82,12 +85,12 @@ void SlideGridDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
         m_thumbnailCache.insert(slideIndex, thumbnail);
     }
 
-    // Draw the thumbnail with rounded corners (4px radius)
+    // Draw the thumbnail with rounded corners
     {
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing, true);
         QPainterPath clip;
-        clip.addRoundedRect(thumbnailRect, 4, 4);
+        clip.addRoundedRect(thumbnailRect, kCornerRadius, kCornerRadius);
         painter->setClipPath(clip);
         painter->drawPixmap(thumbnailRect, thumbnail);
         painter->restore();
@@ -122,7 +125,7 @@ void SlideGridDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
             painter->save();
             painter->setRenderHint(QPainter::Antialiasing, true);
             QPainterPath bannerClip;
-            bannerClip.addRoundedRect(thumbnailRect, 4, 4);
+            bannerClip.addRoundedRect(thumbnailRect, kCornerRadius, kCornerRadius);
             painter->setClipPath(bannerClip);
 
             QColor bannerColor = color;
@@ -154,26 +157,23 @@ void SlideGridDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opt
     if (isCurrentSlide) {
         // "Live" indicator: green rounded border
         QPen pen(QColor("#22c55e"));
-        pen.setWidth(4);
-        painter->setPen(pen);
-        painter->setBrush(Qt::NoBrush);
-        painter->drawRoundedRect(thumbnailRect.adjusted(2, 2, -2, -2), 3, 3);
-    } else if (isSelected) {
-        // Selection highlight: blue rounded border
-        QPen pen(QColor("#3b82f6"));
         pen.setWidth(3);
         painter->setPen(pen);
         painter->setBrush(Qt::NoBrush);
-        painter->drawRoundedRect(thumbnailRect.adjusted(1, 1, -1, -1), 3, 3);
-    }
-
-    // Focus indicator
-    if (option.state & QStyle::State_HasFocus) {
-        QPen focusPen(Qt::DotLine);
-        focusPen.setColor(QColor("#60a5fa"));
-        painter->setPen(focusPen);
+        painter->drawRoundedRect(thumbnailRect.adjusted(1, 1, -1, -1), kCornerRadius - 1, kCornerRadius - 1);
+    } else if (isSelected) {
+        // Selection highlight: accent rounded border
+        QPen pen(QColor("#0078d4"));
+        pen.setWidth(3);
+        painter->setPen(pen);
         painter->setBrush(Qt::NoBrush);
-        painter->drawRoundedRect(thumbnailRect.adjusted(-2, -2, 2, 2), 5, 5);
+        painter->drawRoundedRect(thumbnailRect.adjusted(1, 1, -1, -1), kCornerRadius - 1, kCornerRadius - 1);
+    } else {
+        // Hairline outline keeps light slides from bleeding into the canvas
+        painter->setPen(QPen(option.palette.color(QPalette::Mid)));
+        painter->setBrush(Qt::NoBrush);
+        painter->drawRoundedRect(QRectF(thumbnailRect).adjusted(0.5, 0.5, -0.5, -0.5),
+                                 kCornerRadius, kCornerRadius);
     }
 
     painter->restore();

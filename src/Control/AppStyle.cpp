@@ -67,6 +67,54 @@ AppStyle::ThemeMode AppStyle::effectiveMode()
 }
 
 // ---------------------------------------------------------------------------
+// Semantic colors
+// ---------------------------------------------------------------------------
+
+QColor AppStyle::accentColor()
+{
+    return (effectiveMode() == ThemeMode::Dark) ? QColor("#0078d4")
+                                                : QColor("#0067c0");
+}
+
+QColor AppStyle::successColor()
+{
+    return (effectiveMode() == ThemeMode::Dark) ? QColor("#4ec97b")
+                                                : QColor("#1a7f37");
+}
+
+QColor AppStyle::errorColor()
+{
+    return (effectiveMode() == ThemeMode::Dark) ? QColor("#f66d6d")
+                                                : QColor("#cf222e");
+}
+
+QColor AppStyle::warningColor()
+{
+    return (effectiveMode() == ThemeMode::Dark) ? QColor("#e3b341")
+                                                : QColor("#9a6700");
+}
+
+QColor AppStyle::mutedTextColor()
+{
+    return (effectiveMode() == ThemeMode::Dark) ? QColor("#9d9d9d")
+                                                : QColor("#6e6e6e");
+}
+
+QString AppStyle::labelStyle(const QColor& color, int pointSize)
+{
+    if (pointSize > 0) {
+        return QString("QLabel { color: %1; font-size: %2pt; }")
+            .arg(color.name()).arg(pointSize);
+    }
+    return QString("QLabel { color: %1; }").arg(color.name());
+}
+
+QString AppStyle::helpLabelStyle()
+{
+    return labelStyle(mutedTextColor(), 10);
+}
+
+// ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
 
@@ -81,7 +129,7 @@ QPalette AppStyle::darkPalette()
     const QColor altBase     ("#252525");
     const QColor button      ("#313131");
     const QColor buttonText  ("#d4d4d4");
-    const QColor highlight   ("#1a85c7");
+    const QColor highlight   ("#0078d4");
     const QColor highlightTx ("#ffffff");
     const QColor link        ("#4fc1ff");
     const QColor mid         ("#464646");
@@ -107,7 +155,7 @@ QPalette AppStyle::darkPalette()
     p.setColor(QPalette::Midlight,        midlight);
     p.setColor(QPalette::Dark,            dark);
     p.setColor(QPalette::Shadow,          shadow);
-    p.setColor(QPalette::ToolTipBase,     QColor("#2a2a2a"));
+    p.setColor(QPalette::ToolTipBase,     QColor("#252526"));
     p.setColor(QPalette::ToolTipText,     QColor("#d4d4d4"));
     p.setColor(QPalette::PlaceholderText, placeholder);
 
@@ -132,7 +180,7 @@ QPalette AppStyle::lightPalette()
     const QColor altBase     ("#f0f0f0");
     const QColor button      ("#e8e8e8");
     const QColor buttonText  ("#1a1a1a");
-    const QColor highlight   ("#0e639c");
+    const QColor highlight   ("#0067c0");
     const QColor highlightTx ("#ffffff");
     const QColor link        ("#0066cc");
     const QColor mid         ("#b8b8b8");
@@ -157,7 +205,7 @@ QPalette AppStyle::lightPalette()
     p.setColor(QPalette::Midlight,        midlight);
     p.setColor(QPalette::Dark,            dark);
     p.setColor(QPalette::Shadow,          shadow);
-    p.setColor(QPalette::ToolTipBase,     QColor("#ffffcc"));
+    p.setColor(QPalette::ToolTipBase,     QColor("#ffffff"));
     p.setColor(QPalette::ToolTipText,     QColor("#1a1a1a"));
     p.setColor(QPalette::PlaceholderText, QColor("#9a9a9a"));
 

@@ -21,6 +21,18 @@
         <file alias="icons/chevron-up.svg">icons/chevron-up.svg</file>
         <file alias="icons/chevron-down.svg">icons/chevron-down.svg</file>
 
+        <!-- Fixed-color icons referenced from the QSS stylesheets.
+             QSS image: url() cannot resolve currentColor, so these carry
+             explicit colors; -dark/-light suffix = theme they are used in. -->
+        <file alias="icons/qss/check.svg">icons/qss/check.svg</file>
+        <file alias="icons/qss/dash.svg">icons/qss/dash.svg</file>
+        <file alias="icons/qss/check-dark.svg">icons/qss/check-dark.svg</file>
+        <file alias="icons/qss/check-light.svg">icons/qss/check-light.svg</file>
+        <file alias="icons/qss/chevron-down-dark.svg">icons/qss/chevron-down-dark.svg</file>
+        <file alias="icons/qss/chevron-down-light.svg">icons/qss/chevron-down-light.svg</file>
+        <file alias="icons/qss/chevron-up-dark.svg">icons/qss/chevron-up-dark.svg</file>
+        <file alias="icons/qss/chevron-up-light.svg">icons/qss/chevron-up-light.svg</file>
+
         <!-- Toolbar insert icons -->
         <file alias="icons/toolbar-slide-blank.svg">icons/toolbar-slide-blank.svg</file>
         <file alias="icons/toolbar-slide-title.svg">icons/toolbar-slide-title.svg</file>
