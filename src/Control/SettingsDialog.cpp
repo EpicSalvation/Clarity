@@ -205,7 +205,7 @@ void SettingsDialog::createGeneralPage()
         tr("Changes take effect immediately. Restart is not required."),
         appearanceGroup);
     themeHelpLabel->setWordWrap(true);
-    themeHelpLabel->setStyleSheet("QLabel { color: palette(mid); font-size: 10pt; }");
+    themeHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     appearanceLayout->addRow(themeHelpLabel);
 
     pageLayout->addWidget(appearanceGroup);
@@ -226,7 +226,7 @@ void SettingsDialog::createGeneralPage()
         tr("Select the interface language. Changes require restarting Clarity to take effect."),
         languageGroup);
     languageHelpLabel->setWordWrap(true);
-    languageHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    languageHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     languageLayout->addRow(languageHelpLabel);
 
     pageLayout->addWidget(languageGroup);
@@ -262,7 +262,7 @@ void SettingsDialog::createGeneralPage()
            "Enable 'Show all slides' to see all presentation slides at once."),
         uiBehaviorGroup);
     uiBehaviorHelpLabel->setWordWrap(true);
-    uiBehaviorHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    uiBehaviorHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     uiBehaviorLayout->addWidget(uiBehaviorHelpLabel);
 
     pageLayout->addWidget(uiBehaviorGroup);
@@ -293,7 +293,7 @@ void SettingsDialog::createGeneralPage()
            "having a consistent background across songs and scripture."),
         backgroundGroup);
     backgroundHelpLabel->setWordWrap(true);
-    backgroundHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    backgroundHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     backgroundLayout->addWidget(backgroundHelpLabel);
 
     pageLayout->addWidget(backgroundGroup);
@@ -311,7 +311,7 @@ void SettingsDialog::createGeneralPage()
            "are automatically saved back. You can always update manually via right-click."),
         libraryGroup);
     librarySyncHelpLabel->setWordWrap(true);
-    librarySyncHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    librarySyncHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     libraryLayout->addWidget(librarySyncHelpLabel);
 
     pageLayout->addWidget(libraryGroup);
@@ -386,7 +386,7 @@ void SettingsDialog::createDisplayPage()
         tr("Select which screen the output display will appear on when launched."),
         outputGroup);
     outputHelpLabel->setWordWrap(true);
-    outputHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    outputHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     outputLayout->addRow(outputHelpLabel);
 
     pageLayout->addWidget(outputGroup);
@@ -425,7 +425,7 @@ void SettingsDialog::createDisplayPage()
         tr("Select which screen the confidence monitor will appear on when launched."),
         confidenceScreenGroup);
     confidenceHelpLabel->setWordWrap(true);
-    confidenceHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    confidenceHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     confidenceScreenLayout->addRow(confidenceHelpLabel);
 
     pageLayout->addWidget(confidenceScreenGroup);
@@ -462,7 +462,7 @@ void SettingsDialog::createDisplayPage()
         tr("These settings control how slide text appears on the confidence monitor."),
         confidenceDisplayGroup);
     displayHelpLabel->setWordWrap(true);
-    displayHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    displayHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     confidenceDisplayLayout->addRow(displayHelpLabel);
 
     pageLayout->addWidget(confidenceDisplayGroup);
@@ -497,7 +497,7 @@ void SettingsDialog::createDisplayPage()
            "The confidence monitor always shows instant transitions."),
         transitionGroup);
     transitionHelpLabel->setWordWrap(true);
-    transitionHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    transitionHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     transitionLayout->addRow(transitionHelpLabel);
 
     pageLayout->addWidget(transitionGroup);
@@ -560,7 +560,7 @@ void SettingsDialog::createRemoteControlPage()
            "devices on the network."),
         pinGroup);
     pinHelpLabel->setWordWrap(true);
-    pinHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    pinHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     pinLayout->addRow(pinHelpLabel);
 
     pageLayout->addWidget(pinGroup);
@@ -573,7 +573,7 @@ void SettingsDialog::createRemoteControlPage()
            "Note: Changes to these settings take effect immediately."),
         remotePage);
     remoteHelpLabel->setWordWrap(true);
-    remoteHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    remoteHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     pageLayout->addWidget(remoteHelpLabel);
 
     pageLayout->addStretch(); // Push content to top
@@ -606,7 +606,7 @@ void SettingsDialog::createBiblePage()
            "Otherwise, it will always start with the preferred translation above."),
         defaultGroup);
     defaultHelpLabel->setWordWrap(true);
-    defaultHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    defaultHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     defaultLayout->addRow(defaultHelpLabel);
 
     pageLayout->addWidget(defaultGroup);
@@ -625,7 +625,7 @@ void SettingsDialog::createBiblePage()
            "Existing slides are not affected."),
         scriptureFormatGroup);
     refPosHelpLabel->setWordWrap(true);
-    refPosHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    refPosHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     scriptureFormatLayout->addRow(refPosHelpLabel);
 
     pageLayout->addWidget(scriptureFormatGroup);
@@ -656,7 +656,7 @@ void SettingsDialog::createBiblePage()
            "The ESV API does not provide red letter data."),
         redLetterGroup);
     redLetterHelpLabel->setWordWrap(true);
-    redLetterHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    redLetterHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     redLetterLayout->addRow(redLetterHelpLabel);
 
     pageLayout->addWidget(redLetterGroup);
@@ -703,7 +703,7 @@ void SettingsDialog::createBiblePage()
            "Public domain translations like KJV and WEB can be downloaded from Crosswire Bible Society."),
         biblePage);
     helpLabel->setWordWrap(true);
-    helpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    helpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     pageLayout->addWidget(helpLabel);
 
     // ESV API group
@@ -716,7 +716,7 @@ void SettingsDialog::createBiblePage()
     esvLayout->addRow(tr("API Key:"), m_esvApiKeyEdit);
 
     m_esvCacheStatusLabel = new QLabel(esvGroup);
-    m_esvCacheStatusLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    m_esvCacheStatusLabel->setStyleSheet(AppStyle::helpLabelStyle());
     esvLayout->addRow(tr("Cache:"), m_esvCacheStatusLabel);
 
     QLabel* esvHelpLabel = new QLabel(
@@ -725,7 +725,7 @@ void SettingsDialog::createBiblePage()
            "ESV terms limit caching to 500 verses. Cached verses should be cleared periodically."),
         esvGroup);
     esvHelpLabel->setWordWrap(true);
-    esvHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    esvHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     esvLayout->addRow(esvHelpLabel);
 
     pageLayout->addWidget(esvGroup);
@@ -744,7 +744,7 @@ void SettingsDialog::createBiblePage()
            "Create a free account at scripture.api.bible to obtain an API key."),
         apiBibleGroup);
     apiBibleHelpLabel->setWordWrap(true);
-    apiBibleHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    apiBibleHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     apiBibleLayout->addRow(apiBibleHelpLabel);
 
     pageLayout->addWidget(apiBibleGroup);
@@ -780,7 +780,7 @@ void SettingsDialog::createCopyrightPage()
            "on title slides."),
         ccliGroup);
     ccliHelpLabel->setWordWrap(true);
-    ccliHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    ccliHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     ccliLayout->addRow(ccliHelpLabel);
 
     pageLayout->addWidget(ccliGroup);
@@ -798,7 +798,7 @@ void SettingsDialog::createCopyrightPage()
            "of the presentation."),
         copyrightSlideGroup);
     copyrightSlideHelpLabel->setWordWrap(true);
-    copyrightSlideHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    copyrightSlideHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     copyrightSlideLayout->addWidget(copyrightSlideHelpLabel);
 
     pageLayout->addWidget(copyrightSlideGroup);

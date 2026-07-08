@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Troy Dontigney
 
 #include "EsvScriptureDialog.h"
+#include "AppStyle.h"
 #include "Core/SettingsManager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -85,7 +86,7 @@ void EsvScriptureDialog::setupUI()
     // Cache warning label
     m_cacheLabel = new QLabel(this);
     m_cacheLabel->setWordWrap(true);
-    m_cacheLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    m_cacheLabel->setStyleSheet(AppStyle::helpLabelStyle());
     mainLayout->addWidget(m_cacheLabel);
 
     // Options section
@@ -260,7 +261,7 @@ void EsvScriptureDialog::onPassageFetched(const EsvPassage& passage)
 
     if (!passage.isValid()) {
         m_statusLabel->setText(tr("No passage found for the given reference."));
-        m_statusLabel->setStyleSheet("QLabel { color: red; }");
+        m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::errorColor()));
         emit contentReadyChanged(false);
         m_previewEdit->clear();
         return;
@@ -272,12 +273,12 @@ void EsvScriptureDialog::onPassageFetched(const EsvPassage& passage)
                                   "Current cache: %2 verses.")
                                   .arg(passage.verseCount)
                                   .arg(m_esvClient->cachedVerseCount()));
-        m_statusLabel->setStyleSheet("QLabel { color: orange; }");
+        m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::warningColor()));
     } else {
         m_statusLabel->setText(tr("Found: %1 (%2 verses)")
                                   .arg(passage.canonical)
                                   .arg(passage.verseCount));
-        m_statusLabel->setStyleSheet("QLabel { color: green; }");
+        m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::successColor()));
     }
 
     emit contentReadyChanged(true);
@@ -289,7 +290,7 @@ void EsvScriptureDialog::onFetchError(const QString& error)
 {
     m_searchButton->setEnabled(true);
     m_statusLabel->setText(error);
-    m_statusLabel->setStyleSheet("QLabel { color: red; }");
+    m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::errorColor()));
     emit contentReadyChanged(false);
     m_previewEdit->clear();
 }
@@ -351,9 +352,9 @@ void EsvScriptureDialog::updateCacheStatus()
     }
     if (total > EsvApiClient::MAX_CACHED_VERSES) {
         text += tr(" - EXCEEDS LIMIT");
-        m_cacheLabel->setStyleSheet("QLabel { color: red; font-size: 10pt; }");
+        m_cacheLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::errorColor(), 10));
     } else {
-        m_cacheLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+        m_cacheLabel->setStyleSheet(AppStyle::helpLabelStyle());
     }
 
     m_cacheLabel->setText(text);

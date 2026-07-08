@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Troy Dontigney
 
 #include "BibleImportDialog.h"
+#include "AppStyle.h"
 #include "Core/BibleDatabase.h"
 #include "Core/BibleImporter.h"
 #include <QVBoxLayout>
@@ -78,7 +79,7 @@ void BibleImportDialog::setupUI()
 
     // Format detection label
     m_formatLabel = new QLabel(sourceGroup);
-    m_formatLabel->setStyleSheet("QLabel { color: gray; font-style: italic; }");
+    m_formatLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::mutedTextColor()) + " QLabel { font-style: italic; }");
     m_formatLabel->setWordWrap(true);
     sourceLayout->addWidget(m_formatLabel);
 
@@ -87,7 +88,7 @@ void BibleImportDialog::setupUI()
         tr("Use <b>File</b> for single-file Bibles (OSIS, Zefania XML).\n"
            "Use <b>Folder</b> for USFM Bibles with one book per file."),
         sourceGroup);
-    helpLabel->setStyleSheet("QLabel { color: gray; font-size: 9pt; }");
+    helpLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::mutedTextColor(), 9));
     helpLabel->setWordWrap(true);
     sourceLayout->addWidget(helpLabel);
 
@@ -132,7 +133,7 @@ void BibleImportDialog::setupUI()
     mainLayout->addWidget(m_progressBar);
 
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setStyleSheet("QLabel { color: gray; }");
+    m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::mutedTextColor()));
     m_statusLabel->setWordWrap(true);
     mainLayout->addWidget(m_statusLabel);
 
@@ -204,7 +205,7 @@ void BibleImportDialog::onPathChanged(const QString& path)
         parseFile(path);
     } else {
         m_formatLabel->setText(tr("Path does not exist"));
-        m_formatLabel->setStyleSheet("QLabel { color: red; }");
+        m_formatLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::errorColor()));
     }
 }
 
@@ -216,12 +217,12 @@ void BibleImportDialog::parseFile(const QString& filePath)
     QString format = BibleImporterFactory::detectFormat(filePath);
     if (format.isEmpty()) {
         m_formatLabel->setText(tr("Unrecognized file format"));
-        m_formatLabel->setStyleSheet("QLabel { color: red; }");
+        m_formatLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::errorColor()));
         return;
     }
 
     m_formatLabel->setText(tr("Detected Format: %1").arg(format));
-    m_formatLabel->setStyleSheet("QLabel { color: green; }");
+    m_formatLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::successColor()));
 
     // Create importer and parse file
     auto importer = BibleImporterFactory::createForFile(filePath, this);
@@ -245,7 +246,7 @@ void BibleImportDialog::parseFile(const QString& filePath)
 
     if (!m_parseResult->success) {
         m_statusLabel->setText(tr("Error: %1").arg(m_parseResult->error));
-        m_statusLabel->setStyleSheet("QLabel { color: red; }");
+        m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::errorColor()));
         return;
     }
 
@@ -263,7 +264,7 @@ void BibleImportDialog::parseFile(const QString& filePath)
         statusText += "\n" + m_parseResult->warnings.join("\n");
     }
     m_statusLabel->setText(statusText);
-    m_statusLabel->setStyleSheet("QLabel { color: gray; }");
+    m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::mutedTextColor()));
 
     updatePreview();
     setImportEnabled(true);
@@ -282,12 +283,12 @@ void BibleImportDialog::parseDirectory(const QString& dirPath)
 
     if (files.isEmpty()) {
         m_formatLabel->setText(tr("No USFM files found in folder"));
-        m_formatLabel->setStyleSheet("QLabel { color: red; }");
+        m_formatLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::errorColor()));
         return;
     }
 
     m_formatLabel->setText(tr("Found %1 USFM files").arg(files.size()));
-    m_formatLabel->setStyleSheet("QLabel { color: green; }");
+    m_formatLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::successColor()));
 
     m_filesToImport.clear();
     for (const QFileInfo& fi : files) {
@@ -351,7 +352,7 @@ void BibleImportDialog::parseDirectory(const QString& dirPath)
         m_parseResult->success = false;
         m_parseResult->error = tr("No verses found in any of the %1 files").arg(files.size());
         m_statusLabel->setText(tr("Error: %1").arg(m_parseResult->error));
-        m_statusLabel->setStyleSheet("QLabel { color: red; }");
+        m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::errorColor()));
         return;
     }
 
@@ -372,7 +373,7 @@ void BibleImportDialog::parseDirectory(const QString& dirPath)
         statusText += "\n" + tr("Warnings: %1").arg(m_parseResult->warnings.size());
     }
     m_statusLabel->setText(statusText);
-    m_statusLabel->setStyleSheet("QLabel { color: gray; }");
+    m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::mutedTextColor()));
 
     updatePreview();
     setImportEnabled(true);

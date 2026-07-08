@@ -55,6 +55,26 @@ public:
     /** @brief Returns the most recently applied theme mode. */
     static ThemeMode currentMode() { return s_currentMode; }
 
+    // -----------------------------------------------------------------
+    // Semantic colors — resolved against the effective theme so status
+    // text stays readable in both dark and light modes. Use these instead
+    // of hardcoded "red"/"green"/"gray" stylesheets.
+    // -----------------------------------------------------------------
+    static QColor accentColor();    ///< Brand/interaction accent (matches QSS)
+    static QColor successColor();   ///< Positive status text
+    static QColor errorColor();     ///< Error status text
+    static QColor warningColor();   ///< Warning status text
+    static QColor mutedTextColor(); ///< De-emphasized/help text
+
+    /**
+     * @brief Build a QLabel stylesheet for the given text color.
+     * @param pointSize optional font size override (-1 keeps the default)
+     */
+    static QString labelStyle(const QColor& color, int pointSize = -1);
+
+    /** @brief Stylesheet for muted 10pt help text under settings/controls. */
+    static QString helpLabelStyle();
+
     /**
      * @brief Returns the effective theme mode, resolving System to Dark or Light
      * based on the OS color scheme preference. Always returns Dark or Light.

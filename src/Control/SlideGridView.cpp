@@ -142,8 +142,8 @@ void SlideGridView::paintEvent(QPaintEvent* event)
         if (rect.isValid()) {
             QPainter painter(viewport());
             painter.setRenderHint(QPainter::Antialiasing, false);
-            // Green border for single slide, blue for whole group
-            QColor color = m_mediaApplyToGroup ? QColor("#3b82f6") : QColor("#22c55e");
+            // Green border for single slide, accent blue for whole group
+            QColor color = m_mediaApplyToGroup ? QColor("#0078d4") : QColor("#22c55e");
             QPen pen(color, 3);
             painter.setPen(pen);
             painter.setBrush(Qt::NoBrush);
@@ -180,7 +180,7 @@ void SlideGridView::paintEvent(QPaintEvent* event)
     QPainter painter(viewport());
     painter.setRenderHint(QPainter::Antialiasing, false);
 
-    QPen pen(QColor("#3b82f6"), 3);
+    QPen pen(QColor("#0078d4"), 3);
     painter.setPen(pen);
 
     int x = drawAtRightEdge ? itemRect.right() + 1 : itemRect.left() - 1;

@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Troy Dontigney
 
 #include "ApiBibleScriptureDialog.h"
+#include "AppStyle.h"
 #include "Core/SettingsManager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -115,7 +116,7 @@ void ApiBibleScriptureDialog::setupUI()
            "The search will try to find the passage in the selected Bible version."),
         this);
     formatHelpLabel->setWordWrap(true);
-    formatHelpLabel->setStyleSheet("QLabel { color: gray; font-size: 10pt; }");
+    formatHelpLabel->setStyleSheet(AppStyle::helpLabelStyle());
     searchLayout->addWidget(formatHelpLabel);
 
     // Search input row
@@ -155,7 +156,7 @@ void ApiBibleScriptureDialog::setupUI()
     // Copyright label
     m_copyrightLabel = new QLabel(this);
     m_copyrightLabel->setWordWrap(true);
-    m_copyrightLabel->setStyleSheet("QLabel { color: gray; font-size: 9pt; }");
+    m_copyrightLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::mutedTextColor(), 9));
     mainLayout->addWidget(m_copyrightLabel);
 
     // Options section
@@ -536,7 +537,7 @@ void ApiBibleScriptureDialog::onPassageFetched(const ApiBiblePassage& passage)
 
     if (!passage.isValid()) {
         m_statusLabel->setText(tr("No passage found for the given reference."));
-        m_statusLabel->setStyleSheet("QLabel { color: red; }");
+        m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::errorColor()));
         emit contentReadyChanged(false);
         m_previewEdit->clear();
         m_copyrightLabel->clear();
@@ -546,7 +547,7 @@ void ApiBibleScriptureDialog::onPassageFetched(const ApiBiblePassage& passage)
     m_statusLabel->setText(tr("Found: %1 (%2 verses)")
                               .arg(passage.reference)
                               .arg(passage.verseCount));
-    m_statusLabel->setStyleSheet("QLabel { color: green; }");
+    m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::successColor()));
 
     // Show copyright
     if (!m_passage.copyright.isEmpty()) {
@@ -566,7 +567,7 @@ void ApiBibleScriptureDialog::onFetchError(const QString& error)
 {
     m_searchButton->setEnabled(true);
     m_statusLabel->setText(error);
-    m_statusLabel->setStyleSheet("QLabel { color: red; }");
+    m_statusLabel->setStyleSheet(AppStyle::labelStyle(AppStyle::errorColor()));
     emit contentReadyChanged(false);
     m_previewEdit->clear();
 }

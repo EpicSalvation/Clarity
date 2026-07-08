@@ -49,6 +49,9 @@ StartupWidget::StartupWidget(QWidget* parent)
     QPushButton* newBtn = new QPushButton(tr("New Presentation"), column);
     QPushButton* openBtn = new QPushButton(tr("Open Presentation"), column);
 
+    // Filled accent styling from the app stylesheet (QPushButton[primary="true"])
+    newBtn->setProperty("primary", true);
+
     for (QPushButton* btn : {newBtn, openBtn}) {
         btn->setMinimumHeight(40);
         btn->setCursor(Qt::PointingHandCursor);
@@ -75,6 +78,7 @@ StartupWidget::StartupWidget(QWidget* parent)
     recentLayout->addWidget(m_recentLabel);
 
     m_recentList = new QListWidget(m_recentWidget);
+    m_recentList->setObjectName("recentList");  // elevated card styling in QSS
     m_recentList->setMinimumHeight(120);
     m_recentList->setMaximumHeight(250);
     m_recentList->setCursor(Qt::PointingHandCursor);

@@ -4,6 +4,52 @@ A chronological record of development work on the Clarity project.
 
 ---
 
+## 2026-07-08 - UI Modernization Pass
+
+### Summary
+Full visual refresh of the control interface to bring it in line with modern professional tools (ProPresenter, VS Code). The work is almost entirely static QSS and palette changes plus a small semantic-color API, so there is no per-frame rendering cost — slide navigation and preview performance are unaffected.
+
+### Work Completed
+
+**Theme stylesheets (`resources/styles/dark.qss`, `light.qss`) — full rewrite**
+- Unified accent color across the app: `#0078d4` (dark) / `#0067c0` (light). Previously five different blues were in use (`#0e639c`, `#1a85c7`, `#2563eb`, `#3b82f6`, `#0066cc`).
+- New styling for previously unstyled controls: `QToolBar`/`QToolButton` (flat header strip with rounded hover states), custom `QCheckBox`/`QRadioButton` indicators (accent fill + SVG checkmark instead of the dated Fusion look), `QComboBox`/`QSpinBox` chevron arrows (SVG, replacing the CSS-triangle hack).
+- VS Code-style flat tabs with accent underline; trackless rounded scrollbars; subtle list selection (`#04395e` dark / `#cce4f7` light); menus with padded rounded items; filled-accent default/primary buttons (`QPushButton:default` and `QPushButton[primary="true"]`); invisible splitter gutters that light up on hover.
+- The central slide grid (`QListView#slideGridView`) is now a recessed borderless "canvas" (extra dark) so slide thumbnails pop, ProPresenter-style. The startup recent-files list (`#recentList`) gets an elevated card look.
+
+**Semantic color API (`AppStyle`)**
+- New: `accentColor()`, `successColor()`, `errorColor()`, `warningColor()`, `mutedTextColor()` — resolved against the effective theme — plus `labelStyle(color, pointSize)` and `helpLabelStyle()` helpers.
+- Palette `Highlight` updated to the new accent in both themes; tooltip colors aligned with the QSS.
+
+**Hardcoded style cleanup (≈70 call sites)**
+- Replaced every `color: gray/red/green/orange/#666` inline label stylesheet in SettingsDialog, BibleImportDialog, EsvScriptureDialog, ApiBibleScriptureDialog, SongEditorDialog, SongSelectSearchDialog, TourOverlay, and ControlWindow with the AppStyle helpers. These were unreadable or harsh in dark mode (e.g. pure `green` status text).
+- Fixed light-only hardcodes that broke dark mode: image preview wells in SlideEditorDialog/MediaLibraryDialog (`#ccc`/`#f5f5f5` → palette-based), SongLibraryDialog lyrics preview (forced `#f5f5f5` background removed), and its drag-drop overlay (had `rgba(...,0.3)` which Qt parses as alpha 0 — now a visible accent overlay).
+- TourOverlay "Next" and StartupWidget "New Presentation" now use the shared `primary` button property instead of bespoke blue stylesheets.
+
+**Panel and delegate polish**
+- `ControlWindow`: edge-to-edge layout (media drawer bar spans the full width), 8 px content gutters, objectNames for the canvas/playlist styling hooks; remote-status link uses `palette(link)`.
+- `LivePreviewPanel`: Clear Text/Clear BG checked states now come from the global accent style; NDI outline and auto-advance paused color use the semantic colors; redundant progress-bar styling removed.
+- `SlideGridDelegate`: 6 px corner radius, accent selection border, hairline outline on unselected thumbnails (light slides no longer bleed into the canvas), removed the dotted focus rectangle. The green "live" border is unchanged. Thumbnail caching is untouched.
+- `SlideGridView`: drag-drop indicators use the unified accent.
+
+**New assets (`resources/icons/qss/`)**
+- `check.svg`, `dash.svg`, `check-dark/light.svg`, `chevron-up/down-dark/light.svg` — fixed-color SVGs for QSS use (QSS `image:` cannot resolve `currentColor`). Registered in `Resources.qrc`.
+
+### Technical Decisions
+- Everything is plain QSS + `QPalette` applied once at startup/theme-change: no gradients, shadows, animations, or event filters, preserving the <50 ms slide-transition budget.
+- QMenu corner radius kept at 4 px (proven safe on Windows without translucent-window workarounds).
+- Semantic colors are C++ helpers rather than QSS classes because status labels change color at runtime (error → success), which QSS alone can't express without repolishing.
+
+### Testing
+- Full build succeeds (Qt 6.4 in the dev container required temporarily stubbing pre-existing Qt 6.5+/6.7+ API calls — `Qt::ColorScheme`, `QCheckBox::checkStateChanged`, `beginFilterChange` — all stubs reverted before commit; none are related to this change).
+- Ran the app under Xvfb and screenshot-verified: dark startup screen, dark editing UI (canvas grid, live indicator, preview panel, tour overlay), Settings dialog (checkboxes, combos, category list), and the light theme.
+- Recommended manual pass on Windows: verify menus/tooltips have no corner artifacts and the toolbar hover states feel right at 125 %/150 % DPI.
+
+### Commits
+- Branch: `claude/ui-modernization-tiz80k`
+
+---
+
 ## 2026-07-03 - Security & Reliability Review Hardening
 
 ### Summary
